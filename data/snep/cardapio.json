@@ -1,0 +1,1573 @@
+{
+  "tenant": {
+    "slug": "snep",
+    "name": "Snep Pizzaria",
+    "address": "R. Joaquim Antônio de Freitas Júnior, 134 - Vila Roma, Itu/SP",
+    "instagram": "sneppizzariaitu",
+    "whatsapp": "5511973937104",
+    "schedule_text": "Segunda: fechado\nTerça, quarta, quinta, domingo: 18:00 às 21:50\nSexta, sábado: 18:00 às 22:40",
+    "accepted_payments": "Dinheiro,Pix,Débito,Crédito",
+    "eta": "40-50 min"
+  },
+  "categories": [
+    {
+      "name": "Pizzas Promocionais",
+      "slug": "promocionais",
+      "kind": "pizza",
+      "products": [
+        {
+          "name": "Calabresa Acebolada",
+          "description": "Molho especial, calabresa fatiada, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 29.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Milho c/ Catupiry",
+          "description": "Molho especial, milho, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Brócolis c/ Catupiry",
+          "description": "Molho especial, brócolis destiado, catupiry, alho frito e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Brócolis c/ Mussarela",
+          "description": "Molho especial, brócolis destiado, mussarela, alho frito, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Milho c/ Mussarela",
+          "description": "Molho especial, milho, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Mussarela",
+          "description": "Molho especial, mussarela, tomate, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Ralary",
+          "description": "Molho especial, calabresa ralada, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Toscana",
+          "description": "Molho especial, calabresa ralada, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Bautury",
+          "description": "Molho especial, presunto, tomate fatiado, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Bauru",
+          "description": "Molho especial, presunto, mussarela, tomate fatiado, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 35.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Calabresa c/ Mussarela",
+          "description": "Molho especial, calabresa fatiada, cebola, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Bacon",
+          "description": "Molho especial, bacon, mussarela, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Caipira",
+          "description": "Molho especial, frango desfiado, milho, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Palmito c/ Catupiry",
+          "description": "Molho especial, palmito, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Palmito c/ Mussarela",
+          "description": "Molho especial, palmito, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Dois Queijos",
+          "description": "Molho especial, catupiry, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Portuguesa",
+          "description": "Molho especial, presunto, mussarela, ovo, milho, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Lombo c/ Mussarela",
+          "description": "Molho especial, lombo fatiado, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Lombo c/ Catupiry",
+          "description": "Molho especial, lombo fatiado, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Frango c/ Catupiry",
+          "description": "Molho especial, frango desfiado, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Frango c/ Mussarela",
+          "description": "Molho especial, frango desfiado, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 37.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "X-Tudo",
+          "description": "Molho especial, lombo fatiado, ovo, catupiry, bacon, mussarela e orégano",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 39.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Marguerita",
+          "description": "Molho especial, mussarela, parmesão, manjericão, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 39.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Predileta",
+          "description": "Molho especial, frango desfiado, catupiry, bacon, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 42.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Queridinha",
+          "description": "Molho especial, lombo fatiado, bacon, ovo, catupiry, calabresa ralada, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 44.99,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Americana",
+          "description": "Molho especial, presunto, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Grande (8 pedaços)",
+              "price": 34.99,
+              "max_flavors": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pizzas Premium",
+      "slug": "premium",
+      "kind": "pizza",
+      "products": [
+        {
+          "name": "Paulista",
+          "description": "Molho especial, catupiry, palmito, bacon, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Peperone",
+          "description": "Molho especial, mussarela, peperone, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 67.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Portuguesa Premium",
+          "description": "Molho especial, mussarela, presunto, palmito, ovo, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Quatro Queijos",
+          "description": "Molho especial, mussarela, catupiry, provolone, gorgonzola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 38.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 68.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Toscana Premium",
+          "description": "Molho especial, mussarela com calabresa ralada, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Três Queijos",
+          "description": "Molho especial, mussarela, catupiry, provolone e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 37.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Veneza",
+          "description": "Molho especial, catupiry, brócolis, bacon, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 63.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Moda do Cido",
+          "description": "Molho especial, mussarela, tomate, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Vegetariana",
+          "description": "Molho especial, mussarela, brócolis, palmito, tomate, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 30.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Marguerita Premium",
+          "description": "Molho especial, mussarela, parmesão, manjericão, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 37.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Amandita",
+          "description": "Molho especial, mussarela, presunto, bacon, catupiry, ovo, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 75.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Alho Frito",
+          "description": "Molho especial, mussarela, alho frito, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "X-Tudo Premium",
+          "description": "Molho especial, lombo canadense, catupiry, ovo, bacon, mussarela e azeitinas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 38.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 70.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "A Moda do Nenê",
+          "description": "Molho especial, frango, calabresa, bacon, catupiry, mussarela, tomate, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 42.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 77.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Predileta Premium",
+          "description": "Molho especial, frango, catupiry, bacon, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 37.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 68.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Queridinha Premium",
+          "description": "Molho especial, lombo canadense, catupiry, bacon, ovo, calabresa ralada, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 41.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 76.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Moda dos Meninos",
+          "description": "Mussarela, catupiry, provolone, bacon, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 45.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 75.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Sua Moda",
+          "description": "Molho especial, mussarela, 4 ingredientes de sua preferência, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 50.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 86.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Catury",
+          "description": "Molho especial, calabresa, catupiry, cebola, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 60.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Cinco Queijos",
+          "description": "Molho especial, mussarela, catupiry, provolone, gorgonzola, parmesão, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 44.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 82.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Dois Queijos Premium",
+          "description": "Molho especial, mussarela, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 57.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Doritos",
+          "description": "Molho especial, mussarela, cheddar, bacon, doritos, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 39.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 69.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Fiorentina",
+          "description": "Molho especial, mussarela, presunto, catupiry, bacon, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 42.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Frambacon",
+          "description": "Molho especial, frango, mussarela, bacon, milho, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 41.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 69.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Francala",
+          "description": "Molho especial, mussarela, frango, calabresa, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 43.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 68.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Frango Catupiry",
+          "description": "Molho especial, frango, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 60.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Frango Especial",
+          "description": "Molho especial, mussarela, frango, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 42.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Calabacon",
+          "description": "Molho especial, calabresa, bacon, catupiry, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 67.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Frango I",
+          "description": "Molho especial, frango com mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 36.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 58.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Frango Xadrez",
+          "description": "Molho especial, mussarela, frango, catupiry, cheddar, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 68.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Lombo Especial",
+          "description": "Molho especial, mussarela, lombo canadense, cebola, milho, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 68.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Milho Premium",
+          "description": "Molho especial, milho, mussarela, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Milho com Catupiry Premium",
+          "description": "Molho especial, milho, catupiry, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 30.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Mirabela",
+          "description": "Molho especial, mussarela, bacon, milho, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 38.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 60.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Peperone Especial",
+          "description": "Molho especial, peperone, provolone, parmesão e orégano",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 40.5,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 73.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Mussarela com Tomate",
+          "description": "Molho especial, mussarela, tomate fatiado e orégano",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 37.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 58.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Napolitana",
+          "description": "Molho especial, mussarela, tomate, parmesão, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 38.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Palmito Premium",
+          "description": "Molho especial, mussarela, palmito, cebola, tomate, orégano e azeitonas",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 38.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pizzas Doces",
+      "slug": "doces",
+      "kind": "doce",
+      "products": [
+        {
+          "name": "Dois Amor",
+          "description": "Chocolate ao leite e chocolate branco",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 38.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 57.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Oreo",
+          "description": "Chocolate ao leite, bolacha oreo e leite condensado",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Brigadeiro",
+          "description": "Chocolate ao leite e granulado",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 32.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 53.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Aquarela",
+          "description": "Chocolate ao leite e confete",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Nevada",
+          "description": "Banana, chocolate branco forneado e leite condensado",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 37.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 57.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Banana com Mussarela",
+          "description": "Banana, mussarela, canela e leite condensado",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 37.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 57.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Minions",
+          "description": "Banana, chocolate ao leite e leite condensado",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 35.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 57.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Prestígio",
+          "description": "Chocolate ao leite, coco e leite condensado",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 32.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 55.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Combinado",
+          "description": "Chocolate ao leite, morango, leite condensado",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 38.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 57.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Nuttela",
+          "description": "Nuttela e leite condensado. Opções de adicionais: morango, confete, granulado e ovomaltine",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 41.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 65.0,
+              "max_flavors": 2
+            }
+          ]
+        },
+        {
+          "name": "Tróia",
+          "description": "Chocolate ao leite, ovomaltine, morango e chocolate branco",
+          "variants": [
+            {
+              "label": "Broto",
+              "price": 37.0,
+              "max_flavors": 1
+            },
+            {
+              "label": "Inteira",
+              "price": 61.0,
+              "max_flavors": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pizza Metro",
+      "slug": "metro",
+      "kind": "metro",
+      "products": [
+        {
+          "name": "Pizza Metro (combo 4 sabores)",
+          "description": "Escolha até 4 sabores entre as linhas Promocional e Premium. Preço fixo do combo.",
+          "variants": [
+            {
+              "label": "Metro (combo)",
+              "price": 169.99,
+              "max_flavors": 4
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "addons": [
+    {
+      "name": "Calabresa",
+      "price_whole": 16.0,
+      "price_half": 8.0
+    },
+    {
+      "name": "Bacon",
+      "price_whole": 20.0,
+      "price_half": 13.0
+    },
+    {
+      "name": "Presunto",
+      "price_whole": 17.0,
+      "price_half": 10.0
+    },
+    {
+      "name": "Milho",
+      "price_whole": 10.0,
+      "price_half": 7.0
+    },
+    {
+      "name": "Ovo",
+      "price_whole": 8.0,
+      "price_half": 5.0
+    },
+    {
+      "name": "Catupiry",
+      "price_whole": 20.0,
+      "price_half": 12.0
+    },
+    {
+      "name": "Cheddar",
+      "price_whole": 20.0,
+      "price_half": 12.0
+    },
+    {
+      "name": "Palmito",
+      "price_whole": 15.0,
+      "price_half": 10.0
+    },
+    {
+      "name": "Tomate",
+      "price_whole": 8.0,
+      "price_half": 5.0
+    },
+    {
+      "name": "Mussarela",
+      "price_whole": 18.0,
+      "price_half": 10.0
+    },
+    {
+      "name": "Provolone",
+      "price_whole": 20.0,
+      "price_half": 12.0
+    },
+    {
+      "name": "Parmesão",
+      "price_whole": 20.0,
+      "price_half": 12.0
+    },
+    {
+      "name": "Gorgonzola",
+      "price_whole": 20.0,
+      "price_half": 12.0
+    },
+    {
+      "name": "Cebola",
+      "price_whole": 5.0,
+      "price_half": 3.0
+    },
+    {
+      "name": "Atum",
+      "price_whole": 16.0,
+      "price_half": 10.0
+    },
+    {
+      "name": "Frango",
+      "price_whole": 16.0,
+      "price_half": 10.0
+    },
+    {
+      "name": "Lombo Canadense",
+      "price_whole": 15.0,
+      "price_half": 10.0
+    }
+  ],
+  "borders": [
+    {
+      "group": "Borda Vulcão",
+      "name": "Catupiry",
+      "price": 18.0
+    },
+    {
+      "group": "Borda Vulcão",
+      "name": "Cheddar",
+      "price": 18.0
+    },
+    {
+      "group": "Borda Vulcão",
+      "name": "Mussarela com Bacon",
+      "price": 24.0
+    },
+    {
+      "group": "Borda Vulcão",
+      "name": "Chocolate ao Leite",
+      "price": 22.0
+    },
+    {
+      "group": "Borda Vulcão",
+      "name": "Chocolate Branco ao Leite",
+      "price": 22.0
+    },
+    {
+      "group": "Borda Caracol",
+      "name": "Catupiry",
+      "price": 18.0
+    },
+    {
+      "group": "Borda Caracol",
+      "name": "Cheddar",
+      "price": 18.0
+    },
+    {
+      "group": "Borda Tradicional",
+      "name": "Catupiry",
+      "price": 15.0
+    },
+    {
+      "group": "Borda Tradicional",
+      "name": "Cheddar",
+      "price": 15.0
+    },
+    {
+      "group": "Borda Tradicional",
+      "name": "Mussarela",
+      "price": 18.0
+    },
+    {
+      "group": "Borda Tradicional",
+      "name": "Mussarela com Bacon",
+      "price": 23.0
+    },
+    {
+      "group": "Borda Tradicional",
+      "name": "Chocolate ao Leite",
+      "price": 20.0
+    }
+  ],
+  "neighborhoods": [
+    {
+      "name": "Bairro Alto",
+      "fee": 7.0
+    },
+    {
+      "name": "Vila Nova",
+      "fee": 6.0
+    },
+    {
+      "name": "Bairro Alto das Palmeiras",
+      "fee": 6.0
+    },
+    {
+      "name": "Bairro Altos de São José",
+      "fee": 5.0
+    },
+    {
+      "name": "Bairro Brasil",
+      "fee": 8.0
+    },
+    {
+      "name": "Campos de Santo Antônio",
+      "fee": 12.0
+    },
+    {
+      "name": "Bairro Chafariz",
+      "fee": 8.0
+    },
+    {
+      "name": "Bairro Cruz das Almas",
+      "fee": 4.0
+    },
+    {
+      "name": "Bairro Itaim",
+      "fee": 5.0
+    },
+    {
+      "name": "Bairro Itaim 2",
+      "fee": 6.0
+    },
+    {
+      "name": "Bairro Liberdade",
+      "fee": 8.0
+    },
+    {
+      "name": "Bairro Maria Fernanda",
+      "fee": 6.0
+    },
+    {
+      "name": "Bairro Nossa Senhora Aparecida",
+      "fee": 7.0
+    },
+    {
+      "name": "Bairro Pinheirinho",
+      "fee": 10.0
+    },
+    {
+      "name": "Bairro Progresso",
+      "fee": 10.0
+    },
+    {
+      "name": "Bairro Rancho Grande",
+      "fee": 6.0
+    },
+    {
+      "name": "Bairro São Luiz",
+      "fee": 7.0
+    },
+    {
+      "name": "Portella",
+      "fee": 10.0
+    },
+    {
+      "name": "Centro",
+      "fee": 6.0
+    },
+    {
+      "name": "Condomínio Terras de São José",
+      "fee": 10.0
+    },
+    {
+      "name": "Itu Novo Centro",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Aeroporto",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Aeroporto I",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Agarussi",
+      "fee": 5.0
+    },
+    {
+      "name": "Jardim Alberto Gomes",
+      "fee": 7.0
+    },
+    {
+      "name": "Jardim Convenção",
+      "fee": 7.0
+    },
+    {
+      "name": "Jardim das Indústrias",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim das Rosas",
+      "fee": 4.0
+    },
+    {
+      "name": "Jardim do Estádio",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Eridano",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Estância Bom Viver",
+      "fee": 15.0
+    },
+    {
+      "name": "Jardim Faculdade",
+      "fee": 5.0
+    },
+    {
+      "name": "Jardim Novo Itu",
+      "fee": 7.0
+    },
+    {
+      "name": "Jardim Oliveira",
+      "fee": 10.0
+    },
+    {
+      "name": "Jardim Padre Bento",
+      "fee": 7.0
+    },
+    {
+      "name": "Jardim Paraíso",
+      "fee": 8.0
+    },
+    {
+      "name": "Jardim Paulista I",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Residencial Itaim",
+      "fee": 5.0
+    },
+    {
+      "name": "Jardim Residencial Itaim I",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Rosinha",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Santa Cruz",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Santa Laura",
+      "fee": 7.0
+    },
+    {
+      "name": "Jardim Santa Rosa",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim Santana",
+      "fee": 7.0
+    },
+    {
+      "name": "Jardim São Jorge",
+      "fee": 6.0
+    },
+    {
+      "name": "Jardim São José",
+      "fee": 5.0
+    },
+    {
+      "name": "Núcleo Habitacional São Judas Tadeu",
+      "fee": 7.0
+    },
+    {
+      "name": "Parque América",
+      "fee": 7.0
+    },
+    {
+      "name": "Parque das Indústrias",
+      "fee": 4.0
+    },
+    {
+      "name": "Parque das Rosas",
+      "fee": 4.0
+    },
+    {
+      "name": "Parque Industrial",
+      "fee": 4.0
+    },
+    {
+      "name": "Parque Nossa Senhora da Candelária",
+      "fee": 7.0
+    },
+    {
+      "name": "Parque Residencial Mayard",
+      "fee": 7.09
+    },
+    {
+      "name": "Parque Residencial Potiguara",
+      "fee": 18.0
+    },
+    {
+      "name": "Parque Residencial Presidente Médici",
+      "fee": 7.0
+    },
+    {
+      "name": "Parque São Camilo",
+      "fee": 5.0
+    },
+    {
+      "name": "Residencial Dona Tonica",
+      "fee": 10.0
+    },
+    {
+      "name": "Vila Bandeirantes",
+      "fee": 10.0
+    },
+    {
+      "name": "Vila Cleto",
+      "fee": 6.0
+    },
+    {
+      "name": "Vila Gardiman",
+      "fee": 6.0
+    },
+    {
+      "name": "Vila Guido",
+      "fee": 7.0
+    },
+    {
+      "name": "Vila Ianni",
+      "fee": 7.0
+    },
+    {
+      "name": "Vila Leis",
+      "fee": 6.0
+    },
+    {
+      "name": "Vila Lucinda",
+      "fee": 6.0
+    },
+    {
+      "name": "Vila Nova Itu",
+      "fee": 6.0
+    },
+    {
+      "name": "Vila Padre Bento",
+      "fee": 7.0
+    },
+    {
+      "name": "Vila Prudente de Moraes",
+      "fee": 6.0
+    },
+    {
+      "name": "Vila Roma",
+      "fee": 5.0
+    }
+  ],
+  "hours": {
+    "1": null,
+    "2": [
+      1080,
+      1310
+    ],
+    "3": [
+      1080,
+      1310
+    ],
+    "4": [
+      1080,
+      1310
+    ],
+    "5": [
+      1080,
+      1360
+    ],
+    "6": [
+      1080,
+      1360
+    ],
+    "0": [
+      1080,
+      1310
+    ]
+  }
+}

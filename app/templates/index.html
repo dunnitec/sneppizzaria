@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ d.tenant.name }}</title>
+<meta name="description" content="{{ d.tenant.name }} - Delivery. Peça pelo WhatsApp.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700,800&display=swap" rel="stylesheet">
+{% if inline %}<style>{{ css|safe }}</style>{% else %}<link rel="stylesheet" href="{{ url_for('static', filename='css/delivery.css') }}">{% endif %}
+{% if d.assets.fundo %}<style>:root{--bg-img:url("{{ d.assets.fundo }}")}</style>{% endif %}
+</head>
+<body>
+<div class="bg"></div>
+
+<div id="header"><div class="center">
+  {% if d.assets.logo %}<div class="logobox"><img class="logo" src="{{ d.assets.logo }}" alt="{{ d.tenant.name }}"></div>{% else %}<div class="logobox"><b>{{ d.tenant.name }}</b></div>{% endif %}
+  <div class="info"><h1>{{ d.tenant.name }}</h1><p>{{ d.tenant.address }}</p></div>
+  <div class="actions"><a class="btn-red btn-wa" href="https://wa.me/{{ d.tenant.whatsapp }}" target="_blank" rel="noopener">WhatsApp</a></div>
+</div></div>
+<div id="menu"><ul>
+  <li onclick="window.scrollTo({top:0,behavior:'smooth'})">🍴&nbsp; Cardápio</li>
+  <li onclick="document.getElementById('contato').scrollIntoView({behavior:'smooth'})">📞&nbsp; Contato</li>
+</ul></div>
+
+<div class="center">
+  <div class="banner" id="banner">
+    {% for b in d.assets.banners %}<div class="sl"><img src="{{ b }}" alt="banner"></div>{% endfor %}{% if not d.assets.banners %}<div class="sl on" style="background:#9a0202"></div>{% endif %}
+    <button class="arr prev" onclick="slide(-1)">‹</button><button class="arr next" onclick="slide(1)">›</button>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <div class="infobar">
+    <div class="blk" onclick="togglePop('pop-h',event)"><span class="dot" id="st-dot"></span><div><span id="st-txt">Fechado</span><small>Veja os horários</small></div><span class="caret">▼</span>
+      <div class="pop hrs" id="pop-h">{% for h in d.hours_rows %}<div><span>{{ h[0] }}</span><span>{{ h[1] }}</span></div>{% endfor %}</div></div>
+    <div class="blk"><span class="ico">🕒</span><div>Tempo de entrega<small>{{ d.tenant.eta }}</small></div></div>
+    <div class="blk" onclick="togglePop('pop-p',event)"><span class="ico">💳</span><div>Formas de pagamento</div><span class="caret">▼</span>
+      <div class="pop right" id="pop-p">{% for p in d.payments %}<div><span class="ic">{{ pay_icons.get(p, pay_icons["Cartão"])|safe }}</span><span>{{ p }}</span></div>{% endfor %}</div></div>
+  </div>
+
+  <div class="cols">
+    <div class="main">
+      <div class="tools">
+        <input id="q" placeholder="Busque por um produto" oninput="filterMenu()">
+        <select id="catsel" onchange="jumpCat(this.value)"><option value="">Filtrar cardápio</option><option value="all">Todos</option></select>
+      </div>
+      <div id="cats"></div>
+    </div>
+    <aside class="side">
+      <div class="withdraw"><div>Retirar na loja<small>{{ d.tenant.address }}</small></div><input type="checkbox" id="withdraw" onchange="renderCart()"></div>
+      <div class="cart" id="cart"></div>
+    </aside>
+  </div>
+</div>
+
+<footer id="contato"><div class="center">
+  <div><h4>Contato Estabelecimento</h4><p>{{ d.tenant.name }}</p><p>WhatsApp: {{ d.tenant.whatsapp_fmt }}</p><p>Instagram: @{{ d.tenant.instagram }}</p><p>{{ d.tenant.address }}</p></div>
+  <div><h4>Horário de Atendimento</h4><p class="st" id="ft-st">◉ Fechado</p>{% for h in d.hours_rows %}<p>{{ h[0] }}: {{ h[1] }}</p>{% endfor %}</div>
+  <div><h4>Formas de Pagamento</h4><p>{{ d.payments|join(", ") }}</p><h4 style="margin-top:12px">Área de Entrega</h4><p>{{ d.neighborhoods|length }} bairros de Itu — taxa por bairro (a partir de R$ {{ "%.2f"|format(d.min_fee)|replace(".", ",") }})</p></div>
+</div></footer>
+
+<div class="mbar" onclick="openCart()"><span>🛒</span><span>Ver carrinho</span><span id="mbar-total">R$ 0,00</span></div>
+<div class="toast" id="toast"></div>
+<div class="ovl" id="ovl" onclick="if(event.target===this)closeModal()"><div class="md" id="md"></div></div>
+
+<script>window.DELIVERY_DATA = {{ d|tojson }};</script>
+{% if inline %}<script>{{ js|safe }}</script>{% else %}<script src="{{ url_for('static', filename='js/delivery.js') }}"></script>{% endif %}
+</body>
+</html>

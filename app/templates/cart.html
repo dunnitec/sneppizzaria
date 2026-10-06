@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="cart-page">
+  <h1>Seu carrinho</h1>
+
+  {% if not cart %}
+    <p>Seu carrinho está vazio.</p>
+    <a class="btn-primary" href="{{ url_for('public.menu', slug=tenant.slug) }}">Ver cardápio</a>
+  {% else %}
+    <div class="cart-items">
+      {% for item in cart %}
+        <div class="cart-item">
+          <div class="cart-item-info">
+            <strong>{{ item.product_names }}</strong> — {{ item.variant_label }}
+            {% if item.border_name %}<br><small>Borda: {{ item.border_name }}</small>{% endif %}
+            {% if item.addon_names %}<br><small>Adicionais: {{ item.addon_names }}</small>{% endif %}
+            {% if item.notes %}<br><small>Obs: {{ item.notes }}</small>{% endif %}
+            <br><small>R$ {{ "%.2f"|format(item.unit_price) }} cada</small>
+          </div>
+          <div class="cart-item-actions">
+            <form method="post" action="{{ url_for('cart.update_item', slug=tenant.slug, item_id=item.id) }}">
+              <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="20" onchange="this.form.submit()">
+            </form>
+            <span class="line-total">R$ {{ "%.2f"|format(item.line_total) }}</span>
+            <form method="post" action="{{ url_for('cart.remove_item', slug=tenant.slug, item_id=item.id) }}">
+              <button type="submit" class="btn-link">Remover</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="cart-summary">
+      <p>Subtotal: <strong>R$ {{ "%.2f"|format(subtotal) }}</strong></p>
+      <p><small>Taxa de entrega calculada no próximo passo</small></p>
+      <a class="btn-primary" href="{{ url_for('cart.checkout', slug=tenant.slug) }}">Ir para o checkout</a>
+    </div>
+  {% endif %}
+</section>
+
+{% endblock %}

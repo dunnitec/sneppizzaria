@@ -1,0 +1,206 @@
+const DATA=window.DELIVERY_DATA;
+const money=v=>"R$ "+v.toFixed(2).replace(".",",");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let cart=[];
+
+/* ---------- banner ---------- */
+let bi=0;const bimgs=[...document.querySelectorAll("#banner .sl")];
+(function(){const d=document.getElementById("dots");bimgs.forEach((_,i)=>d.insertAdjacentHTML("beforeend",`<i onclick="goSlide(${i})"></i>`));goSlide(0);
+ if(bimgs.length>1)setInterval(()=>slide(1),6000);})();
+function goSlide(i){if(!bimgs.length)return;bi=(i+bimgs.length)%bimgs.length;bimgs.forEach((im,k)=>im.classList.toggle("on",k===bi));document.querySelectorAll("#dots i").forEach((x,k)=>x.classList.toggle("on",k===bi));}
+function slide(n){goSlide(bi+n);}
+bimgs.forEach(sl=>{const im=sl.querySelector("img");sl.style.backgroundImage=`url(${im.src})`;const f=()=>{if(im.naturalWidth/im.naturalHeight>1.4)sl.classList.add("wide");};im.complete?f():im.onload=f;});
+
+/* ---------- popups / status ---------- */
+function togglePop(id,ev){ev.stopPropagation();const p=document.getElementById(id);const on=p.classList.contains("on");document.querySelectorAll(".pop").forEach(x=>x.classList.remove("on"));if(!on)p.classList.add("on");}
+document.addEventListener("click",()=>document.querySelectorAll(".pop").forEach(x=>x.classList.remove("on")));
+(function status(){
+  const now=new Date(), d=now.getDay(), m=now.getHours()*60+now.getMinutes();
+  const h=DATA.hours[d]; let open=false;
+  if(h){const [a,b]=h; open = m>=a && m<b;}
+  document.getElementById("st-dot").classList.toggle("open",open);
+  document.getElementById("st-txt").textContent=open?"Aberto":"Fechado";
+  const f=document.getElementById("ft-st"); f.textContent=open?"◉ Aberto!":"◉ Fechado!"; f.classList.toggle("open",open);
+})();
+
+/* ---------- menu ---------- */
+const CATS=[];  // {name, slug, kind, cards:[...]}
+(function build(){
+  CATS.push({name:"Recados",slug:"recados",kind:"notice",cards:[{notice:true,lines:["Pizzas meio a meio será cobrado pelo valor da maior!","Pizza Metro: preço fixo, até 4 sabores das linhas Promocional e Premium."]}]});
+  DATA.categories.forEach(c=>{
+    const cat={name:c.name,slug:c.slug,kind:c.kind,cards:[]};
+    if(c.kind==="metro"){
+      const p=c.products[0], v=p.variants[0];
+      cat.cards.push({title:p.name,desc:p.description||"",fixed:v.price,label:v.label,max:v.max_flavors,cat:c,sizes:[1,2,3,4]});
+    } else {
+      // agrupa por tamanho (variant label)
+      const labels=[...new Set(c.products.flatMap(p=>p.variants.map(v=>v.label)))];
+      labels.forEach(lb=>{
+        const prices=c.products.map(p=>(p.variants.find(v=>v.label===lb)||{}).price).filter(x=>x!=null);
+        const maxF=Math.max(...c.products.map(p=>(p.variants.find(v=>v.label===lb)||{}).max_flavors||1));
+        cat.cards.push({title:lb,from:Math.min(...prices),label:lb,max:maxF,cat:c,sizes:Array.from({length:maxF},(_,i)=>i+1)});
+      });
+    }
+    CATS.push(cat);
+  });
+  const sel=document.getElementById("catsel"), box=document.getElementById("cats");
+  CATS.forEach((cat,ci)=>{
+    sel.insertAdjacentHTML("beforeend",`<option value="${cat.slug}">${esc(cat.name)}</option>`);
+    const cards=cat.cards.map((k,ki)=>{
+      if(k.notice) return `<div class="card full notice">${k.lines.map(l=>`<p>${esc(l)}</p>`).join("")}</div>`;
+      const btns=k.sizes.map(n=>`<button onclick="startFlow(${ci},${ki},${n})">${n} sabor${n>1?"es":""}</button>`).join("");
+      if(k.fixed) return `<div class="card full" data-name="${esc(k.title)}"><div class="top"><div><h3>${esc(k.title)}</h3><p class="desc">${esc(k.desc)}</p><p class="price">${money(k.fixed)}</p></div></div><div class="btns">${btns}</div></div>`;
+      return `<div class="card" data-name="${esc(k.title)}"><div class="top"><h3>${esc(k.title)}</h3><span class="from">A partir de <b>${money(k.from)}</b></span></div><div class="btns">${btns}</div></div>`;
+    }).join("");
+    box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}"><h2>${esc(cat.name)}</h2><div class="grid">${cards}</div></section>`);
+  });
+})();
+function jumpCat(slug){document.querySelectorAll(".cat").forEach(s=>s.style.display=(!slug||slug==="all"||s.dataset.slug===slug)?"":"none");if(slug&&slug!=="all")document.getElementById("cat-"+slug).scrollIntoView({behavior:"smooth"});}
+function filterMenu(){
+  const q=document.getElementById("q").value.trim().toLowerCase();
+  document.querySelectorAll(".cat").forEach(s=>{
+    const cat=CATS.find(c=>c.slug===s.dataset.slug);
+    if(!q){s.style.display="";return;}
+    const hit=cat.kind!=="notice"&&(cat.name.toLowerCase().includes(q)||(cat.cards[0].cat||{products:[]}).products.some(p=>p.name.toLowerCase().includes(q)));
+    s.style.display=hit?"":"none";
+  });
+}
+
+/* ---------- fluxo (modal em etapas) ---------- */
+let F=null; // {card, n, step, flavors:[], border:null, addons:{}, qty, notes}
+function startFlow(ci,ki,n){
+  const k=CATS[ci].cards[ki];
+  F={card:k,n,step:0,flavors:[],border:null,addons:{},qty:1,notes:""};
+  renderStep();
+  document.getElementById("ovl").classList.add("on");
+}
+function closeModal(){document.getElementById("ovl").classList.remove("on");F=null;}
+function flavorPool(){
+  const k=F.card;
+  if(k.cat.kind==="metro") return DATA.categories.filter(c=>c.kind==="pizza").flatMap(c=>c.products.map(p=>({...p,price:k.fixed,fixed:true})));
+  return k.cat.products.map(p=>{const v=p.variants.find(v=>v.label===k.label);return v?{...p,price:v.price}:null;}).filter(Boolean);
+}
+function isPremium(){return F.card.cat.kind==="pizza"&&F.card.cat.name.toLowerCase().startsWith("pizzas premium");}
+function steps(){const s=[];for(let i=0;i<F.n;i++)s.push({type:"flavor",i});s.push({type:"border"});if(isPremium())s.push({type:"addons"});s.push({type:"confirm"});return s;}
+function ordinal(i){return ["1º","2º","3º","4º"][i];}
+function unitPrice(){
+  const k=F.card; let p;
+  if(k.cat.kind==="metro") p=k.fixed; else p=Math.max(...F.flavors.map(f=>f.price));
+  if(F.border!=null) p+=DATA.borders[F.border].price;
+  const whole=/inteira|grande/i.test(k.label);
+  Object.entries(F.addons).forEach(([i,q])=>{const a=DATA.addons[i];p+=q*(whole?a.price_whole:a.price_half);});
+  return p;
+}
+function renderStep(){
+  const st=steps()[F.step], md=document.getElementById("md"); let t="",sub="",body="",nextOk=true,nextLbl="Avançar ›";
+  if(st.type==="flavor"){
+    t=`Escolha o ${ordinal(st.i)} sabor.`;
+    const cur=F.flavors[st.i];
+    body=`<input class="srch" placeholder="Busque por um sabor" oninput="fl(this.value)"><div id="fl">`+flavorPool().map(p=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor('${esc(p.name).replace(/'/g,"\\'")}')"><div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
+    nextOk=!!cur;
+  } else if(st.type==="border"){
+    t="Bordas Recheadas"; sub="Escolha 1 opção para a pizza.";
+    const groups=[...new Set(DATA.borders.map(b=>b.group))];
+    body=`<div class="opt" onclick="F.border=null;renderStep()"><input type="radio" ${F.border==null?"checked":""}><div class="grow n" style="font-weight:400">Sem borda</div></div>`+
+      DATA.borders.map((b,i)=>`<div class="opt" onclick="F.border=${i};renderStep()"><input type="radio" ${F.border===i?"checked":""}><div class="grow" style="font-weight:400">${esc(b.group)} — ${esc(b.name)}</div><span class="pr">${money(b.price)}</span></div>`).join("");
+  } else if(st.type==="addons"){
+    t="Adicionais"; sub=`Escolha entre 0 e 5 opções para a pizza.`;
+    const whole=/inteira/i.test(F.card.label);
+    body=DATA.addons.map((a,i)=>`<div class="opt" style="cursor:default"><div class="cnt"><button class="m" onclick="addon(${i},-1)">−</button><span>${F.addons[i]||0}</span><button class="p" onclick="addon(${i},1)">+</button></div><div class="grow" style="font-weight:400">${esc(a.name)}</div><span class="pr">${money(whole?a.price_whole:a.price_half)}</span></div>`).join("");
+  } else {
+    t="Confirmação"; sub="Escolha a quantidade do item"; nextLbl="Adicionar";
+    const k=F.card, up=unitPrice();
+    const ttl=k.cat.kind==="metro"?`${k.title}`:`PIZZA ${k.cat.name.replace(/^Pizzas? /i,"")} ${k.label} (${F.n} sabor${F.n>1?"es":""})`;
+    body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(DATA.borders[F.border].name)}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}</div>
+      <div><div class="cnt" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button class="m" style="width:22px;height:22px;border-radius:50%;border:0;background:#e31c1c;color:#fff;font-weight:700" onclick="F.qty=Math.max(1,F.qty-1);renderStep()">−</button><span>${F.qty}</span><button style="width:22px;height:22px;border-radius:50%;border:0;background:#2fb344;color:#fff;font-weight:700" onclick="F.qty++;renderStep()">+</button></div>
+      <div class="big">${money(up*F.qty)}<small>${money(up)}</small></div></div></div>
+      <textarea placeholder="Observações" oninput="F.notes=this.value">${esc(F.notes)}</textarea>
+      ${k.cat.kind==="metro"?`<p class="note">*Pizza Metro: preço fixo, independente dos sabores.</p>`:`<p class="note">*O valor da pizza será definido pelo sabor de maior valor.</p>`}</div>`;
+  }
+  md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>${t}</h2>${sub?`<p>${sub}</p>`:""}</div><div class="body">${body}</div>
+    <div class="ft">${F.step>0?`<button class="bk" onclick="F.step--;renderStep()">‹ Voltar</button>`:""}<button class="nx" ${nextOk?"":"disabled"} onclick="next()">${nextLbl}</button></div>`;
+}
+function fl(q){q=q.toLowerCase();document.querySelectorAll("#fl .opt").forEach(o=>o.style.display=o.dataset.n.includes(q)?"":"none");}
+function pickFlavor(name){const p=flavorPool().find(x=>x.name===name);F.flavors[steps()[F.step].i]=p;renderStep();}
+function addon(i,d){const tot=Object.values(F.addons).reduce((s,q)=>s+q,0);const cur=F.addons[i]||0;if(d>0&&tot>=5)return;F.addons[i]=Math.max(0,cur+d);if(!F.addons[i])delete F.addons[i];renderStep();}
+function next(){
+  const s=steps();
+  if(s[F.step].type==="confirm"){
+    const k=F.card;
+    const title=k.cat.kind==="metro"?`Pizza Metro: ${F.flavors.map(f=>f.name).join(" + ")}`:(F.n>1?F.flavors.map(f=>`1/${F.n} ${f.name}`).join(" + "):F.flavors[0].name);
+    cart.push({title,variant:k.label,border:F.border!=null?DATA.borders[F.border].name:"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
+    closeModal();renderCart();toast("Item adicionado à cesta.");return;
+  }
+  F.step++;renderStep();
+}
+
+/* ---------- cesta ---------- */
+function subtotal(){return cart.reduce((s,i)=>s+i.price*i.qty,0);}
+function renderCart(){
+  const c=document.getElementById("cart");
+  document.getElementById("mbar-total").textContent=money(subtotal());
+  if(!cart.length){c.innerHTML=`<div class="empty"><span class="ic">🛒</span>Sua cesta ainda está vazia</div>`;return;}
+  const wd=document.getElementById("withdraw").checked;
+  c.innerHTML=`<div class="hd"><span>🛒 Sua cesta</span><span>${cart.reduce((s,i)=>s+i.qty,0)} item(ns)</span></div>`+
+    cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.notes?" · Obs: "+esc(i.notes):""}</small><span class="lt">${money(i.price*i.qty)}</span></div>
+      <div class="q"><button class="m" onclick="qty(${idx},-1)">−</button>${i.qty}<button class="p" onclick="qty(${idx},1)">+</button></div></div>`).join("")+
+    `<div class="ct"><span>Subtotal</span><span>${money(subtotal())}</span></div><div class="ct"><span>Entrega</span><span>${wd?"retirada":"por bairro"}</span></div>
+     <button class="go" onclick="openCheckout()">Finalizar pedido</button>`;
+}
+function qty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);renderCart();}
+function openCart(){
+  if(!cart.length){toast("Sua cesta ainda está vazia.");return;}
+  const md=document.getElementById("md");
+  md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Sua cesta</h2></div><div class="body" style="padding:0"><div class="withdraw" style="margin:10px 16px;border:1px solid #ddd"><div>Retirar na loja<small>${esc(DATA.tenant.address)}</small></div><input type="checkbox" ${document.getElementById("withdraw").checked?"checked":""} onchange="document.getElementById('withdraw').checked=this.checked;renderCart()"></div>
+    ${cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}</small><span class="lt">${money(i.price*i.qty)}</span></div><div class="q"><button class="m" onclick="qty(${idx},-1);openCart()">−</button>${i.qty}<button class="p" onclick="qty(${idx},1);openCart()">+</button></div></div>`).join("")}
+    <div class="ct tot"><span>Subtotal</span><span>${money(subtotal())}</span></div></div>
+    <div class="ft"><button class="bk" onclick="closeModal()">‹ Voltar</button><button class="nx" onclick="openCheckout()">Finalizar pedido</button></div>`;
+  document.getElementById("ovl").classList.add("on");
+}
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2200);}
+
+/* ---------- checkout → WhatsApp ---------- */
+function openCheckout(){
+  if(!cart.length)return;
+  const wd=document.getElementById("withdraw").checked;
+  const md=document.getElementById("md");
+  md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Finalizar pedido</h2><p>Pagamento na entrega. O pedido é enviado pelo WhatsApp.</p></div>
+  <form class="body ck" id="ckf" onsubmit="return finish(event)">
+    <label>Nome<input name="nome" required></label>
+    <label>Telefone / WhatsApp<input name="tel" type="tel" required></label>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" id="ck-wd" style="width:18px;height:18px;margin:0" ${wd?"checked":""} onchange="document.getElementById('addr').style.display=this.checked?'none':'';totals()"> Retirar na loja</label>
+    <div id="addr" style="${wd?"display:none":""}">
+      <label>Rua<input name="rua"></label>
+      <div class="r2"><label>Número<input name="num"></label><label>Complemento<input name="comp"></label></div>
+      <label>Bairro<select name="bairro" id="bairro" onchange="totals()"><option value="">Selecione…</option>${DATA.neighborhoods.map(n=>`<option value="${esc(n.name)}">${esc(n.name)} — ${money(n.fee)}</option>`).join("")}<option value="__outro__">Outro bairro (taxa a confirmar)</option></select></label>
+      <label>Ponto de referência<input name="ref"></label>
+    </div>
+    <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").map(p=>`<option>${p.trim()}</option>`).join("")}</select></label>
+    <label id="troco" style="display:none">Troco para quanto? (opcional)<input name="troco" type="number" step="0.01" min="0"></label>
+    <div class="sum" id="sum"></div>
+  </form>
+  <div class="ft"><button class="bk" type="button" onclick="openCart()">‹ Voltar</button><button class="nx" type="submit" form="ckf" style="background:#25d366">Enviar pelo WhatsApp</button></div>`;
+  document.getElementById("ovl").classList.add("on");totals();
+}
+function fee(){
+  if(document.getElementById("ck-wd").checked) return 0;
+  const b=document.getElementById("bairro").value; if(!b||b==="__outro__") return null;
+  const n=DATA.neighborhoods.find(x=>x.name===b); return n?n.fee:null;
+}
+function totals(){const f=fee(),s=subtotal();document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div><div><span>Entrega</span><span>${f===null?"a confirmar":money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s+(f||0))}</span></div>`;}
+function finish(ev){
+  ev.preventDefault();const f=ev.target,wd=document.getElementById("ck-wd").checked;
+  if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
+  const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,
+    items:cart.map(i=>({title:i.title,variant:i.variant,border:i.border,addons:i.addons,notes:i.notes,unit_price:i.price,quantity:i.qty}))};
+  const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
+  fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+    .then(r=>r.json()).then(r=>{
+      if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
+      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3><p>Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria.</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
+      cart=[];renderCart();
+    }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
+  return false;
+}
+renderCart();
