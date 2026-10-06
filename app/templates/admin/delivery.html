@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+{% block title %}Entrega{% endblock %}
+{% block content %}
+<h1>Taxa de entrega por bairro</h1>
+<p class="hint">Bairro fora da lista (ou desmarcado) aparece para o cliente como “taxa a confirmar”.</p>
+
+<section class="card">
+  <h2>Adicionar bairro</h2>
+  <form method="post" action="{{ url_for('admin.delivery_new') }}" class="row">
+    {{ csrf() }}
+    <label class="grow">Bairro<input name="name" maxlength="120" required></label>
+    <label class="money">Taxa<input name="fee" inputmode="decimal" placeholder="0,00" required></label>
+    <button class="primary small">Adicionar</button>
+  </form>
+</section>
+
+<form method="post" class="card">
+  {{ csrf() }}
+  <h2>Bairros atendidos</h2>
+  {% for h in hoods %}
+  <div class="row {{ 'off' if not h.active }}">
+    <label class="check"><input type="checkbox" name="active-{{ h.id }}" {{ 'checked' if h.active }}> atende</label>
+    <span class="grow name">{{ h.name }}</span>
+    <label class="money">Taxa<input name="fee-{{ h.id }}" value="{{ h.fee|money_input }}" inputmode="decimal" required></label>
+  </div>
+  {% endfor %}
+  <div class="savebar"><button class="primary">Salvar taxas</button></div>
+</form>
+{% endblock %}

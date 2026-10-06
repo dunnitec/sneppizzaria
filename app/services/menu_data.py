@@ -63,16 +63,22 @@ def data_from_db(tenant, order_url, assets):
     import json
 
     from app.models import Addon, Border, Category, Neighborhood
+    from app.services.hours import is_open
 
+    # os ids vão para o navegador para que o pedido diga o que foi escolhido;
+    # o preço é sempre recalculado no servidor (services/pricing.py)
     cats = []
     for c in Category.query.filter_by(tenant_id=tenant.id).order_by(Category.sort_order, Category.id):
         cats.append(
             {
+                "id": c.id,
                 "name": c.name,
                 "slug": c.slug,
                 "kind": c.kind,
+                "allows_addons": c.allows_addons,
                 "products": [
                     {
+                        "id": p.id,
                         "name": p.name,
                         "description": p.description or "",
                         "variants": [
@@ -96,13 +102,14 @@ def data_from_db(tenant, order_url, assets):
             "eta": tenant.eta or "40-50 min",
         },
         "hours": json.loads(tenant.hours_json) if tenant.hours_json else {},
+        "open": is_open(tenant),
         "categories": cats,
         "addons": [
-            {"name": a.name, "price_whole": float(a.price_whole), "price_half": float(a.price_half)}
+            {"id": a.id, "name": a.name, "price_whole": float(a.price_whole), "price_half": float(a.price_half)}
             for a in Addon.query.filter_by(tenant_id=tenant.id, active=True).order_by(Addon.id)
         ],
         "borders": [
-            {"group": b.group_name, "name": b.name, "price": float(b.price)}
+            {"id": b.id, "group": b.group_name, "name": b.name, "price": float(b.price)}
             for b in Border.query.filter_by(tenant_id=tenant.id, active=True).order_by(Border.id)
         ],
         "neighborhoods": [

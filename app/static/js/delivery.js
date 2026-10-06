@@ -14,10 +14,16 @@ bimgs.forEach(sl=>{const im=sl.querySelector("img");sl.style.backgroundImage=`ur
 /* ---------- popups / status ---------- */
 function togglePop(id,ev){ev.stopPropagation();const p=document.getElementById(id);const on=p.classList.contains("on");document.querySelectorAll(".pop").forEach(x=>x.classList.remove("on"));if(!on)p.classList.add("on");}
 document.addEventListener("click",()=>document.querySelectorAll(".pop").forEach(x=>x.classList.remove("on")));
+// aberto/fechado vem do servidor (horário de Brasília); a prévia estática não tem servidor e usa o relógio local
+const CLOSED=DATA.open===false;
+const CLOSED_MSG="Estamos fechados no momento. Confira nossos horários de atendimento.";
 (function status(){
-  const now=new Date(), d=now.getDay(), m=now.getHours()*60+now.getMinutes();
-  const h=DATA.hours[d]; let open=false;
-  if(h){const [a,b]=h; open = m>=a && m<b;}
+  let open=DATA.open;
+  if(open===undefined){
+    const now=new Date(), d=now.getDay(), m=now.getHours()*60+now.getMinutes();
+    const h=DATA.hours[d]; open=false;
+    if(h){const [a,b]=h; open = m>=a && m<b;}
+  }
   document.getElementById("st-dot").classList.toggle("open",open);
   document.getElementById("st-txt").textContent=open?"Aberto":"Fechado";
   const f=document.getElementById("ft-st"); f.textContent=open?"◉ Aberto!":"◉ Fechado!"; f.classList.toggle("open",open);
@@ -80,7 +86,8 @@ function flavorPool(){
   if(k.cat.kind==="metro") return DATA.categories.filter(c=>c.kind==="pizza").flatMap(c=>c.products.map(p=>({...p,price:k.fixed,fixed:true})));
   return k.cat.products.map(p=>{const v=p.variants.find(v=>v.label===k.label);return v?{...p,price:v.price}:null;}).filter(Boolean);
 }
-function isPremium(){return F.card.cat.kind==="pizza"&&F.card.cat.name.toLowerCase().startsWith("pizzas premium");}
+function isPremium(){return !!F.card.cat.allows_addons;}
+function borderLabel(b){return b.group.replace(/^Borda /,"")+" - "+b.name;}
 function steps(){const s=[];for(let i=0;i<F.n;i++)s.push({type:"flavor",i});s.push({type:"border"});if(isPremium())s.push({type:"addons"});s.push({type:"confirm"});return s;}
 function ordinal(i){return ["1º","2º","3º","4º"][i];}
 function unitPrice(){
@@ -96,7 +103,7 @@ function renderStep(){
   if(st.type==="flavor"){
     t=`Escolha o ${ordinal(st.i)} sabor.`;
     const cur=F.flavors[st.i];
-    body=`<input class="srch" placeholder="Busque por um sabor" oninput="fl(this.value)"><div id="fl">`+flavorPool().map(p=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor('${esc(p.name).replace(/'/g,"\\'")}')"><div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
+    body=`<input class="srch" placeholder="Busque por um sabor" oninput="fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})"><div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
   } else if(st.type==="border"){
     t="Bordas Recheadas"; sub="Escolha 1 opção para a pizza.";
@@ -111,7 +118,7 @@ function renderStep(){
     t="Confirmação"; sub="Escolha a quantidade do item"; nextLbl="Adicionar";
     const k=F.card, up=unitPrice();
     const ttl=k.cat.kind==="metro"?`${k.title}`:`PIZZA ${k.cat.name.replace(/^Pizzas? /i,"")} ${k.label} (${F.n} sabor${F.n>1?"es":""})`;
-    body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(DATA.borders[F.border].name)}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}</div>
+    body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(borderLabel(DATA.borders[F.border]))}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}</div>
       <div><div class="cnt" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button class="m" style="width:22px;height:22px;border-radius:50%;border:0;background:#e31c1c;color:#fff;font-weight:700" onclick="F.qty=Math.max(1,F.qty-1);renderStep()">−</button><span>${F.qty}</span><button style="width:22px;height:22px;border-radius:50%;border:0;background:#2fb344;color:#fff;font-weight:700" onclick="F.qty++;renderStep()">+</button></div>
       <div class="big">${money(up*F.qty)}<small>${money(up)}</small></div></div></div>
       <textarea placeholder="Observações" oninput="F.notes=this.value">${esc(F.notes)}</textarea>
@@ -121,14 +128,16 @@ function renderStep(){
     <div class="ft">${F.step>0?`<button class="bk" onclick="F.step--;renderStep()">‹ Voltar</button>`:""}<button class="nx" ${nextOk?"":"disabled"} onclick="next()">${nextLbl}</button></div>`;
 }
 function fl(q){q=q.toLowerCase();document.querySelectorAll("#fl .opt").forEach(o=>o.style.display=o.dataset.n.includes(q)?"":"none");}
-function pickFlavor(name){const p=flavorPool().find(x=>x.name===name);F.flavors[steps()[F.step].i]=p;renderStep();}
+function pickFlavor(pi){F.flavors[steps()[F.step].i]=flavorPool()[pi];renderStep();}
 function addon(i,d){const tot=Object.values(F.addons).reduce((s,q)=>s+q,0);const cur=F.addons[i]||0;if(d>0&&tot>=5)return;F.addons[i]=Math.max(0,cur+d);if(!F.addons[i])delete F.addons[i];renderStep();}
 function next(){
   const s=steps();
   if(s[F.step].type==="confirm"){
     const k=F.card;
     const title=k.cat.kind==="metro"?`Pizza Metro: ${F.flavors.map(f=>f.name).join(" + ")}`:(F.n>1?F.flavors.map(f=>`1/${F.n} ${f.name}`).join(" + "):F.flavors[0].name);
-    cart.push({title,variant:k.label,border:F.border!=null?DATA.borders[F.border].name:"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
+    // sel = o que foi escolhido (ids); é isso que o servidor usa para calcular o preço. O restante é só exibição.
+    const sel={category_id:k.cat.id,variant:k.label,flavors:F.flavors.map(f=>f.id),border_id:F.border!=null?DATA.borders[F.border].id:null,addons:Object.entries(F.addons).map(([i,q])=>({id:DATA.addons[i].id,qty:q}))};
+    cart.push({sel,title,variant:k.label,border:F.border!=null?borderLabel(DATA.borders[F.border]):"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
     closeModal();renderCart();toast("Item adicionado à cesta.");return;
   }
   F.step++;renderStep();
@@ -145,7 +154,7 @@ function renderCart(){
     cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.notes?" · Obs: "+esc(i.notes):""}</small><span class="lt">${money(i.price*i.qty)}</span></div>
       <div class="q"><button class="m" onclick="qty(${idx},-1)">−</button>${i.qty}<button class="p" onclick="qty(${idx},1)">+</button></div></div>`).join("")+
     `<div class="ct"><span>Subtotal</span><span>${money(subtotal())}</span></div><div class="ct"><span>Entrega</span><span>${wd?"retirada":"por bairro"}</span></div>
-     <button class="go" onclick="openCheckout()">Finalizar pedido</button>`;
+     ${CLOSED?`<p class="closed-note">${CLOSED_MSG}</p>`:`<button class="go" onclick="openCheckout()">Finalizar pedido</button>`}`;
 }
 function qty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);renderCart();}
 function openCart(){
@@ -162,6 +171,7 @@ function toast(m){const t=document.getElementById("toast");t.textContent=m;t.cla
 /* ---------- checkout → WhatsApp ---------- */
 function openCheckout(){
   if(!cart.length)return;
+  if(CLOSED){toast(CLOSED_MSG);return;}
   const wd=document.getElementById("withdraw").checked;
   const md=document.getElementById("md");
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Finalizar pedido</h2><p>Pagamento na entrega. O pedido é enviado pelo WhatsApp.</p></div>
@@ -193,12 +203,12 @@ function finish(ev){
   if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
     neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,
-    items:cart.map(i=>({title:i.title,variant:i.variant,border:i.border,addons:i.addons,notes:i.notes,unit_price:i.price,quantity:i.qty}))};
+    items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
-      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3><p>Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria.</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
+      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}<p>Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria.</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
       cart=[];renderCart();
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
   return false;

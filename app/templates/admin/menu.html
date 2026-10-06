@@ -1,0 +1,45 @@
+{% extends "admin/base.html" %}
+{% block title %}Cardápio{% endblock %}
+{% block content %}
+<h1>Cardápio</h1>
+<p class="hint">As alterações valem para os próximos pedidos assim que você salva. Desmarque “à venda” para tirar um sabor do site sem apagá-lo.</p>
+<div class="filters">
+  {% for c in categories %}<a href="#cat-{{ c.id }}">{{ c.name }}</a>{% endfor %}
+</div>
+
+{% for c in categories %}
+<section id="cat-{{ c.id }}" class="card">
+  <h2>{{ c.name }}</h2>
+  <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}">
+    {{ csrf() }}
+    {% for p in c.products %}
+    <div class="row {{ 'off' if not p.active }}">
+      <label class="check"><input type="checkbox" name="active-{{ p.id }}" {{ 'checked' if p.active }}> à venda</label>
+      <label class="grow">Nome<input name="name-{{ p.id }}" value="{{ p.name }}" maxlength="120" required></label>
+      <label class="grow2">Descrição<input name="desc-{{ p.id }}" value="{{ p.description or '' }}" maxlength="500"></label>
+      {% for v in p.variants %}
+      <label class="money">{{ v.label }}<input name="price-{{ v.id }}" value="{{ v.price|money_input }}" inputmode="decimal" required></label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <div class="savebar"><button class="primary">Salvar {{ c.name }}</button></div>
+  </form>
+
+  {% if c.kind != 'metro' %}
+  <details>
+    <summary>Adicionar sabor em {{ c.name }}</summary>
+    <form method="post" action="{{ url_for('admin.product_new', category_id=c.id) }}" class="row">
+      {{ csrf() }}
+      <label class="grow">Nome<input name="name" maxlength="120" required></label>
+      <label class="grow2">Descrição<input name="desc" maxlength="500"></label>
+      {% for label, max_flavors in sizes[c.id] %}
+      <label class="money">{{ label }}<input name="newprice-{{ loop.index0 }}" inputmode="decimal" placeholder="0,00"></label>
+      {% endfor %}
+      <button class="primary small">Adicionar</button>
+    </form>
+    <p class="hint">Deixe em branco o preço do tamanho que este sabor não tem.</p>
+  </details>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

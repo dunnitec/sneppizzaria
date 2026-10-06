@@ -6,6 +6,10 @@ primary_region = "gru"
 [env]
   PORT = "8080"
 
+# roda antes de cada deploy: cria/atualiza as tabelas sem apagar dados
+[deploy]
+  release_command = "flask db upgrade"
+
 [http_service]
   internal_port = 8080
   force_https = true

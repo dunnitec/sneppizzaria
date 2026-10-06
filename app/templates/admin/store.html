@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}Loja{% endblock %}
+{% block content %}
+<h1>Loja</h1>
+<form method="post">
+  {{ csrf() }}
+  <section class="card">
+    <h2>Aberta ou fechada</h2>
+    <p class="hint">Com a loja fechada o cliente vê o cardápio, mas não consegue finalizar o pedido.</p>
+    <label class="radio"><input type="radio" name="status" value="auto" {{ 'checked' if status == 'auto' }}> Seguir o horário de atendimento abaixo</label>
+    <label class="radio"><input type="radio" name="status" value="open" {{ 'checked' if status == 'open' }}> Aberta agora — fica aberta até você mudar aqui</label>
+    <label class="radio"><input type="radio" name="status" value="closed" {{ 'checked' if status == 'closed' }}> Fechada agora — fica fechada até você mudar aqui</label>
+  </section>
+
+  <section class="card">
+    <h2>Horário de atendimento</h2>
+    {% for d in days %}
+    <div class="row">
+      <span class="grow name">{{ d.name }}</span>
+      <label class="check"><input type="checkbox" name="closed-{{ d.n }}" {{ 'checked' if d.closed }}> fechado</label>
+      <label class="time">Abre<input type="time" name="open-{{ d.n }}" value="{{ d.open }}"></label>
+      <label class="time">Fecha<input type="time" name="close-{{ d.n }}" value="{{ d.close }}"></label>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Atendimento</h2>
+    <div class="row">
+      <label class="grow">Tempo de entrega mostrado no site<input name="eta" value="{{ tenant.eta or '' }}" maxlength="30" required></label>
+      <label class="grow">WhatsApp que recebe os pedidos (55 + DDD + número)<input name="whatsapp" value="{{ tenant.whatsapp or '' }}" inputmode="numeric" required></label>
+    </div>
+  </section>
+  <div class="savebar"><button class="primary">Salvar dados da loja</button></div>
+</form>
+{% endblock %}

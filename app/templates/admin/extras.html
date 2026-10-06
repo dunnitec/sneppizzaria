@@ -1,0 +1,31 @@
+{% extends "admin/base.html" %}
+{% block title %}Bordas e adicionais{% endblock %}
+{% block content %}
+<h1>Bordas e adicionais</h1>
+<form method="post">
+  {{ csrf() }}
+  <section class="card">
+    <h2>Bordas recheadas</h2>
+    {% for b in borders %}
+    <div class="row {{ 'off' if not b.active }}">
+      <label class="check"><input type="checkbox" name="border-active-{{ b.id }}" {{ 'checked' if b.active }}> à venda</label>
+      <span class="grow name">{{ b.group_name }} — {{ b.name }}</span>
+      <label class="money">Preço<input name="border-price-{{ b.id }}" value="{{ b.price|money_input }}" inputmode="decimal" required></label>
+    </div>
+    {% endfor %}
+  </section>
+  <section class="card">
+    <h2>Adicionais</h2>
+    <p class="hint">Só aparecem nas pizzas da linha que aceita adicionais (Premium).</p>
+    {% for a in addons %}
+    <div class="row {{ 'off' if not a.active }}">
+      <label class="check"><input type="checkbox" name="addon-active-{{ a.id }}" {{ 'checked' if a.active }}> à venda</label>
+      <span class="grow name">{{ a.name }}</span>
+      <label class="money">Inteira<input name="addon-whole-{{ a.id }}" value="{{ a.price_whole|money_input }}" inputmode="decimal" required></label>
+      <label class="money">Broto<input name="addon-half-{{ a.id }}" value="{{ a.price_half|money_input }}" inputmode="decimal" required></label>
+    </div>
+    {% endfor %}
+  </section>
+  <div class="savebar"><button class="primary">Salvar bordas e adicionais</button></div>
+</form>
+{% endblock %}

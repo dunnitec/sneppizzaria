@@ -1,0 +1,76 @@
+*{box-sizing:border-box}
+:root{--red:#c70000;--red-dark:#9a0202;--ink:#1d1d1f;--muted:#666;--line:#ddd;--bg:#f2f2f2;--ok:#1f7a3a}
+html,body{margin:0}
+body{font-family:"Open Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:15px;color:var(--ink);background:var(--bg)}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+main.wrap{padding-top:16px;padding-bottom:48px}
+h1{font-size:22px;margin:8px 0 6px}
+h2{font-size:17px;margin:0 0 12px}
+a{color:var(--red-dark)}
+.hint{color:var(--muted);font-size:13px;margin:4px 0 14px}
+
+/* ---------- topo ---------- */
+.top{background:var(--red-dark);color:#fff}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px}
+.brand{font-weight:700}
+.pill{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;background:#0003}
+.pill.on{background:#2fb344}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:0}
+.tabs a{color:#fff;text-decoration:none;padding:10px 12px;white-space:nowrap;border-radius:8px 8px 0 0;font-size:14px}
+.tabs a.cur{background:var(--bg);color:var(--ink);font-weight:600}
+
+/* ---------- blocos ---------- */
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 16px}
+.card.narrow{max-width:380px;margin:40px auto}
+.card.empty{color:var(--muted);text-align:center}
+.flash{padding:12px 14px;border-radius:8px;margin:0 0 14px;font-weight:600}
+.flash.ok{background:#e6f5ea;color:var(--ok);border:1px solid #b9dfc4}
+.flash.error{background:#fdeaea;color:var(--red-dark);border:1px solid #f0b4b4}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.filters a{padding:6px 12px;border:1px solid var(--line);border-radius:99px;background:#fff;text-decoration:none;color:var(--ink);font-size:13px}
+.filters a.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ---------- formulários ---------- */
+label{display:block;font-size:12px;color:var(--muted);font-weight:600}
+input:not([type=checkbox]):not([type=radio]){display:block;width:100%;margin-top:4px;padding:9px 10px;border:1px solid #bbb;border-radius:6px;font:inherit;color:var(--ink);background:#fff}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #f5a623;outline-offset:1px}
+.narrow label{margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;padding:10px 0;border-top:1px solid #eee}
+.row:first-of-type{border-top:0}
+.row.off{opacity:.55}
+.row .grow{flex:2 1 180px}
+.row .grow2{flex:3 1 240px}
+.row .money{flex:0 0 96px}
+.row .time{flex:0 0 110px}
+.row .name{align-self:center;font-weight:600}
+.check,.radio{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);font-weight:400;white-space:nowrap;padding-bottom:9px}
+.radio{padding:6px 0;font-size:15px;white-space:normal}
+.check input,.radio input{width:18px;height:18px;margin:0;accent-color:var(--red)}
+button{font:inherit;cursor:pointer;border-radius:6px;padding:10px 18px;border:1px solid transparent}
+button.primary{background:var(--red);color:#fff;font-weight:700}
+button.primary:hover{background:var(--red-dark)}
+button.ghost{background:transparent;border-color:currentColor;color:inherit}
+button.small{padding:8px 12px;font-size:13px}
+.narrow button{width:100%}
+.savebar{position:sticky;bottom:0;display:flex;justify-content:flex-end;padding:12px 0 0;margin-top:8px;background:linear-gradient(#fff0,#fff 30%)}
+form>.savebar{background:linear-gradient(#f2f2f200,var(--bg) 30%);padding-bottom:12px}
+.card form>.savebar{background:linear-gradient(#fff0,#fff 30%);padding-bottom:0}
+details{margin-top:14px;border-top:1px solid #eee;padding-top:12px}
+summary{cursor:pointer;font-weight:600;color:var(--red-dark)}
+
+/* ---------- pedidos ---------- */
+.order{border-left:5px solid #e0a800}
+.order.confirmado{border-left-color:#2fb344}
+.order.cancelado{border-left-color:#999;opacity:.7}
+.order-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.order-head .status{text-transform:uppercase;font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
+.order-head .total{margin-left:auto;font-size:17px}
+.order p{margin:6px 0}
+.order ul{margin:8px 0;padding-left:18px}
+.order .addr{color:var(--muted);font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
+@media (max-width:560px){
+  .row .money,.row .time{flex:1 1 90px}
+  .savebar .primary{width:100%}
+}

@@ -5,8 +5,8 @@ def brl(v):
     return f"R$ {float(v):.2f}".replace(".", ",")
 
 
-def build_order_message(tenant, order, cart, delivery_fee, subtotal, total):
-    lines = [f"*Novo pedido - {tenant.name}*", ""]
+def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, total):
+    lines = [f"*Novo pedido - {tenant.name}*", f"Pedido #{order_id}", ""]
 
     for item in cart:
         lines.append(f"▪ {item['quantity']}x {item['product_names']} ({item['variant_label']})")

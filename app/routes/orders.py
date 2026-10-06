@@ -1,4 +1,4 @@
-"""Recebe o pedido montado no navegador, calcula a taxa de entrega no servidor,
+"""Recebe as escolhas do cliente, calcula preços e taxa de entrega no servidor,
 grava o pedido no banco e devolve o link do WhatsApp com a mensagem pronta."""
 
 from decimal import Decimal, InvalidOperation
@@ -9,74 +9,74 @@ from app.extensions import db
 from app.models import Order, OrderItem
 from app.routes.public import get_tenant_or_404
 from app.services.delivery import calculate_fee
+from app.services.hours import is_open
+from app.services.pricing import OrderError, price_item
 from app.services.whatsapp import build_order_message, build_whatsapp_link
 
 orders_bp = Blueprint("orders", __name__)
 
+MAX_ITEMS = 30
 
-def _dec(v, default="0"):
+
+MAX_CHANGE_FOR = Decimal("99999.99")
+
+
+def _change_for(value):
+    """'Troco para quanto' digitado pelo cliente; qualquer coisa que não seja um valor razoável vira None."""
     try:
-        return Decimal(str(v if v not in (None, "") else default))
-    except (InvalidOperation, ValueError):
-        return Decimal(default)
+        amount = Decimal(str(value))
+    except InvalidOperation:
+        return None
+    if not amount.is_finite() or not 0 < amount <= MAX_CHANGE_FOR:
+        return None
+    return amount.quantize(Decimal("0.01"))
 
 
 @orders_bp.route("/<slug>/api/pedido", methods=["POST"])
 def create_order(slug):
     tenant = get_tenant_or_404(slug)
     p = request.get_json(silent=True) or {}
+    if not is_open(tenant):
+        return jsonify(ok=False, error="Estamos fechados no momento. Confira nossos horários de atendimento."), 400
+
     items = p.get("items") or []
-    if not items:
+    if not isinstance(items, list) or not items:
         return jsonify(ok=False, error="Sua cesta está vazia."), 400
-    if not (p.get("customer_name") or "").strip() or not (p.get("customer_phone") or "").strip():
+    if len(items) > MAX_ITEMS:
+        return jsonify(ok=False, error="Pedido grande demais. Fale com a loja pelo WhatsApp."), 400
+    if not str(p.get("customer_name") or "").strip() or not str(p.get("customer_phone") or "").strip():
         return jsonify(ok=False, error="Informe nome e telefone."), 400
 
     withdraw = bool(p.get("withdraw"))
-    if not withdraw and not ((p.get("street") or "").strip() and (p.get("number") or "").strip()):
+    if not withdraw and not (str(p.get("street") or "").strip() and str(p.get("number") or "").strip()):
         return jsonify(ok=False, error="Informe o endereço de entrega."), 400
 
-    cart = []
-    subtotal = Decimal("0")
-    for it in items:
-        qty = max(1, int(it.get("quantity") or 1))
-        unit = _dec(it.get("unit_price")).quantize(Decimal("0.01"))
-        line = (unit * qty).quantize(Decimal("0.01"))
-        subtotal += line
-        cart.append(
-            {
-                "product_names": (it.get("title") or "")[:200],
-                "variant_label": (it.get("variant") or "")[:60],
-                "border_name": (it.get("border") or "")[:120],
-                "addon_names": (it.get("addons") or "")[:300],
-                "notes": (it.get("notes") or "")[:300],
-                "unit_price": float(unit),
-                "quantity": qty,
-                "line_total": float(line),
-            }
-        )
+    try:
+        cart = [price_item(tenant, it) for it in items]
+    except OrderError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    subtotal = sum((line["line_total"] for line in cart), Decimal("0"))
 
+    neighborhood = str(p.get("neighborhood") or "").strip()
     if withdraw:
         fee, found = Decimal("0"), True
     else:
-        fee, found = calculate_fee(tenant.id, (p.get("neighborhood") or "").strip())
-    delivery_fee = float(fee) if found else None
-    total = float(subtotal) + (delivery_fee or 0)
+        fee, found = calculate_fee(tenant.id, neighborhood)
+    delivery_fee = fee if found else None
+    total = subtotal + (delivery_fee or Decimal("0"))
 
     order_info = {
-        "customer_name": p["customer_name"].strip()[:120],
-        "customer_phone": p["customer_phone"].strip()[:30],
-        "street": (p.get("street") or "").strip()[:200],
-        "number": (p.get("number") or "").strip()[:20],
-        "complement": (p.get("complement") or "").strip()[:120],
-        "neighborhood_name": (p.get("neighborhood") or "").strip()[:120] or ("Retirada na loja" if withdraw else "(outro bairro)"),
-        "reference": (p.get("reference") or "").strip()[:200],
-        "payment_method": (p.get("payment_method") or "").strip()[:30],
-        "change_for": p.get("change_for") or None,
+        "customer_name": str(p["customer_name"]).strip()[:120],
+        "customer_phone": str(p["customer_phone"]).strip()[:30],
+        "street": str(p.get("street") or "").strip()[:200],
+        "number": str(p.get("number") or "").strip()[:20],
+        "complement": str(p.get("complement") or "").strip()[:120],
+        "neighborhood_name": neighborhood[:120] or ("Retirada na loja" if withdraw else "(outro bairro)"),
+        "reference": str(p.get("reference") or "").strip()[:200],
+        "payment_method": str(p.get("payment_method") or "").strip()[:30],
+        "change_for": _change_for(p.get("change_for")),
         "withdraw": withdraw,
     }
-
-    message = build_order_message(tenant, order_info, cart, delivery_fee, float(subtotal), total)
-    wa_link = build_whatsapp_link(tenant.whatsapp, message)
 
     order = Order(
         tenant_id=tenant.id,
@@ -88,28 +88,37 @@ def create_order(slug):
         neighborhood_name=order_info["neighborhood_name"],
         reference=order_info["reference"],
         payment_method=order_info["payment_method"],
-        change_for=_dec(order_info["change_for"]) if order_info["change_for"] else None,
+        change_for=order_info["change_for"],
         subtotal=subtotal,
-        delivery_fee=Decimal(str(delivery_fee or 0)),
-        total=Decimal(str(total)),
-        whatsapp_message=message,
+        delivery_fee=delivery_fee or Decimal("0"),
+        total=total,
     )
     db.session.add(order)
-    db.session.flush()
-    for it in cart:
+    db.session.flush()  # gera o número do pedido usado na mensagem
+    for line in cart:
         db.session.add(
             OrderItem(
                 order_id=order.id,
-                product_names=it["product_names"],
-                variant_label=it["variant_label"],
-                border_name=it["border_name"] or None,
-                addon_names=it["addon_names"] or None,
-                notes=it["notes"] or None,
-                unit_price=Decimal(str(it["unit_price"])),
-                quantity=it["quantity"],
-                line_total=Decimal(str(it["line_total"])),
+                product_names=line["product_names"],
+                variant_label=line["variant_label"],
+                border_name=line["border_name"] or None,
+                addon_names=line["addon_names"] or None,
+                notes=line["notes"] or None,
+                unit_price=line["unit_price"],
+                quantity=line["quantity"],
+                line_total=line["line_total"],
             )
         )
+
+    message = build_order_message(tenant, order.id, order_info, cart, delivery_fee, subtotal, total)
+    order.whatsapp_message = message
     db.session.commit()
 
-    return jsonify(ok=True, order_id=order.id, wa_link=wa_link, subtotal=float(subtotal), delivery_fee=delivery_fee, total=total)
+    return jsonify(
+        ok=True,
+        order_id=order.id,
+        wa_link=build_whatsapp_link(tenant.whatsapp, message),
+        subtotal=float(subtotal),
+        delivery_fee=float(delivery_fee) if delivery_fee is not None else None,
+        total=float(total),
+    )

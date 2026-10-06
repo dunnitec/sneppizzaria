@@ -101,6 +101,7 @@ button{font-family:inherit}
 .ct.tot{font-weight:700;font-size:16px;border-top:1px solid #e5e5e5}
 .cart .go{display:block;width:calc(100% - 28px);margin:6px 14px 14px;background:#c70000;color:#fff;border:0;border-radius:6px;padding:12px;font-weight:700;font-size:15px;cursor:pointer}
 .cart .go.wa{background:#25d366}
+.cart .closed-note{margin:6px 14px 14px;padding:10px;border-radius:6px;background:#fff3f3;border:1px solid #f0b4b4;color:#9a0202;font-size:13px;text-align:center}
 
 /* ---------- footer ---------- */
 footer{background:#383838;color:#fff;margin-top:30px;padding:26px 0 60px;font-size:13px}

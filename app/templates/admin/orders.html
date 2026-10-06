@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% block title %}Pedidos{% endblock %}
+{% block content %}
+<h1>Pedidos</h1>
+<p class="hint">O pedido entra aqui quando o cliente clica em finalizar. Confirme quando a mensagem chegar no WhatsApp; cancele os que nunca chegaram.</p>
+<div class="filters">
+  <a href="{{ url_for('admin.orders') }}" class="{{ 'cur' if not status }}">Todos</a>
+  {% for s in statuses %}<a href="{{ url_for('admin.orders', status=s) }}" class="{{ 'cur' if status == s }}">{{ s|capitalize }}s</a>{% endfor %}
+</div>
+
+{% for o in orders %}
+<article class="card order {{ o.status }}">
+  <div class="order-head">
+    <b>#{{ o.id }}</b>
+    <span>{{ (o.created_at|local_time).strftime('%d/%m %H:%M') if o.created_at }}</span>
+    <span class="status">{{ o.status }}</span>
+    <b class="total">{{ o.total|brl }}</b>
+  </div>
+  <p><b>{{ o.customer_name }}</b> · {{ o.customer_phone }}</p>
+  <p class="addr">{% if o.street %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %} · {% endif %}{{ o.neighborhood_name }}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</p>
+  <ul>
+    {% for i in o.items %}
+    <li>{{ i.quantity }}x {{ i.product_names }} ({{ i.variant_label }}){% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.notes %} · Obs.: {{ i.notes }}{% endif %} — {{ i.line_total|brl }}</li>
+    {% endfor %}
+  </ul>
+  <p class="addr">Pagamento: {{ o.payment_method or '—' }}{% if o.change_for %} · troco para {{ o.change_for|brl }}{% endif %} · Entrega: {{ o.delivery_fee|brl }}</p>
+  <form method="post" action="{{ url_for('admin.order_status', order_id=o.id) }}" class="actions">
+    {{ csrf() }}
+    <input type="hidden" name="filter" value="{{ status or '' }}">
+    {% if o.status != 'confirmado' %}<button name="status" value="confirmado" class="primary small">Confirmar</button>{% endif %}
+    {% if o.status != 'cancelado' %}<button name="status" value="cancelado" class="ghost small">Cancelar</button>{% endif %}
+    {% if o.status != 'pendente' %}<button name="status" value="pendente" class="ghost small">Voltar para pendente</button>{% endif %}
+  </form>
+</article>
+{% else %}
+<p class="card empty">Nenhum pedido{{ ' ' ~ status if status }} por enquanto.</p>
+{% endfor %}
+{% endblock %}

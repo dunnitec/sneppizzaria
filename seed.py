@@ -1,7 +1,14 @@
-"""Popula o banco a partir de data/<slug>/cardapio.json.
+"""Carga inicial do banco a partir de data/<slug>/cardapio.json.
+
+Depois da primeira carga, o cardápio passa a ser editado pelo painel
+(/<slug>/admin/) e o banco é a fonte da verdade. Por isso a reimportação só
+acontece com --reset, que apaga o cardápio da loja (pedidos são preservados)
+e descarta as alterações feitas pelo painel.
 
 Uso:
-    python seed.py data/snep/cardapio.json
+    flask db upgrade                              # cria/atualiza as tabelas
+    python seed.py data/snep/cardapio.json        # primeira carga
+    python seed.py data/snep/cardapio.json --reset
 """
 
 import json
@@ -9,7 +16,11 @@ import sys
 
 from app import create_app
 from app.extensions import db
-from app.models import Addon, Border, Category, Product, ProductVariant, Tenant
+from app.models import Addon, Border, Category, Neighborhood, Product, ProductVariant, Tenant
+
+
+class SeedError(Exception):
+    pass
 
 
 def slugify(text):
@@ -29,12 +40,28 @@ def slugify(text):
     )
 
 
-def seed_from_file(path):
+def clear_menu(tenant_id):
+    """Apaga o cardápio de uma loja, dos filhos para os pais (respeita as chaves estrangeiras)."""
+    product_ids = db.select(Product.id).where(Product.tenant_id == tenant_id)
+    db.session.execute(db.delete(ProductVariant).where(ProductVariant.product_id.in_(product_ids)))
+    for model in (Product, Category, Addon, Border, Neighborhood):
+        db.session.execute(db.delete(model).where(model.tenant_id == tenant_id))
+    db.session.flush()
+
+
+def seed_from_file(path, reset=False):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
     t = data["tenant"]
     tenant = Tenant.query.filter_by(slug=t["slug"]).first()
+    if tenant and Category.query.filter_by(tenant_id=tenant.id).first():
+        if not reset:
+            raise SeedError(
+                f"A loja '{t['slug']}' já tem cardápio no banco. Altere pelo painel, "
+                "ou use --reset para apagar o cardápio atual e reimportar do arquivo."
+            )
+        clear_menu(tenant.id)
     if not tenant:
         tenant = Tenant(slug=t["slug"])
         db.session.add(tenant)
@@ -49,18 +76,13 @@ def seed_from_file(path):
     tenant.eta = t.get("eta", "40-50 min")
     db.session.flush()
 
-    # limpa cardápio anterior deste tenant para reimportar do zero
-    Category.query.filter_by(tenant_id=tenant.id).delete()
-    Addon.query.filter_by(tenant_id=tenant.id).delete()
-    Border.query.filter_by(tenant_id=tenant.id).delete()
-    db.session.flush()
-
     for order, cat in enumerate(data.get("categories", [])):
         category = Category(
             tenant_id=tenant.id,
             name=cat["name"],
             slug=cat.get("slug") or slugify(cat["name"]),
             kind=cat.get("kind", "pizza"),
+            allows_addons=bool(cat.get("allows_addons", False)),
             sort_order=order,
         )
         db.session.add(category)
@@ -107,19 +129,19 @@ def seed_from_file(path):
         )
 
     for hood in data.get("neighborhoods", []):
-        from app.models import Neighborhood
-
-        db.session.add(
-            Neighborhood(tenant_id=tenant.id, name=hood["name"], fee=hood["fee"])
-        )
+        db.session.add(Neighborhood(tenant_id=tenant.id, name=hood["name"], fee=hood["fee"]))
 
     db.session.commit()
-    print(f"Cardápio de '{tenant.name}' importado com sucesso ({len(data.get('categories', []))} categorias).")
+    return tenant
 
 
 if __name__ == "__main__":
-    file_path = sys.argv[1] if len(sys.argv) > 1 else "data/snep/cardapio.json"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    file_path = args[0] if args else "data/snep/cardapio.json"
     app = create_app()
     with app.app_context():
-        db.create_all()
-        seed_from_file(file_path)
+        try:
+            tenant = seed_from_file(file_path, reset="--reset" in sys.argv)
+        except SeedError as e:
+            sys.exit(str(e))
+        print(f"Cardápio de '{tenant.name}' importado com sucesso.")

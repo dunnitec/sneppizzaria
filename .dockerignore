@@ -8,3 +8,5 @@ instance/
 .git/
 *-previa.html
 *.bundle
+tests/
+.pytest_cache/

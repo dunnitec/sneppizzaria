@@ -1,6 +1,36 @@
-from datetime import datetime
+from datetime import datetime, timezone
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
+
+MIN_PASSWORD_LENGTH = 8
+
+
+def utcnow():
+    """Data/hora atual em UTC, sem fuso (como as colunas DateTime guardam)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class AdminUser(db.Model):
+    """Quem pode entrar no painel (/<slug>/admin/) de uma loja."""
+
+    __tablename__ = "admin_users"
+    __table_args__ = (db.UniqueConstraint("tenant_id", "username", name="uq_admin_users_tenant_username"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
+    username = db.Column(db.String(60), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)  # nunca a senha em si
+    failed_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime)  # bloqueio temporário após senhas erradas seguidas
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 class Tenant(db.Model):
@@ -21,7 +51,7 @@ class Tenant(db.Model):
     accepted_payments = db.Column(db.String(255), default="Dinheiro,Pix,Débito,Crédito")
     hours_json = db.Column(db.Text)  # {"0":[1080,1310],"1":null,...} minutos, 0=domingo
     eta = db.Column(db.String(30), default="40-50 min")  # tempo de entrega exibido
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     categories = db.relationship("Category", backref="tenant", lazy=True, order_by="Category.sort_order")
     neighborhoods = db.relationship("Neighborhood", backref="tenant", lazy=True)
@@ -34,7 +64,8 @@ class Category(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     name = db.Column(db.String(80), nullable=False)  # Pizzas Promocionais, Pizzas Premium, Pizzas Doces
     slug = db.Column(db.String(80), nullable=False)
-    kind = db.Column(db.String(20), default="pizza")  # pizza | doce | adicional
+    kind = db.Column(db.String(20), default="pizza")  # pizza | doce | metro
+    allows_addons = db.Column(db.Boolean, default=False, nullable=False)  # linha aceita adicionais por ingrediente
     sort_order = db.Column(db.Integer, default=0)
 
     products = db.relationship("Product", backref="category", lazy=True, order_by="Product.name")
@@ -114,7 +145,7 @@ class Customer(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     name = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(30), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 class Order(db.Model):
@@ -142,7 +173,7 @@ class Order(db.Model):
     status = db.Column(db.String(30), default="pendente")  # pendente | confirmado | cancelado
     whatsapp_message = db.Column(db.Text)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     items = db.relationship("OrderItem", backref="order", lazy=True, cascade="all, delete-orphan")
 

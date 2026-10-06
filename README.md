@@ -13,14 +13,38 @@ WhatsApp da loja com tudo preenchido.
 ```bash
 python -m venv venv
 venv\Scripts\activate        # Windows
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 copy .env.example .env       # e ajuste se quiser usar Postgres local
-python seed.py data/snep/cardapio.json   # cria o banco (sqlite por padrão) e importa o cardápio
+flask db upgrade                         # cria as tabelas (sqlite por padrão: snep.db)
+python seed.py data/snep/cardapio.json   # carga inicial do cardápio
+flask create-admin snep dono             # cria o usuário do painel (pede a senha)
 python run.py
 ```
 
-Acesse `http://localhost:5000/snep/`.
+Acesse `http://localhost:5000/snep/` (site) e `http://localhost:5000/snep/admin/` (painel).
+
+Testes: `python -m pytest`
+
+## Painel do dono (`/<slug>/admin/`)
+
+Depois da carga inicial, **o banco é a fonte da verdade** e o cardápio é
+mantido pelo painel:
+
+- **Pedidos** — lista dos pedidos, com confirmar/cancelar. O pedido é gravado
+  quando o cliente clica em finalizar; o número (`Pedido #123`) vai na mensagem
+  do WhatsApp para conferir.
+- **Cardápio** — preço, nome, descrição, à venda/esgotado e novos sabores.
+- **Bordas e adicionais**, **Entrega** (taxa por bairro) e **Loja** (horários,
+  tempo de entrega, WhatsApp e abrir/fechar manualmente).
+
+Segurança: senha guardada só como hash, bloqueio de 15 minutos após 5 senhas
+erradas, token CSRF em todo formulário, e cada usuário só acessa a própria loja.
+Esqueceu a senha? Rode `flask create-admin <slug> <usuario>` de novo.
+
+`python seed.py ...` se recusa a rodar sobre um cardápio existente. Para
+recomeçar do arquivo use `--reset` (apaga o cardápio da loja e as alterações
+feitas pelo painel; os pedidos são mantidos).
 
 ## Prévia sem servidor (para mandar ao cliente)
 
@@ -36,18 +60,25 @@ prévia é o que vai para o ar.
 ```
 app/
   models.py              -> Tenant, Category, Product, ProductVariant, Addon, Border,
-                             Neighborhood, Customer, Order, OrderItem
+                             Neighborhood, Customer, Order, OrderItem, AdminUser
   routes/public.py       -> página do cardápio (layout Norbas), lê imagens de static/img/<slug>/
-  routes/orders.py       -> POST /<slug>/api/pedido: calcula taxa, grava o pedido, devolve link wa.me
+  routes/orders.py       -> POST /<slug>/api/pedido: valida, grava o pedido, devolve link wa.me
+  routes/admin.py        -> painel do dono (/<slug>/admin/)
+  services/pricing.py    -> preço de cada item calculado no servidor (ignora preço vindo do navegador)
+  services/hours.py      -> aberto/fechado no horário de Brasília + botão manual
   services/menu_data.py  -> monta o JSON do cardápio (do banco ou do cardapio.json)
   services/delivery.py   -> taxa de entrega por bairro
   services/whatsapp.py   -> mensagem do pedido e link wa.me
+  cli.py                 -> comando flask create-admin
   templates/index.html   -> página única (cardápio + fluxo de sabores/borda/adicionais + cesta + checkout)
-  static/css/delivery.css, static/js/delivery.js
+  templates/admin/       -> telas do painel
+  static/css/delivery.css, static/js/delivery.js, static/css/admin.css
   static/img/snep/       -> logo.webp, banner1.webp, banner2.webp, fundo.webp
-data/snep/cardapio.json  -> cardápio, bairros, horários (fonte de verdade)
-seed.py                  -> importa o cardapio.json para o banco
+data/snep/cardapio.json  -> carga inicial: cardápio, bairros, horários
+migrations/              -> versões do esquema do banco (flask db upgrade)
+seed.py                  -> carga inicial do cardapio.json para o banco
 build_static_preview.py  -> gera o HTML único de prévia
+tests/                   -> testes automáticos (pytest)
 ```
 
 ## Visual
@@ -82,13 +113,23 @@ O pedido vai para o WhatsApp da loja e fica gravado na tabela `orders`.
 fly launch --no-deploy        # usa o fly.toml já incluso
 fly postgres create           # cria um Postgres gerenciado
 fly postgres attach <nome-do-banco>   # injeta DATABASE_URL automaticamente
-fly deploy
-fly ssh console -C "python seed.py data/snep/cardapio.json"   # popula o banco em produção
+fly secrets set SECRET_KEY=<chave>    # python -c "import secrets; print(secrets.token_hex(32))"
+fly deploy                    # o release_command roda "flask db upgrade" (cria/atualiza as tabelas)
+fly ssh console -C "python seed.py data/snep/cardapio.json"   # carga inicial, só na primeira vez
+fly ssh console               # e, lá dentro: flask create-admin snep <usuario>
 ```
+
+A imagem define `APP_ENV=production`: sem `SECRET_KEY` própria a aplicação
+não sobe, e o cookie de login do painel só trafega por HTTPS.
+
+Mudou um modelo em `app/models.py`? Gere a migração com
+`flask db migrate -m "descrição"`, revise o arquivo criado em
+`migrations/versions/` e faça o commit; o próximo deploy aplica.
 
 ## Adicionando uma nova pizzaria (multi-tenant)
 
 Crie `data/<slug>/cardapio.json` seguindo o mesmo formato de
-`data/snep/cardapio.json` e rode `python seed.py data/<slug>/cardapio.json`.
+`data/snep/cardapio.json` e rode `python seed.py data/<slug>/cardapio.json`,
+depois `flask create-admin <slug> <usuario>` para o painel dela.
 A loja fica disponível em `/<slug>/` automaticamente — nenhuma mudança de
 código é necessária.
