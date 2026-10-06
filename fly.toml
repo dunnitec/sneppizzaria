@@ -5,17 +5,25 @@ primary_region = "gru"
 
 [env]
   PORT = "8080"
+  # banco SQLite dentro do volume persistente montado em /data
+  DATABASE_URL = "sqlite:////data/snep.db"
 
-# roda antes de cada deploy: cria/atualiza as tabelas sem apagar dados
-[deploy]
-  release_command = "flask db upgrade"
+# disco persistente: sobrevive a deploys e reinícios. O Fly tira uma cópia
+# (snapshot) por dia; aqui ficam guardadas as dos últimos 14 dias.
+[mounts]
+  source = "snep_data"
+  destination = "/data"
+  initial_size = "1gb"
+  snapshot_retention = 14
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  # um único servidor sempre ligado: o volume pertence a uma máquina só,
+  # e o cliente não espera o servidor "acordar" para ver o cardápio
+  auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
 
 [[vm]]
   memory = "512mb"

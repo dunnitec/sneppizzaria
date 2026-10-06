@@ -109,18 +109,25 @@ O pedido vai para o WhatsApp da loja e fica gravado na tabela `orders`.
 
 ## Deploy no Fly.io (região gru / São Paulo)
 
+O banco de produção é um arquivo SQLite (`/data/snep.db`) num volume
+persistente do Fly, definido em `fly.toml` (`[mounts]`).
+
 ```bash
-fly launch --no-deploy        # usa o fly.toml já incluso
-fly postgres create           # cria um Postgres gerenciado
-fly postgres attach <nome-do-banco>   # injeta DATABASE_URL automaticamente
+fly apps create snep-pizzaria
 fly secrets set SECRET_KEY=<chave>    # python -c "import secrets; print(secrets.token_hex(32))"
-fly deploy                    # o release_command roda "flask db upgrade" (cria/atualiza as tabelas)
+fly deploy --ha=false         # cria o volume no 1º deploy; a partida roda "flask db upgrade"
 fly ssh console -C "python seed.py data/snep/cardapio.json"   # carga inicial, só na primeira vez
 fly ssh console               # e, lá dentro: flask create-admin snep <usuario>
 ```
 
 A imagem define `APP_ENV=production`: sem `SECRET_KEY` própria a aplicação
 não sobe, e o cookie de login do painel só trafega por HTTPS.
+
+**Backup:** o Fly tira um snapshot diário do volume (guardados por 14 dias,
+`snapshot_retention`). Listar: `fly volumes snapshots list <id-do-volume>`;
+restaurar: `fly volumes create snep_data --snapshot-id <id> -s 1`. Se a máquina
+do Fly falhar, perde-se o que mudou desde o último snapshot. O volume pertence
+a uma única máquina — não aumente o número de máquinas (`fly scale count`).
 
 Mudou um modelo em `app/models.py`? Gere a migração com
 `flask db migrate -m "descrição"`, revise o arquivo criado em
