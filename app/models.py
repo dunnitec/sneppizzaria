@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -5,6 +6,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.extensions import db
 
 MIN_PASSWORD_LENGTH = 8
+
+
+def split_options(text):
+    """'Guaraná, Guaraná Zero' -> ['Guaraná', 'Guaraná Zero']"""
+    return [o.strip() for o in (text or "").split(",") if o.strip()]
 
 
 def utcnow():
@@ -67,6 +73,22 @@ class Category(db.Model):
     kind = db.Column(db.String(20), default="pizza")  # pizza | doce | metro
     allows_addons = db.Column(db.Boolean, default=False, nullable=False)  # linha aceita adicionais por ingrediente
     sort_order = db.Column(db.Integer, default=0)
+
+    # só para kind="metro" (combo de preço fixo), editável no painel
+    combo_sources = db.Column(db.Text)  # JSON: slugs das linhas de onde saem os sabores, ex. ["premium"]
+    combo_extras = db.Column(db.Text)  # o que acompanha o combo, um item por linha
+    combo_choice_label = db.Column(db.String(60))  # pergunta ao cliente, ex. "Sabor do Kuat 2L"
+    combo_choice_options = db.Column(db.String(255))  # respostas separadas por vírgula; vazio = sem pergunta
+
+    def combo_settings(self):
+        """Configuração do combo já interpretada (listas no lugar de texto)."""
+        sources = json.loads(self.combo_sources) if self.combo_sources else []
+        return {
+            "sources": sources,
+            "extras": [line.strip() for line in (self.combo_extras or "").splitlines() if line.strip()],
+            "choice_label": self.combo_choice_label or "",
+            "choice_options": split_options(self.combo_choice_options),
+        }
 
     products = db.relationship("Product", backref="category", lazy=True, order_by="Product.name")
 
@@ -188,6 +210,7 @@ class OrderItem(db.Model):
     variant_label = db.Column(db.String(30))
     border_name = db.Column(db.String(60))
     addon_names = db.Column(db.String(255))
+    extras = db.Column(db.String(255))  # o que acompanha um combo (brindes e escolha do cliente)
     notes = db.Column(db.String(255))
 
     unit_price = db.Column(db.Numeric(8, 2), nullable=False)

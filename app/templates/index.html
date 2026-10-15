@@ -7,7 +7,7 @@
 <meta name="description" content="{{ d.tenant.name }} - Delivery. Peça pelo WhatsApp.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,700,800&display=swap" rel="stylesheet">
-{% if inline %}<style>{{ css|safe }}</style>{% else %}<link rel="stylesheet" href="{{ url_for('static', filename='css/delivery.css') }}">{% endif %}
+{% if inline %}<style>{{ css|safe }}</style>{% else %}<link rel="stylesheet" href="{{ static_url('css/delivery.css') }}">{% endif %}
 {% if d.assets.fundo %}<style>:root{--bg-img:url("{{ d.assets.fundo }}")}</style>{% endif %}
 </head>
 <body>
@@ -64,6 +64,6 @@
 <div class="ovl" id="ovl" onclick="if(event.target===this)closeModal()"><div class="md" id="md"></div></div>
 
 <script>window.DELIVERY_DATA = {{ d|tojson }};</script>
-{% if inline %}<script>{{ js|safe }}</script>{% else %}<script src="{{ url_for('static', filename='js/delivery.js') }}"></script>{% endif %}
+{% if inline %}<script>{{ js|safe }}</script>{% else %}<script src="{{ static_url('js/delivery.js') }}"></script>{% endif %}
 </body>
 </html>

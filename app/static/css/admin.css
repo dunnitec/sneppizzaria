@@ -74,3 +74,9 @@ summary{cursor:pointer;font-weight:600;color:var(--red-dark)}
   .row .money,.row .time{flex:1 1 90px}
   .savebar .primary{width:100%}
 }
+
+/* ---------- combo ---------- */
+textarea{display:block;width:100%;margin-top:4px;padding:9px 10px;border:1px solid #bbb;border-radius:6px;font:inherit;color:var(--ink);background:#fff;resize:vertical}
+fieldset{border:1px solid #eee;border-radius:8px;margin:10px 0;padding:8px 14px;display:flex;flex-wrap:wrap;gap:4px 18px}
+legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 4px}
+form.combo{border-bottom:1px solid #eee;padding-bottom:14px;margin-bottom:6px}

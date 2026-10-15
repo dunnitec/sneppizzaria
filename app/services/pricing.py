@@ -4,7 +4,8 @@ O navegador só informa O QUE foi escolhido (categoria, tamanho, sabores,
 borda, adicionais). Qualquer preço enviado por ele é ignorado, então adulterar
 a página não muda o valor que chega para a loja.
 
-Regras: meio a meio cobra o sabor mais caro; Pizza Metro tem preço fixo;
+Regras: meio a meio cobra o sabor mais caro; o combo (kind="metro") tem preço
+fixo, sabores só das linhas que o dono escolheu e não leva borda paga;
 adicionais só nas categorias com allows_addons, no máximo MAX_ADDONS por pizza.
 """
 
@@ -100,12 +101,24 @@ def price_item(tenant, raw):
         if not combo:
             raise OrderError("Este item não está mais disponível.")
         variant = combo.variants[0]
+        settings = category.combo_settings()
         pool = Product.query.join(Category).filter(
-            Product.tenant_id == tenant.id, Product.active.is_(True), Category.kind == "pizza"
+            Product.tenant_id == tenant.id,
+            Product.active.is_(True),
+            Category.slug.in_(settings["sources"]),
+            Category.kind != "metro",
         )
         flavors = _flavors(raw, pool)
         label, max_flavors, price = variant.label, variant.max_flavors, _money(variant.price)
-        title = "Pizza Metro: " + " + ".join(p.name for p in flavors)
+        title = f"{category.name}: " + " + ".join(p.name for p in flavors)
+        if raw.get("border_id") not in (None, ""):
+            raise OrderError("O combo não aceita borda adicional.")
+        extras = list(settings["extras"])
+        if settings["choice_options"]:
+            choice = str(raw.get("combo_choice") or "")
+            if choice not in settings["choice_options"]:
+                raise OrderError(f"Escolha: {settings['choice_label'] or 'opção do combo'}.")
+            extras.append(f"{settings['choice_label'] or 'Escolha'}: {choice}")
     else:
         label = str(raw.get("variant") or "")
         flavors = _flavors(raw, Product.query.filter_by(category_id=category.id, active=True))
@@ -114,6 +127,7 @@ def price_item(tenant, raw):
             raise OrderError("Tamanho indisponível para o sabor escolhido. Atualize a página.")
         max_flavors = max(v.max_flavors for v in variants)
         price = max(_money(v.price) for v in variants)
+        extras = []
         n = len(flavors)
         title = flavors[0].name if n == 1 else " + ".join(f"1/{n} {p.name}" for p in flavors)
 
@@ -134,6 +148,7 @@ def price_item(tenant, raw):
         "variant_label": label,
         "border_name": f"{re.sub(r'^Borda ', '', border.group_name)} - {border.name}"[:60] if border else "",
         "addon_names": ", ".join(f"{qty}x {addon.name}" for addon, qty in addons)[:255],
+        "extras": ", ".join(extras)[:255],
         "notes": str(raw.get("notes") or "").strip()[:255],
         "unit_price": price,
         "quantity": quantity,

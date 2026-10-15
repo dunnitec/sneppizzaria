@@ -1103,17 +1103,23 @@
       ]
     },
     {
-      "name": "Pizza Metro",
+      "name": "Combo Pizza Trem",
       "slug": "metro",
       "kind": "metro",
+      "combo": {
+        "sources": ["premium"],
+        "extras": ["1 Kuat 2L", "Borda Caracol de Catupiry", "1 Broto Brigadeiro"],
+        "choice_label": "",
+        "choice_options": ""
+      },
       "products": [
         {
-          "name": "Pizza Metro (combo 4 sabores)",
-          "description": "Escolha até 4 sabores entre as linhas Promocional e Premium. Preço fixo do combo.",
+          "name": "Pizza Trem 70cm (4 sabores)",
+          "description": "4 sabores à sua escolha do cardápio Premium. Preço fixo do combo.",
           "variants": [
             {
-              "label": "Metro (combo)",
-              "price": 169.99,
+              "label": "Combo",
+              "price": 169.90,
               "max_flavors": 4
             }
           ]

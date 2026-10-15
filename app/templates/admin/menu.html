@@ -10,6 +10,33 @@
 {% for c in categories %}
 <section id="cat-{{ c.id }}" class="card">
   <h2>{{ c.name }}</h2>
+  {% if c.kind == 'metro' %}
+  {% set combo = c.combo_settings() %}
+  {% set flavors = (c.products[0].variants[0].max_flavors if c.products and c.products[0].variants else 4) %}
+  <form method="post" action="{{ url_for('admin.combo_save', category_id=c.id) }}" class="combo">
+    {{ csrf() }}
+    <p class="hint">Preço, nome e descrição do combo ficam logo abaixo. Aqui você define as regras dele.</p>
+    <div class="row">
+      <label class="grow">Nome do combo (título no site e no pedido)<input name="name" value="{{ c.name }}" maxlength="80" required></label>
+      <label class="money">Nº de sabores<input name="max_flavors" type="number" min="1" max="6" value="{{ flavors }}" required></label>
+    </div>
+    <fieldset>
+      <legend>O cliente escolhe os sabores destas linhas</legend>
+      {% for line in lines %}
+      <label class="check"><input type="checkbox" name="sources" value="{{ line.slug }}" {{ 'checked' if line.slug in combo.sources }}> {{ line.name }}</label>
+      {% endfor %}
+    </fieldset>
+    <div class="row">
+      <label class="grow2">O que acompanha (um item por linha)<textarea name="extras" rows="4">{{ combo.extras|join('\n') }}</textarea></label>
+    </div>
+    <div class="row">
+      <label class="grow">Pergunta ao cliente (opcional)<input name="choice_label" value="{{ combo.choice_label }}" maxlength="60" placeholder="Ex.: Sabor do Kuat 2L"></label>
+      <label class="grow2">Respostas, separadas por vírgula<input name="choice_options" value="{{ combo.choice_options|join(', ') }}" placeholder="Ex.: Guaraná, Guaraná Zero"></label>
+    </div>
+    <p class="hint">Deixe as respostas em branco para não perguntar nada ao cliente.</p>
+    <div class="savebar"><button class="primary">Salvar regras do combo</button></div>
+  </form>
+  {% endif %}
   <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}">
     {{ csrf() }}
     {% for p in c.products %}

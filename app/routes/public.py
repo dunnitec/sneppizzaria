@@ -15,10 +15,18 @@ def get_tenant_or_404(slug):
     return tenant
 
 
+def static_url(filename):
+    """URL de um arquivo estático com a data de modificação (?v=...), para o navegador
+    não mostrar a versão antiga guardada em cache depois que o arquivo é trocado."""
+    path = Path(current_app.static_folder) / filename
+    version = int(path.stat().st_mtime) if path.exists() else None
+    return url_for("static", filename=filename, v=version)
+
+
 def tenant_assets(tenant):
     """Imagens em app/static/img/<slug>/: logo.webp, banner*.webp, fundo.webp (todas opcionais)."""
     base = Path(current_app.static_folder) / "img" / tenant.slug
-    url = lambda name: url_for("static", filename=f"img/{tenant.slug}/{name}")  # noqa: E731
+    url = lambda name: static_url(f"img/{tenant.slug}/{name}")  # noqa: E731
     return {
         "logo": url("logo.webp") if (base / "logo.webp").exists() else "",
         "banners": [url(p.name) for p in sorted(base.glob("banner*.webp"))],

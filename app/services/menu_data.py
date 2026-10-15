@@ -47,6 +47,11 @@ def _finish(d, order_url, assets):
         order_url=order_url,
         assets=assets,
     )
+    for c in d.get("categories", []):  # cardapio.json guarda as opções como texto, igual ao banco
+        if isinstance((c.get("combo") or {}).get("choice_options"), str):
+            from app.models import split_options
+
+            c["combo"]["choice_options"] = split_options(c["combo"]["choice_options"])
     t["whatsapp_fmt"] = _fmt_phone(t.get("whatsapp"))
     t.setdefault("eta", "40-50 min")
     return d
@@ -76,6 +81,7 @@ def data_from_db(tenant, order_url, assets):
                 "slug": c.slug,
                 "kind": c.kind,
                 "allows_addons": c.allows_addons,
+                **({"combo": c.combo_settings()} if c.kind == "metro" else {}),
                 "products": [
                     {
                         "id": p.id,

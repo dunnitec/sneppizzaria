@@ -103,6 +103,7 @@ def create_order(slug):
                 variant_label=line["variant_label"],
                 border_name=line["border_name"] or None,
                 addon_names=line["addon_names"] or None,
+                extras=line["extras"] or None,
                 notes=line["notes"] or None,
                 unit_price=line["unit_price"],
                 quantity=line["quantity"],

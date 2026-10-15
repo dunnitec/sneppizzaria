@@ -32,12 +32,15 @@ const CLOSED_MSG="Estamos fechados no momento. Confira nossos horários de atend
 /* ---------- menu ---------- */
 const CATS=[];  // {name, slug, kind, cards:[...]}
 (function build(){
-  CATS.push({name:"Recados",slug:"recados",kind:"notice",cards:[{notice:true,lines:["Pizzas meio a meio será cobrado pelo valor da maior!","Pizza Metro: preço fixo, até 4 sabores das linhas Promocional e Premium."]}]});
+  const notes=["Pizzas meio a meio será cobrado pelo valor da maior!"];
+  DATA.categories.filter(c=>c.kind==="metro"&&c.products.length).forEach(c=>notes.push(comboNote(c)));
+  CATS.push({name:"Recados",slug:"recados",kind:"notice",cards:[{notice:true,lines:notes}]});
   DATA.categories.forEach(c=>{
     const cat={name:c.name,slug:c.slug,kind:c.kind,cards:[]};
     if(c.kind==="metro"){
       const p=c.products[0], v=p.variants[0];
-      cat.cards.push({title:p.name,desc:p.description||"",fixed:v.price,label:v.label,max:v.max_flavors,cat:c,sizes:[1,2,3,4]});
+      const extras=comboOf(c).extras;
+      cat.cards.push({title:p.name,desc:(p.description||"")+(extras.length?` Acompanha: ${extras.join(", ")}.`:""),fixed:v.price,label:v.label,max:v.max_flavors,cat:c,sizes:Array.from({length:v.max_flavors},(_,i)=>i+1)});
     } else {
       // agrupa por tamanho (variant label)
       const labels=[...new Set(c.products.flatMap(p=>p.variants.map(v=>v.label)))];
@@ -76,20 +79,33 @@ function filterMenu(){
 let F=null; // {card, n, step, flavors:[], border:null, addons:{}, qty, notes}
 function startFlow(ci,ki,n){
   const k=CATS[ci].cards[ki];
-  F={card:k,n,step:0,flavors:[],border:null,addons:{},qty:1,notes:""};
+  F={card:k,n,step:0,flavors:[],border:null,addons:{},choice:null,qty:1,notes:""};
   renderStep();
   document.getElementById("ovl").classList.add("on");
 }
 function closeModal(){document.getElementById("ovl").classList.remove("on");F=null;}
 function flavorPool(){
   const k=F.card;
-  if(k.cat.kind==="metro") return DATA.categories.filter(c=>c.kind==="pizza").flatMap(c=>c.products.map(p=>({...p,price:k.fixed,fixed:true})));
+  if(k.cat.kind==="metro"){const src=comboOf(k.cat).sources;return DATA.categories.filter(c=>c.kind!=="metro"&&src.includes(c.slug)).flatMap(c=>c.products.map(p=>({...p,price:k.fixed,fixed:true})));}
   return k.cat.products.map(p=>{const v=p.variants.find(v=>v.label===k.label);return v?{...p,price:v.price}:null;}).filter(Boolean);
 }
 function isPremium(){return !!F.card.cat.allows_addons;}
 function borderLabel(b){return b.group.replace(/^Borda /,"")+" - "+b.name;}
-function steps(){const s=[];for(let i=0;i<F.n;i++)s.push({type:"flavor",i});s.push({type:"border"});if(isPremium())s.push({type:"addons"});s.push({type:"confirm"});return s;}
-function ordinal(i){return ["1º","2º","3º","4º"][i];}
+// combo (kind "metro"): preço fixo, sabores das linhas escolhidas no painel, brindes e uma pergunta opcional ao cliente
+function comboOf(c){const x=c.combo||{};return {sources:x.sources||[],extras:x.extras||[],choice_label:x.choice_label||"",choice_options:x.choice_options||[]};}
+function lineName(slug){const c=DATA.categories.find(c=>c.slug===slug);return c?c.name.replace(/^Pizzas? /i,""):slug;}
+function comboNote(c){
+  const src=comboOf(c).sources.map(lineName), max=c.products[0].variants[0].max_flavors;
+  const lines=src.length>1?`das linhas ${src.slice(0,-1).join(", ")} e ${src[src.length-1]}`:`da linha ${src[0]||""}`;
+  return `${c.name}: preço fixo, até ${max} sabor${max>1?"es":""} ${lines}.`;
+}
+function isCombo(){return F.card.cat.kind==="metro";}
+function comboExtras(){if(!isCombo())return "";const c=comboOf(F.card.cat),x=[...c.extras];if(c.choice_options.length&&F.choice)x.push(`${c.choice_label||"Escolha"}: ${F.choice}`);return x.join(", ");}
+function steps(){const s=[];for(let i=0;i<F.n;i++)s.push({type:"flavor",i});
+  if(isCombo()){if(comboOf(F.card.cat).choice_options.length)s.push({type:"choice"});}
+  else{s.push({type:"border"});if(isPremium())s.push({type:"addons"});}
+  s.push({type:"confirm"});return s;}
+function ordinal(i){return `${i+1}º`;}
 function unitPrice(){
   const k=F.card; let p;
   if(k.cat.kind==="metro") p=k.fixed; else p=Math.max(...F.flavors.map(f=>f.price));
@@ -105,6 +121,10 @@ function renderStep(){
     const cur=F.flavors[st.i];
     body=`<input class="srch" placeholder="Busque por um sabor" oninput="fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})"><div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
+  } else if(st.type==="choice"){
+    const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
+    body=c.choice_options.map((o,i)=>`<div class="opt" onclick="F.choice=comboOf(F.card.cat).choice_options[${i}];renderStep()"><input type="radio" ${F.choice===o?"checked":""}><div class="grow" style="font-weight:400">${esc(o)}</div></div>`).join("");
+    nextOk=!!F.choice;
   } else if(st.type==="border"){
     t="Bordas Recheadas"; sub="Escolha 1 opção para a pizza.";
     const groups=[...new Set(DATA.borders.map(b=>b.group))];
@@ -118,11 +138,11 @@ function renderStep(){
     t="Confirmação"; sub="Escolha a quantidade do item"; nextLbl="Adicionar";
     const k=F.card, up=unitPrice();
     const ttl=k.cat.kind==="metro"?`${k.title}`:`PIZZA ${k.cat.name.replace(/^Pizzas? /i,"")} ${k.label} (${F.n} sabor${F.n>1?"es":""})`;
-    body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(borderLabel(DATA.borders[F.border]))}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}</div>
+    body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(borderLabel(DATA.borders[F.border]))}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}${comboExtras()?`<div class="sub">Acompanha: ${esc(comboExtras())}</div>`:""}</div>
       <div><div class="cnt" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button class="m" style="width:22px;height:22px;border-radius:50%;border:0;background:#e31c1c;color:#fff;font-weight:700" onclick="F.qty=Math.max(1,F.qty-1);renderStep()">−</button><span>${F.qty}</span><button style="width:22px;height:22px;border-radius:50%;border:0;background:#2fb344;color:#fff;font-weight:700" onclick="F.qty++;renderStep()">+</button></div>
       <div class="big">${money(up*F.qty)}<small>${money(up)}</small></div></div></div>
       <textarea placeholder="Observações" oninput="F.notes=this.value">${esc(F.notes)}</textarea>
-      ${k.cat.kind==="metro"?`<p class="note">*Pizza Metro: preço fixo, independente dos sabores.</p>`:`<p class="note">*O valor da pizza será definido pelo sabor de maior valor.</p>`}</div>`;
+      ${k.cat.kind==="metro"?`<p class="note">*${esc(k.cat.name)}: preço fixo, independente dos sabores.</p>`:`<p class="note">*O valor da pizza será definido pelo sabor de maior valor.</p>`}</div>`;
   }
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>${t}</h2>${sub?`<p>${sub}</p>`:""}</div><div class="body">${body}</div>
     <div class="ft">${F.step>0?`<button class="bk" onclick="F.step--;renderStep()">‹ Voltar</button>`:""}<button class="nx" ${nextOk?"":"disabled"} onclick="next()">${nextLbl}</button></div>`;
@@ -134,10 +154,10 @@ function next(){
   const s=steps();
   if(s[F.step].type==="confirm"){
     const k=F.card;
-    const title=k.cat.kind==="metro"?`Pizza Metro: ${F.flavors.map(f=>f.name).join(" + ")}`:(F.n>1?F.flavors.map(f=>`1/${F.n} ${f.name}`).join(" + "):F.flavors[0].name);
+    const title=k.cat.kind==="metro"?`${k.cat.name}: ${F.flavors.map(f=>f.name).join(" + ")}`:(F.n>1?F.flavors.map(f=>`1/${F.n} ${f.name}`).join(" + "):F.flavors[0].name);
     // sel = o que foi escolhido (ids); é isso que o servidor usa para calcular o preço. O restante é só exibição.
-    const sel={category_id:k.cat.id,variant:k.label,flavors:F.flavors.map(f=>f.id),border_id:F.border!=null?DATA.borders[F.border].id:null,addons:Object.entries(F.addons).map(([i,q])=>({id:DATA.addons[i].id,qty:q}))};
-    cart.push({sel,title,variant:k.label,border:F.border!=null?borderLabel(DATA.borders[F.border]):"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
+    const sel={category_id:k.cat.id,variant:k.label,flavors:F.flavors.map(f=>f.id),border_id:F.border!=null?DATA.borders[F.border].id:null,addons:Object.entries(F.addons).map(([i,q])=>({id:DATA.addons[i].id,qty:q})),combo_choice:F.choice||null};
+    cart.push({sel,title,variant:k.label,border:F.border!=null?borderLabel(DATA.borders[F.border]):"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),extras:comboExtras(),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
     closeModal();renderCart();toast("Item adicionado à cesta.");return;
   }
   F.step++;renderStep();
@@ -151,7 +171,7 @@ function renderCart(){
   if(!cart.length){c.innerHTML=`<div class="empty"><span class="ic">🛒</span>Sua cesta ainda está vazia</div>`;return;}
   const wd=document.getElementById("withdraw").checked;
   c.innerHTML=`<div class="hd"><span>🛒 Sua cesta</span><span>${cart.reduce((s,i)=>s+i.qty,0)} item(ns)</span></div>`+
-    cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.notes?" · Obs: "+esc(i.notes):""}</small><span class="lt">${money(i.price*i.qty)}</span></div>
+    cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.extras?" · Acompanha: "+esc(i.extras):""}${i.notes?" · Obs: "+esc(i.notes):""}</small><span class="lt">${money(i.price*i.qty)}</span></div>
       <div class="q"><button class="m" onclick="qty(${idx},-1)">−</button>${i.qty}<button class="p" onclick="qty(${idx},1)">+</button></div></div>`).join("")+
     `<div class="ct"><span>Subtotal</span><span>${money(subtotal())}</span></div><div class="ct"><span>Entrega</span><span>${wd?"retirada":"por bairro"}</span></div>
      ${CLOSED?`<p class="closed-note">${CLOSED_MSG}</p>`:`<button class="go" onclick="openCheckout()">Finalizar pedido</button>`}`;
@@ -161,7 +181,7 @@ function openCart(){
   if(!cart.length){toast("Sua cesta ainda está vazia.");return;}
   const md=document.getElementById("md");
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Sua cesta</h2></div><div class="body" style="padding:0"><div class="withdraw" style="margin:10px 16px;border:1px solid #ddd"><div>Retirar na loja<small>${esc(DATA.tenant.address)}</small></div><input type="checkbox" ${document.getElementById("withdraw").checked?"checked":""} onchange="document.getElementById('withdraw').checked=this.checked;renderCart()"></div>
-    ${cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}</small><span class="lt">${money(i.price*i.qty)}</span></div><div class="q"><button class="m" onclick="qty(${idx},-1);openCart()">−</button>${i.qty}<button class="p" onclick="qty(${idx},1);openCart()">+</button></div></div>`).join("")}
+    ${cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.extras?" · Acompanha: "+esc(i.extras):""}</small><span class="lt">${money(i.price*i.qty)}</span></div><div class="q"><button class="m" onclick="qty(${idx},-1);openCart()">−</button>${i.qty}<button class="p" onclick="qty(${idx},1);openCart()">+</button></div></div>`).join("")}
     <div class="ct tot"><span>Subtotal</span><span>${money(subtotal())}</span></div></div>
     <div class="ft"><button class="bk" onclick="closeModal()">‹ Voltar</button><button class="nx" onclick="openCheckout()">Finalizar pedido</button></div>`;
   document.getElementById("ovl").classList.add("on");
@@ -203,7 +223,7 @@ function finish(ev){
   if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
     neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,
-    items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,unit_price:i.price}))};
+    items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{

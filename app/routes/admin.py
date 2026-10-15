@@ -22,6 +22,7 @@ from app.models import (
     Order,
     Product,
     ProductVariant,
+    split_options,
     utcnow,
 )
 from app.routes.public import get_tenant_or_404
@@ -219,7 +220,10 @@ def _category_or_404(category_id):
 @admin_bp.route("/cardapio")
 def menu():
     categories = Category.query.filter_by(tenant_id=g.tenant.id).order_by(Category.sort_order, Category.id).all()
-    return render_template("admin/menu.html", categories=categories, sizes={c.id: category_sizes(c) for c in categories})
+    lines = [c for c in categories if c.kind != "metro"]
+    return render_template(
+        "admin/menu.html", categories=categories, lines=lines, sizes={c.id: category_sizes(c) for c in categories}
+    )
 
 
 @admin_bp.route("/cardapio/<int:category_id>", methods=["POST"])
@@ -269,6 +273,44 @@ def product_new(category_id):
             )
         )
         _save(f"“{name}” adicionado em {category.name}.")
+    except FormError as e:
+        _reject(e)
+    return redirect(url_for("admin.menu", _anchor=f"cat-{category.id}"))
+
+
+MAX_COMBO_FLAVORS = 6
+
+
+@admin_bp.route("/cardapio/<int:category_id>/combo", methods=["POST"])
+def combo_save(category_id):
+    category = _category_or_404(category_id)
+    if category.kind != "metro":
+        abort(400)
+    form = request.form
+    try:
+        category.name = _name(form.get("name"), "o nome do combo", max_length=80)
+        lines = Category.query.filter(Category.tenant_id == g.tenant.id, Category.kind != "metro")
+        valid = {c.slug for c in lines}
+        sources = [s for s in form.getlist("sources") if s in valid]
+        if not sources:
+            raise FormError("Marque pelo menos uma linha de onde o cliente escolhe os sabores do combo.")
+        try:
+            max_flavors = int(form.get("max_flavors", ""))
+        except ValueError:
+            max_flavors = 0
+        if not 1 <= max_flavors <= MAX_COMBO_FLAVORS:
+            raise FormError(f"A quantidade de sabores do combo vai de 1 a {MAX_COMBO_FLAVORS}.")
+        extras = [" ".join(line.split()) for line in form.get("extras", "").splitlines() if line.strip()]
+        if any(len(line) > 80 for line in extras):
+            raise FormError("Cada item que acompanha o combo pode ter até 80 caracteres.")
+        category.combo_sources = json.dumps(sources)
+        category.combo_extras = "\n".join(extras)
+        category.combo_choice_label = " ".join(form.get("choice_label", "").split())[:60] or None
+        category.combo_choice_options = ", ".join(split_options(form.get("choice_options")))[:255] or None
+        for product in category.products:
+            for variant in product.variants:
+                variant.max_flavors = max_flavors
+        _save(f"{category.name}: configuração do combo salva.")
     except FormError as e:
         _reject(e)
     return redirect(url_for("admin.menu", _anchor=f"cat-{category.id}"))

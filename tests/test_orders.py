@@ -107,3 +107,9 @@ def test_menu_page_renders(client):
     r = client.get("/snep/")
     assert r.status_code == 200
     assert "Snep Pizzaria" in r.get_data(as_text=True)
+
+
+def test_static_files_carry_a_version_so_phones_get_new_banners(client):
+    html = client.get("/snep/").get_data(as_text=True)
+    assert "banner1.webp?v=" in html
+    assert "delivery.js?v=" in html

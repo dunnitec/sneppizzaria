@@ -85,6 +85,12 @@ def seed_from_file(path, reset=False):
             allows_addons=bool(cat.get("allows_addons", False)),
             sort_order=order,
         )
+        combo = cat.get("combo")
+        if combo:
+            category.combo_sources = json.dumps(combo.get("sources") or [])
+            category.combo_extras = "\n".join(combo.get("extras") or [])
+            category.combo_choice_label = combo.get("choice_label") or None
+            category.combo_choice_options = combo.get("choice_options") or None
         db.session.add(category)
         db.session.flush()
 

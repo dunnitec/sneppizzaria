@@ -55,12 +55,11 @@ def test_quantity_multiplies_line_total(tenant):
 
 def test_metro_has_fixed_price_whatever_the_flavors(tenant):
     metro = cat("metro")
-    fixed = variant_price(metro.products[0], "Metro (combo)")
-    _, dear = cheapest_and_dearest("premium", "Inteira")
-    promo = cat("promocionais").products[0]
-    line = price_item(tenant, {"category_id": metro.id, "flavors": [dear.id, promo.id], "quantity": 1})
+    fixed = variant_price(metro.products[0], "Combo")
+    cheap, dear = cheapest_and_dearest("premium", "Inteira")
+    line = price_item(tenant, {"category_id": metro.id, "flavors": [dear.id, cheap.id], "quantity": 1})
     assert line["unit_price"] == fixed
-    assert line["product_names"] == f"Pizza Metro: {dear.name} + {promo.name}"
+    assert line["product_names"] == f"{metro.name}: {dear.name} + {cheap.name}"
 
 
 def test_metro_rejects_sweet_flavors(tenant):

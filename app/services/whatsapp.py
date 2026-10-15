@@ -12,6 +12,8 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
         lines.append(f"▪ {item['quantity']}x {item['product_names']} ({item['variant_label']})")
         if item.get("border_name"):
             lines.append(f"   Borda: {item['border_name']}")
+        if item.get("extras"):
+            lines.append(f"   Acompanha: {item['extras']}")
         if item.get("addon_names"):
             lines.append(f"   Adicionais: {item['addon_names']}")
         if item.get("notes"):

@@ -49,7 +49,7 @@ window.__staticFinish = function(payload){
   const n=DATA.neighborhoods.find(x=>x.name===payload.neighborhood);
   const fee=payload.withdraw?0:(n?n.fee:null), t=s+(fee||0);
   let L=[`*Novo pedido - ${DATA.tenant.name}*`,""];
-  payload.items.forEach(i=>{L.push(`▪ ${i.quantity}x ${i.title} (${i.variant})`);if(i.border)L.push(`   Borda: ${i.border}`);if(i.addons_text)L.push(`   Adicionais: ${i.addons_text}`);if(i.notes)L.push(`   Obs: ${i.notes}`);L.push(`   ${money(i.unit_price*i.quantity)}`);});
+  payload.items.forEach(i=>{L.push(`▪ ${i.quantity}x ${i.title} (${i.variant})`);if(i.border)L.push(`   Borda: ${i.border}`);if(i.extras_text)L.push(`   Acompanha: ${i.extras_text}`);if(i.addons_text)L.push(`   Adicionais: ${i.addons_text}`);if(i.notes)L.push(`   Obs: ${i.notes}`);L.push(`   ${money(i.unit_price*i.quantity)}`);});
   L.push("",`Subtotal: ${money(s)}`);
   if(payload.withdraw)L.push("Retirada na loja",`*Total: ${money(t)}*`);else if(fee!==null)L.push(`Entrega: ${money(fee)}`,`*Total: ${money(t)}*`);else L.push("Entrega: a confirmar",`*Total (sem entrega): ${money(t)}*`);
   L.push("",`*Cliente:* ${payload.customer_name}`,`*Telefone:* ${payload.customer_phone}`);
