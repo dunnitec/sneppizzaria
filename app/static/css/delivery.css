@@ -9,14 +9,10 @@ button{font-family:inherit}
 
 /* ---------- header ---------- */
 #header{background:#9a0202;color:#fff}
-#header .center{display:flex;align-items:flex-end;height:140px;padding:0 12px;position:relative}
-#header .logobox{width:180px;height:180px;flex:0 0 180px;background:#c70000;display:flex;align-items:center;justify-content:center;position:relative;z-index:2;margin-bottom:-44px}
-#header .logo{width:180px;height:180px;object-fit:cover;display:block}
-#header .logo.placeholder{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;letter-spacing:1px;background:#c70000;border:6px solid #fff}
-#header .info{margin-left:18px;padding-bottom:10px}
-#header .info h1{margin:0;font-size:16px;font-weight:700;text-transform:uppercase}
-#header .info p{margin:2px 0 0;font-size:11px}
-#header .actions{position:absolute;right:12px;top:22px}
+#header .center{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:76px;padding:12px}
+#header .info h1{margin:0;font-size:18px;font-weight:700;text-transform:uppercase}
+#header .info p{margin:2px 0 0;font-size:12px}
+#header .actions{flex:none}
 .btn-red{background:#c70000;color:#fff;border:0;border-radius:6px;padding:8px 18px;font-size:14px;cursor:pointer;font-weight:600}
 .btn-wa{background:#25d366;color:#fff}
 #menu{background:#c70000}
@@ -159,11 +155,8 @@ footer .st.open{color:#7CFC8A}
   .bg{background-image:none!important}
   .side{display:none}
   .cols{display:block}
-  #header .center{flex-direction:column;justify-content:center;height:auto;padding:14px 12px 12px;text-align:center}
-  #header .center{height:auto}#header .logobox{width:110px;height:110px;flex-basis:110px;margin-bottom:0}#header .logo{width:110px;height:110px}
-  #header .info{margin:8px 0 0}
+  #header .center{min-height:0;padding:10px 12px}
   #header .info h1{font-size:16px}#header .info p{font-size:11px}
-  #header .actions{top:10px}
   #menu li{width:50%;font-size:12px}
   .banner{border-radius:0;margin:0 -12px 8px;aspect-ratio:1600/550}
   .banner .arr{font-size:30px}

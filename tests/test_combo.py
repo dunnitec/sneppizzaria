@@ -157,3 +157,13 @@ def test_combo_flavor_count_is_validated(panel, n):
 def test_combo_settings_route_refuses_regular_categories(panel):
     r = panel.post(f"/snep/admin/cardapio/{cat('premium').id}/combo", data=combo_form())
     assert r.status_code == 400
+
+
+def test_combo_flow_has_no_border_step_and_border_is_in_the_description(tenant):
+    c = combo()
+    assert "borda fixa caracol de catupiry" in c.products[0].description.lower()
+    assert "70 cm" in c.products[0].description
+
+
+def test_site_header_has_no_square_logo(client):
+    assert 'class="logobox"' not in client.get("/snep/").get_data(as_text=True)
