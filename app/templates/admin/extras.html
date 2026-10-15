@@ -2,7 +2,7 @@
 {% block title %}Bordas e adicionais{% endblock %}
 {% block content %}
 <h1>Bordas e adicionais</h1>
-<form method="post" id="extras">
+<form method="post" id="extras" data-track>
   {{ csrf() }}
   <section class="card">
     <h2>Bordas recheadas</h2>
@@ -37,7 +37,7 @@
 <div class="two">
   <section class="card">
     <h2>Nova borda</h2>
-    <form method="post" action="{{ url_for('admin.border_new') }}">
+    <form method="post" action="{{ url_for('admin.border_new') }}" data-track>
       {{ csrf() }}
       <div class="row">
         <label class="grow">Tipo<input name="group" maxlength="40" required placeholder="Ex.: Borda Tradicional" list="border-groups"></label>
@@ -50,7 +50,7 @@
   </section>
   <section class="card">
     <h2>Novo adicional</h2>
-    <form method="post" action="{{ url_for('admin.addon_new') }}">
+    <form method="post" action="{{ url_for('admin.addon_new') }}" data-track>
       {{ csrf() }}
       <div class="row">
         <label class="grow">Nome<input name="name" maxlength="80" required placeholder="Ex.: Cheddar"></label>

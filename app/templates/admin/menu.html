@@ -3,12 +3,17 @@
 {% block content %}
 <h1>Cardápio</h1>
 <p class="hint">As alterações valem para os próximos pedidos assim que você salva. Desmarque “à venda” para tirar um sabor do site sem apagá-lo.</p>
+<div class="card search-bar">
+  <label class="grow">Buscar sabor<input id="search" type="search" placeholder="Digite parte do nome, ex.: calabresa" autocomplete="off"
+         data-items=".flavor" data-sections="section.cat-card"></label>
+  <span id="search-count" class="hint" aria-live="polite"></span>
+</div>
 <div class="filters">
   {% for c in categories %}<a href="#cat-{{ c.id }}">{{ c.name }}</a>{% endfor %}
 </div>
 
 {% for c in categories %}
-<section id="cat-{{ c.id }}" class="card">
+<section id="cat-{{ c.id }}" class="card cat-card">
   <div class="line-head">
     <h2>{{ c.name }}</h2>
     <div class="line-tools">
@@ -19,7 +24,7 @@
   {% if c.kind != 'metro' %}
   <details class="line-settings">
     <summary>Configurar linha: nome, tamanhos e adicionais</summary>
-    <form method="post" action="{{ url_for('admin.line_save', category_id=c.id) }}">
+    <form method="post" action="{{ url_for('admin.line_save', category_id=c.id) }}"data-track >
       {{ csrf() }}
       <div class="row">
         <label class="grow">Nome da linha<input name="name" value="{{ c.name }}" maxlength="80" required></label>
@@ -49,7 +54,7 @@
   {% if c.kind == 'metro' %}
   {% set combo = c.combo_settings() %}
   {% set flavors = (c.products[0].variants[0].max_flavors if c.products and c.products[0].variants else 4) %}
-  <form method="post" action="{{ url_for('admin.combo_save', category_id=c.id) }}" class="combo">
+  <form method="post" action="{{ url_for('admin.combo_save', category_id=c.id) }}" data-track class="combo">
     {{ csrf() }}
     <p class="hint">Preço, nome e descrição do combo ficam logo abaixo. Aqui você define as regras dele.</p>
     <div class="row">
@@ -73,10 +78,10 @@
     <div class="savebar"><button class="primary">Salvar regras do combo</button></div>
   </form>
   {% endif %}
-  <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}">
+  <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}"data-track >
     {{ csrf() }}
     {% for p in c.products %}
-    <div class="row {{ 'off' if not p.active }}">
+    <div class="row flavor {{ 'off' if not p.active }}" data-name="{{ p.name }} {{ p.description or '' }}">
       <label class="check"><input type="checkbox" name="active-{{ p.id }}" {{ 'checked' if p.active }}> à venda</label>
       <label class="grow">Nome<input name="name-{{ p.id }}" value="{{ p.name }}" maxlength="120" required></label>
       <label class="grow2">Descrição<input name="desc-{{ p.id }}" value="{{ p.description or '' }}" maxlength="500"></label>
@@ -103,7 +108,7 @@
   {% if c.kind != 'metro' %}
   <details>
     <summary>Adicionar sabor em {{ c.name }}</summary>
-    <form method="post" action="{{ url_for('admin.product_new', category_id=c.id) }}" class="row">
+    <form method="post" action="{{ url_for('admin.product_new', category_id=c.id) }}" data-track class="row">
       {{ csrf() }}
       <label class="grow">Nome<input name="name" maxlength="120" required></label>
       <label class="grow2">Descrição<input name="desc" maxlength="500"></label>
@@ -121,7 +126,7 @@
 <section class="card">
   <h2>Criar nova linha</h2>
   <p class="hint">Ex.: “Esfihas”, “Calzones”, “Pizzas Especiais”. Depois de criar, adicione os sabores e, se quiser, mais tamanhos.</p>
-  <form method="post" action="{{ url_for('admin.line_new') }}">
+  <form method="post" action="{{ url_for('admin.line_new') }}"data-track >
     {{ csrf() }}
     <div class="row">
       <label class="grow">Nome da linha<input name="name" maxlength="80" required></label>

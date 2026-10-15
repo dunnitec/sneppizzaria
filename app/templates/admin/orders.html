@@ -2,12 +2,17 @@
 {% block title %}Pedidos{% endblock %}
 {% block content %}
 <h1>Pedidos</h1>
+<div id="live" class="live card" data-poll="{{ url_for('admin.orders_poll') }}" data-latest="{{ latest_id }}">
+  <button type="button" class="sound ghost small">🔕 Ativar som de novos pedidos</button>
+  <span class="live-status" role="status" aria-live="polite">A lista atualiza sozinha a cada 15 segundos.</span>
+</div>
 <p class="hint">O pedido entra aqui quando o cliente clica em finalizar. Confirme quando a mensagem chegar no WhatsApp; cancele os que nunca chegaram.</p>
 <div class="filters">
   <a href="{{ url_for('admin.orders') }}" class="{{ 'cur' if not status }}">Todos</a>
   {% for s in statuses %}<a href="{{ url_for('admin.orders', status=s) }}" class="{{ 'cur' if status == s }}">{{ s|capitalize }}s</a>{% endfor %}
 </div>
 
+<div id="orders-list">
 {% for o in orders %}
 <article class="card order {{ o.status }}">
   <div class="order-head">
@@ -16,7 +21,7 @@
     <span class="status">{{ o.status }}</span>
     <b class="total">{{ o.total|brl }}</b>
   </div>
-  <p><b>{{ o.customer_name }}</b> · {{ o.customer_phone }}</p>
+  <p><b>{{ o.customer_name }}</b> · {{ o.customer_phone|any_phone }}</p>
   <p class="addr">{% if o.street %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %} · {% endif %}{{ o.neighborhood_name }}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</p>
   <ul>
     {% for i in o.items %}
@@ -35,4 +40,5 @@
 {% else %}
 <p class="card empty">Nenhum pedido{{ ' ' ~ status if status }} por enquanto.</p>
 {% endfor %}
+</div>
 {% endblock %}

@@ -3,15 +3,20 @@
 {% block content %}
 <h1>Fotos dos sabores</h1>
 <p class="hint">A foto aparece ao lado do nome quando o cliente escolhe o sabor. Pode mandar a foto do celular: o site reduz o tamanho sozinho.</p>
+<div class="card search-bar">
+  <label class="grow">Buscar sabor<input id="search" type="search" placeholder="Digite parte do nome" autocomplete="off"
+         data-items=".photo-item" data-sections="section.cat-card"></label>
+  <span id="search-count" class="hint" aria-live="polite"></span>
+</div>
 <div class="filters">
   {% for c in categories %}<a href="#cat-{{ c.id }}">{{ c.name }}</a>{% endfor %}
 </div>
 {% for c in categories %}
-<section id="cat-{{ c.id }}" class="card">
+<section id="cat-{{ c.id }}" class="card cat-card">
   <h2>{{ c.name }}</h2>
   <div class="photo-grid">
     {% for p in c.products %}
-    <div class="photo-item" id="p-{{ p.id }}">
+    <div class="photo-item" id="p-{{ p.id }}" data-name="{{ p.name }}">
       {% if p.image %}<img src="{{ url_for('public.uploaded_file', name=p.image) }}" alt="Foto de {{ p.name }}" loading="lazy">
       {% else %}<div class="no-photo">Sem foto</div>{% endif %}
       <b>{{ p.name }}</b>

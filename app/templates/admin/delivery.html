@@ -6,7 +6,7 @@
 
 <section class="card">
   <h2>Adicionar bairro</h2>
-  <form method="post" action="{{ url_for('admin.delivery_new') }}" class="row">
+  <form method="post" action="{{ url_for('admin.delivery_new') }}" class="row" data-track>
     {{ csrf() }}
     <label class="grow">Bairro<input name="name" maxlength="120" required></label>
     <label class="money">Taxa<input name="fee" inputmode="decimal" placeholder="0,00" required></label>
@@ -14,11 +14,12 @@
   </form>
 </section>
 
-<form method="post" class="card">
+<form method="post" class="card" data-track>
   {{ csrf() }}
   <h2>Bairros atendidos</h2>
+  <div class="search-bar inline-search"><label class="grow">Buscar bairro<input id="search" type="search" autocomplete="off" data-items=".hood" data-sections=".none"></label><span id="search-count" class="hint" aria-live="polite"></span></div>
   {% for h in hoods %}
-  <div class="row {{ 'off' if not h.active }}">
+  <div class="row hood {{ 'off' if not h.active }}" data-name="{{ h.name }}">
     <label class="check"><input type="checkbox" name="active-{{ h.id }}" {{ 'checked' if h.active }}> atende</label>
     <label class="grow">Bairro<input name="name-{{ h.id }}" value="{{ h.name }}" maxlength="120" required></label>
     <label class="money">Taxa<input name="fee-{{ h.id }}" value="{{ h.fee|money_input }}" inputmode="decimal" required></label>

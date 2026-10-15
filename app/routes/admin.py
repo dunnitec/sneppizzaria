@@ -31,7 +31,7 @@ from app.routes.public import get_tenant_or_404
 from app.services.hours import STORE_TZ, is_open
 from app.services.menu_data import WEEKDAYS
 from app.services.customers import erase_customer
-from app.services.money import parse_money
+from app.services.money import brl, parse_money
 from app.services.photos import PhotoError, delete_photo, save_photo
 from app.services.reports import month_calendar, sales_report
 
@@ -42,7 +42,8 @@ LOCK_TIME = timedelta(minutes=15)
 ORDER_STATUSES = ("pendente", "confirmado", "cancelado")
 STORE_STATUS = {"auto": None, "open": True, "closed": False}
 # o que um usuário "funcionario" pode abrir; o "dono" abre tudo
-STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.order_status", "admin.password"}
+STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.orders_poll",
+                   "admin.order_status", "admin.password"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
 # gasta o mesmo tempo de uma conferência de senha quando o usuário não existe,
 # para a resposta não revelar quais usuários existem
@@ -90,8 +91,9 @@ def _no_cache(response):
 
 @admin_bp.context_processor
 def _template_context():
+    pending = Order.query.filter_by(tenant_id=g.tenant.id, status="pendente").count() if g.admin else 0
     return {"tenant": g.tenant, "admin": g.admin, "store_open": is_open(g.tenant),
-            "is_owner": bool(g.admin and g.admin.role == "dono")}
+            "is_owner": bool(g.admin and g.admin.role == "dono"), "pending_count": pending}
 
 
 def _price(text, what, positive=False):
@@ -193,12 +195,31 @@ def orders():
     query = Order.query.filter_by(tenant_id=g.tenant.id)
     if status in ORDER_STATUSES:
         query = query.filter_by(status=status)
+    latest = db.session.query(db.func.max(Order.id)).filter(Order.tenant_id == g.tenant.id).scalar() or 0
     return render_template(
         "admin/orders.html",
+        latest_id=latest,
         orders=query.order_by(Order.id.desc()).limit(100).all(),
         status=status if status in ORDER_STATUSES else None,
         statuses=ORDER_STATUSES,
     )
+
+
+@admin_bp.route("/pedidos/novos")
+def orders_poll():
+    """Consultado pelo painel a cada 15 s: pedidos com número maior que ?desde= e total de pendentes."""
+    try:
+        since = int(request.args.get("desde", ""))
+    except ValueError:
+        since = None
+    base = Order.query.filter_by(tenant_id=g.tenant.id)
+    new = base.filter(Order.id > since).order_by(Order.id).limit(20).all() if since is not None else []
+    latest = db.session.query(db.func.max(Order.id)).filter(Order.tenant_id == g.tenant.id).scalar() or 0
+    return {
+        "latest": latest,
+        "pending": base.filter_by(status="pendente").count(),
+        "new": [{"id": o.id, "name": o.customer_name, "total": brl(o.total)} for o in new],
+    }
 
 
 @admin_bp.route("/pedidos/<int:order_id>/status", methods=["POST"])
