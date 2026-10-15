@@ -12,6 +12,7 @@ from app.routes.public import get_tenant_or_404
 from app.services.delivery import calculate_fee
 from app.services.hours import is_open
 from app.services.pricing import OrderError, price_item
+from app.services.money import brl
 from app.services.whatsapp import build_order_message, build_whatsapp_link
 
 orders_bp = Blueprint("orders", __name__)
@@ -61,6 +62,8 @@ def create_order(slug):
     except OrderError as e:
         return jsonify(ok=False, error=str(e)), 400
     subtotal = sum((line["line_total"] for line in cart), Decimal("0"))
+    if tenant.min_order and subtotal < tenant.min_order:
+        return jsonify(ok=False, error=f"O pedido mínimo é de {brl(tenant.min_order)} (sem a entrega)."), 400
 
     neighborhood = str(p.get("neighborhood") or "").strip()
     if withdraw:

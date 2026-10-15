@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% block title %}Visual{% endblock %}
+{% block content %}
+<h1>Visual do site</h1>
+
+<section class="card">
+  <h2>Banners do carrossel</h2>
+  <p class="hint">Aparecem no topo do site, na ordem abaixo. Tamanho ideal: 1600 × 550 pixels (bem mais largo que alto).</p>
+  {% if not banners %}<p class="flash ok">O site está mostrando os banners padrão. Ao enviar o primeiro banner aqui, o carrossel passa a usar só os desta lista.</p>{% endif %}
+  <div class="banner-list">
+    {% for b in banners %}
+    <div class="banner-item">
+      <img src="{{ url_for('public.uploaded_file', name=b.image) }}" alt="Banner {{ loop.index }}">
+      <div class="banner-tools">
+        <span>{{ loop.index }}º</span>
+        <form method="post" action="{{ url_for('admin.banner_move', banner_id=b.id) }}">{{ csrf() }}<input type="hidden" name="dir" value="up"><button class="ghost small" {{ 'disabled' if loop.first }} aria-label="Mover para cima">↑</button></form>
+        <form method="post" action="{{ url_for('admin.banner_move', banner_id=b.id) }}">{{ csrf() }}<input type="hidden" name="dir" value="down"><button class="ghost small" {{ 'disabled' if loop.last }} aria-label="Mover para baixo">↓</button></form>
+        <form method="post" action="{{ url_for('admin.banner_delete', banner_id=b.id) }}" data-msg="Remover este banner do carrossel?" onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}<button class="ghost small">Remover</button></form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <form method="post" action="{{ url_for('admin.banner_new') }}" enctype="multipart/form-data">
+    {{ csrf() }}
+    <label class="file">Adicionar banner<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Imagem de fundo</h2>
+  <p class="hint">Fica atrás do cardápio no computador (no celular o fundo é liso).</p>
+  {% if tenant.background_image %}
+  <img class="bg-preview" src="{{ url_for('public.uploaded_file', name=tenant.background_image) }}" alt="Fundo atual">
+  <form method="post" action="{{ url_for('admin.background_remove') }}">{{ csrf() }}<button class="ghost small">Voltar ao fundo padrão</button></form>
+  {% endif %}
+  <form method="post" action="{{ url_for('admin.background_upload') }}" enctype="multipart/form-data">
+    {{ csrf() }}
+    <label class="file">{{ 'Trocar fundo' if tenant.background_image else 'Enviar fundo' }}<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label>
+  </form>
+</section>
+{% endblock %}

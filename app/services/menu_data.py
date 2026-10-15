@@ -44,6 +44,8 @@ def _finish(d, order_url, assets):
         hours_rows=_hours_rows(hours),
         payments=[p.strip() for p in t.get("accepted_payments", "").split(",") if p.strip()],
         min_fee=min(fees),
+        notices=d.get("notices", ["Pizzas meio a meio será cobrado pelo valor da maior!"]),
+        min_order=d.get("min_order", 0),
         order_url=order_url,
         assets=assets,
     )
@@ -111,6 +113,8 @@ def data_from_db(tenant, order_url, assets):
         },
         "hours": json.loads(tenant.hours_json) if tenant.hours_json else {},
         "open": is_open(tenant),
+        "notices": [line.strip() for line in (tenant.notices or "").splitlines() if line.strip()],
+        "min_order": float(tenant.min_order or 0),
         "categories": cats,
         "addons": [
             {"id": a.id, "name": a.name, "price_whole": float(a.price_whole), "price_half": float(a.price_half)}

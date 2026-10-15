@@ -41,6 +41,9 @@ MAX_FAILED_LOGINS = 5
 LOCK_TIME = timedelta(minutes=15)
 ORDER_STATUSES = ("pendente", "confirmado", "cancelado")
 STORE_STATUS = {"auto": None, "open": True, "closed": False}
+# o que um usuário "funcionario" pode abrir; o "dono" abre tudo
+STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.order_status", "admin.password"}
+PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
 # gasta o mesmo tempo de uma conferência de senha quando o usuário não existe,
 # para a resposta não revelar quais usuários existem
 _DUMMY_HASH = generate_password_hash("usuario-inexistente")
@@ -72,6 +75,8 @@ def _require_login():
     user = db.session.get(AdminUser, session.get("admin_id") or 0)
     if user and user.tenant_id == g.tenant.id and session.get("admin_key") == _session_key(user):
         g.admin = user
+        if user.role != "dono" and request.endpoint not in STAFF_ENDPOINTS:
+            abort(403)
     elif request.endpoint != "admin.login":
         return redirect(url_for("admin.login"))
 
@@ -85,7 +90,8 @@ def _no_cache(response):
 
 @admin_bp.context_processor
 def _template_context():
-    return {"tenant": g.tenant, "admin": g.admin, "store_open": is_open(g.tenant)}
+    return {"tenant": g.tenant, "admin": g.admin, "store_open": is_open(g.tenant),
+            "is_owner": bool(g.admin and g.admin.role == "dono")}
 
 
 def _price(text, what, positive=False):
@@ -210,12 +216,8 @@ def order_status(order_id):
 # ---------- cardápio ----------
 
 def category_sizes(category):
-    """Tamanhos da categoria como [(rótulo, máx. de sabores)], na ordem em que aparecem."""
-    sizes = {}
-    for product in category.products:
-        for variant in product.variants:
-            sizes.setdefault(variant.label, variant.max_flavors)
-    return list(sizes.items())
+    """Tamanhos da linha como [(rótulo, máx. de sabores)], na ordem definida no painel."""
+    return [(s["label"], s["max_flavors"]) for s in category.sizes()]
 
 
 def _category_or_404(category_id):
@@ -242,9 +244,21 @@ def menu_save(category_id):
             product.name = _name(form[f"name-{product.id}"], "o nome do sabor")
             product.description = form.get(f"desc-{product.id}", "").strip()[:500]
             product.active = f"active-{product.id}" in form
-            for variant in product.variants:
-                if f"price-{variant.id}" in form:
+            for variant in list(product.variants):
+                if f"price-{variant.id}" not in form:
+                    continue
+                if form[f"price-{variant.id}"].strip():
                     variant.price = _price(form[f"price-{variant.id}"], f"{product.name} ({variant.label})", positive=True)
+                else:  # preço em branco: o sabor deixa de ter esse tamanho
+                    product.variants.remove(variant)
+            have = {v.label for v in product.variants}
+            for i, (label, max_flavors) in enumerate(category_sizes(category)):
+                text = form.get(f"newv-{product.id}-{i}", "").strip()
+                if text and label not in have:
+                    price = _price(text, f"{product.name} ({label})", positive=True)
+                    product.variants.append(ProductVariant(label=label, max_flavors=max_flavors, price=price))
+            if not product.variants:
+                raise FormError(f"“{product.name}” precisa ter preço em pelo menos um tamanho.")
         _save(f"{category.name}: alterações salvas.")
     except FormError as e:
         _reject(e)
@@ -485,10 +499,15 @@ def extras():
         try:
             for border in borders:
                 if f"border-price-{border.id}" in form:
+                    if f"border-name-{border.id}" in form:
+                        border.group_name = _name(form.get(f"border-group-{border.id}"), "o tipo da borda", max_length=40)
+                        border.name = _name(form[f"border-name-{border.id}"], "o recheio da borda", max_length=60)
                     border.price = _price(form[f"border-price-{border.id}"], f"borda {border.name}")
                     border.active = f"border-active-{border.id}" in form
             for addon in addons:
                 if f"addon-whole-{addon.id}" in form:
+                    if f"addon-name-{addon.id}" in form:
+                        addon.name = _name(form[f"addon-name-{addon.id}"], "o nome do adicional", max_length=80)
                     addon.price_whole = _price(form[f"addon-whole-{addon.id}"], f"adicional {addon.name} (inteira)")
                     addon.price_half = _price(form.get(f"addon-half-{addon.id}"), f"adicional {addon.name} (broto)")
                     addon.active = f"addon-active-{addon.id}" in form
@@ -509,6 +528,8 @@ def delivery():
         try:
             for hood in hoods:
                 if f"fee-{hood.id}" in form:
+                    if f"name-{hood.id}" in form:
+                        hood.name = _name(form[f"name-{hood.id}"], "o nome do bairro")
                     hood.fee = _price(form[f"fee-{hood.id}"], f"taxa de {hood.name}")
                     hood.active = f"active-{hood.id}" in form
             _save("Taxas de entrega salvas.")
@@ -563,6 +584,22 @@ def store():
                         f"Horário inválido em {WEEKDAYS[day]}: o fechamento precisa ser depois da abertura, no mesmo dia (até 23:59)."
                     )
                 hours[str(day)] = [opens, closes]
+            if "name" in form:
+                tenant.name = _name(form.get("name"), "o nome da loja")
+                tenant.address = form.get("address", "").strip()[:255]
+                tenant.instagram = form.get("instagram", "").strip().lstrip("@")[:120]
+            if "other_payments" in form:
+                chosen = [p for p in PAYMENT_OPTIONS if p in form.getlist("payments")]
+                chosen += [p.strip()[:30] for p in form["other_payments"].split(",") if p.strip()]
+                if not chosen:
+                    raise FormError("Marque pelo menos uma forma de pagamento.")
+                tenant.accepted_payments = ",".join(dict.fromkeys(chosen))
+            if "notices" in form:
+                lines = [" ".join(line.split())[:200] for line in form["notices"].splitlines() if line.strip()]
+                tenant.notices = "\n".join(lines[:10])
+            if "min_order" in form:
+                text = form["min_order"].strip()
+                tenant.min_order = _price(text, "pedido mínimo") if text else None
             tenant.eta = _name(form.get("eta"), "o tempo de entrega", max_length=30)
             tenant.whatsapp = whatsapp
             tenant.is_open_override = STORE_STATUS[form["status"]]
@@ -581,4 +618,8 @@ def store():
         for d in (1, 2, 3, 4, 5, 6, 0)
     ]
     status = next(k for k, v in STORE_STATUS.items() if v is tenant.is_open_override)
-    return render_template("admin/store.html", days=days, status=status)
+    payments = [p for p in (tenant.accepted_payments or "").split(",") if p]
+    return render_template(
+        "admin/store.html", days=days, status=status, payment_options=PAYMENT_OPTIONS,
+        payments=payments, other_payments=", ".join(p for p in payments if p not in PAYMENT_OPTIONS),
+    )

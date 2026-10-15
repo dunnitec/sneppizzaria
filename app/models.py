@@ -28,6 +28,7 @@ class AdminUser(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     username = db.Column(db.String(60), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)  # nunca a senha em si
+    role = db.Column(db.String(20), nullable=False, default="dono", server_default="dono")  # dono | funcionario
     failed_attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime)  # bloqueio temporário após senhas erradas seguidas
     created_at = db.Column(db.DateTime, default=utcnow)
@@ -57,6 +58,9 @@ class Tenant(db.Model):
     accepted_payments = db.Column(db.String(255), default="Dinheiro,Pix,Débito,Crédito")
     hours_json = db.Column(db.Text)  # {"0":[1080,1310],"1":null,...} minutos, 0=domingo
     eta = db.Column(db.String(30), default="40-50 min")  # tempo de entrega exibido
+    notices = db.Column(db.Text)  # recados do topo do cardápio, um por linha
+    min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
+    background_image = db.Column(db.String(255))  # fundo enviado pelo painel (UPLOAD_FOLDER)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     categories = db.relationship("Category", backref="tenant", lazy=True, order_by="Category.sort_order")
@@ -79,6 +83,17 @@ class Category(db.Model):
     combo_extras = db.Column(db.Text)  # o que acompanha o combo, um item por linha
     combo_choice_label = db.Column(db.String(60))  # pergunta ao cliente, ex. "Sabor do Kuat 2L"
     combo_choice_options = db.Column(db.String(255))  # respostas separadas por vírgula; vazio = sem pergunta
+    # tamanhos da linha: [{"label": "Broto", "max_flavors": 1}, ...]; os preços ficam em ProductVariant
+    sizes_json = db.Column(db.Text)
+
+    def sizes(self):
+        if self.sizes_json:
+            return json.loads(self.sizes_json)
+        found = {}
+        for product in self.products:
+            for variant in product.variants:
+                found.setdefault(variant.label, variant.max_flavors)
+        return [{"label": label, "max_flavors": n} for label, n in found.items()]
 
     def combo_settings(self):
         """Configuração do combo já interpretada (listas no lugar de texto)."""
@@ -240,3 +255,14 @@ class OrderItemFlavor(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey("products.id", ondelete="SET NULL"))
     product_name = db.Column(db.String(120), nullable=False)  # nome na hora da venda
     share = db.Column(db.Numeric(6, 4), nullable=False)
+
+
+class Banner(db.Model):
+    """Imagem do carrossel do topo do site, enviada pelo painel."""
+
+    __tablename__ = "banners"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
+    image = db.Column(db.String(255), nullable=False)  # arquivo em UPLOAD_FOLDER
+    sort_order = db.Column(db.Integer, nullable=False, default=0)

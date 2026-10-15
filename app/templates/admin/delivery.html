@@ -20,10 +20,12 @@
   {% for h in hoods %}
   <div class="row {{ 'off' if not h.active }}">
     <label class="check"><input type="checkbox" name="active-{{ h.id }}" {{ 'checked' if h.active }}> atende</label>
-    <span class="grow name">{{ h.name }}</span>
+    <label class="grow">Bairro<input name="name-{{ h.id }}" value="{{ h.name }}" maxlength="120" required></label>
     <label class="money">Taxa<input name="fee-{{ h.id }}" value="{{ h.fee|money_input }}" inputmode="decimal" required></label>
+    <button class="ghost small icon" form="del-hood-{{ h.id }}">Excluir</button>
   </div>
   {% endfor %}
-  <div class="savebar"><button class="primary">Salvar taxas</button></div>
+  <div class="savebar"><button class="primary">Salvar bairros</button></div>
 </form>
+{% for h in hoods %}<form id="del-hood-{{ h.id }}" method="post" action="{{ url_for('admin.delivery_delete', hood_id=h.id) }}" data-msg="Excluir o bairro {{ h.name }}? Se for só por um tempo, prefira desmarcar “atende”." onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}</form>{% endfor %}
 {% endblock %}

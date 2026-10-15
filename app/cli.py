@@ -74,3 +74,29 @@ def import_photos(slug, folder):
     click.echo(f"{done} foto(s) importada(s).")
     for name in skipped:
         click.echo(f"NÃO IMPORTADA (sabor não encontrado ou nome repetido em outra linha): {name}")
+
+
+@click.command("import-static-banners")
+@click.argument("slug")
+def import_static_banners(slug):
+    """Copia os banners padrão (app/static/img/<slug>/banner*.webp) para o painel, onde o dono passa a gerenciá-los.
+
+    Não faz nada se a loja já tiver banners cadastrados.
+    """
+    from flask import current_app
+
+    from app.models import Banner
+    from app.services.photos import save_photo
+
+    tenant = Tenant.query.filter_by(slug=slug).first()
+    if not tenant:
+        raise click.ClickException(f"Loja '{slug}' não encontrada.")
+    if Banner.query.filter_by(tenant_id=tenant.id).first():
+        click.echo("A loja já tem banners no painel; nada a fazer.")
+        return
+    files = sorted((Path(current_app.static_folder) / "img" / slug).glob("banner*.webp"))
+    for i, path in enumerate(files):
+        with path.open("rb") as f:
+            db.session.add(Banner(tenant_id=tenant.id, image=save_photo(f, slug, max_side=1600), sort_order=i))
+    db.session.commit()
+    click.echo(f"{len(files)} banner(s) copiado(s) para o painel.")

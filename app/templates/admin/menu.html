@@ -9,7 +9,43 @@
 
 {% for c in categories %}
 <section id="cat-{{ c.id }}" class="card">
-  <h2>{{ c.name }}</h2>
+  <div class="line-head">
+    <h2>{{ c.name }}</h2>
+    <div class="line-tools">
+      <form method="post" action="{{ url_for('admin.line_move', category_id=c.id) }}">{{ csrf() }}<input type="hidden" name="dir" value="up"><button class="ghost small" {{ 'disabled' if loop.first }} title="Subir a linha no site" aria-label="Subir {{ c.name }}">↑</button></form>
+      <form method="post" action="{{ url_for('admin.line_move', category_id=c.id) }}">{{ csrf() }}<input type="hidden" name="dir" value="down"><button class="ghost small" {{ 'disabled' if loop.last }} title="Descer a linha no site" aria-label="Descer {{ c.name }}">↓</button></form>
+    </div>
+  </div>
+  {% if c.kind != 'metro' %}
+  <details class="line-settings">
+    <summary>Configurar linha: nome, tamanhos e adicionais</summary>
+    <form method="post" action="{{ url_for('admin.line_save', category_id=c.id) }}">
+      {{ csrf() }}
+      <div class="row">
+        <label class="grow">Nome da linha<input name="name" value="{{ c.name }}" maxlength="80" required></label>
+        <label class="check"><input type="checkbox" name="allows_addons" {{ 'checked' if c.allows_addons }}> aceita adicionais</label>
+      </div>
+      <p class="hint">Tamanhos desta linha. Mudar o nome troca em todos os sabores. “Máx. sabores” é quantos sabores o cliente pode juntar nesse tamanho.</p>
+      {% for label, max_flavors in sizes[c.id] %}
+      <div class="row">
+        <label class="grow">Tamanho<input name="size-label-{{ loop.index0 }}" value="{{ label }}" maxlength="30" required></label>
+        <label class="money">Máx. sabores<input name="size-max-{{ loop.index0 }}" type="number" min="1" max="6" value="{{ max_flavors }}" required></label>
+        <label class="check"><input type="checkbox" name="size-del-{{ loop.index0 }}"> remover</label>
+      </div>
+      {% endfor %}
+      <div class="row">
+        <label class="grow">Novo tamanho (opcional)<input name="new_size_label" maxlength="30" placeholder="Ex.: Gigante"></label>
+        <label class="money">Máx. sabores<input name="new_size_max" type="number" min="1" max="6" value="2"></label>
+      </div>
+      <div class="savebar"><button class="primary">Salvar linha</button></div>
+    </form>
+    <form method="post" action="{{ url_for('admin.line_delete', category_id=c.id) }}" class="danger-zone"
+          data-msg="Excluir a linha {{ c.name }} e TODOS os {{ c.products|length }} sabores dela? Os pedidos antigos continuam nos relatórios. Não dá para desfazer."
+          onsubmit="return confirm(this.dataset.msg)">
+      {{ csrf() }}<button class="ghost small danger">Excluir esta linha</button>
+    </form>
+  </details>
+  {% endif %}
   {% if c.kind == 'metro' %}
   {% set combo = c.combo_settings() %}
   {% set flavors = (c.products[0].variants[0].max_flavors if c.products and c.products[0].variants else 4) %}
@@ -44,13 +80,25 @@
       <label class="check"><input type="checkbox" name="active-{{ p.id }}" {{ 'checked' if p.active }}> à venda</label>
       <label class="grow">Nome<input name="name-{{ p.id }}" value="{{ p.name }}" maxlength="120" required></label>
       <label class="grow2">Descrição<input name="desc-{{ p.id }}" value="{{ p.description or '' }}" maxlength="500"></label>
-      {% for v in p.variants %}
-      <label class="money">{{ v.label }}<input name="price-{{ v.id }}" value="{{ v.price|money_input }}" inputmode="decimal" required></label>
+      {% if c.kind == 'metro' %}
+      {% for v in p.variants %}<label class="money">{{ v.label }}<input name="price-{{ v.id }}" value="{{ v.price|money_input }}" inputmode="decimal" required></label>{% endfor %}
+      {% else %}
+      {% for label, max_flavors in sizes[c.id] %}
+      {% set v = p.variants|selectattr('label', 'equalto', label)|first %}
+      {% if v %}<label class="money">{{ label }}<input name="price-{{ v.id }}" value="{{ v.price|money_input }}" inputmode="decimal"></label>
+      {% else %}<label class="money">{{ label }}<input name="newv-{{ p.id }}-{{ loop.index0 }}" inputmode="decimal" placeholder="não tem"></label>{% endif %}
       {% endfor %}
+      <button class="ghost small icon" form="del-{{ p.id }}" title="Excluir {{ p.name }}" aria-label="Excluir {{ p.name }}">Excluir</button>
+      {% endif %}
     </div>
     {% endfor %}
+    {% if c.kind != 'metro' %}<p class="hint">Preço em branco = o sabor não tem aquele tamanho.</p>{% endif %}
     <div class="savebar"><button class="primary">Salvar {{ c.name }}</button></div>
   </form>
+  {% for p in c.products %}
+  <form id="del-{{ p.id }}" method="post" action="{{ url_for('admin.product_delete', product_id=p.id) }}"
+        data-msg="Excluir o sabor {{ p.name }}? Se for só por um tempo, prefira desmarcar “à venda”." onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}</form>
+  {% endfor %}
 
   {% if c.kind != 'metro' %}
   <details>
@@ -69,4 +117,22 @@
   {% endif %}
 </section>
 {% endfor %}
+
+<section class="card">
+  <h2>Criar nova linha</h2>
+  <p class="hint">Ex.: “Esfihas”, “Calzones”, “Pizzas Especiais”. Depois de criar, adicione os sabores e, se quiser, mais tamanhos.</p>
+  <form method="post" action="{{ url_for('admin.line_new') }}">
+    {{ csrf() }}
+    <div class="row">
+      <label class="grow">Nome da linha<input name="name" maxlength="80" required></label>
+      <label class="grow">Tipo<select name="kind"><option value="pizza">Salgada</option><option value="doce">Doce</option></select></label>
+      <label class="check"><input type="checkbox" name="allows_addons"> aceita adicionais</label>
+    </div>
+    <div class="row">
+      <label class="grow">Primeiro tamanho<input name="size_label" maxlength="30" required placeholder="Ex.: Inteira"></label>
+      <label class="money">Máx. sabores<input name="size_max" type="number" min="1" max="6" value="2" required></label>
+      <button class="primary small">Criar linha</button>
+    </div>
+  </form>
+</section>
 {% endblock %}

@@ -31,12 +31,12 @@ def photo_url(name):
     return url_for("public.uploaded_file", name=name) if name else None
 
 
-def save_photo(stream, slug):
+def save_photo(stream, slug, max_side=MAX_SIDE):
     """Lê a imagem enviada, ajusta a orientação, reduz e grava como WebP. Devolve o nome do arquivo."""
     try:
         with Image.open(stream) as im:
             im = ImageOps.exif_transpose(im).convert("RGB")
-            im.thumbnail((MAX_SIDE, MAX_SIDE))
+            im.thumbnail((max_side, max_side))
             name = f"{slug}-{secrets.token_hex(6)}.webp"
             im.save(upload_folder() / name, "WEBP", quality=82, method=6)
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError):

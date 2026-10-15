@@ -74,6 +74,8 @@ def seed_from_file(path, reset=False):
     tenant.accepted_payments = t.get("accepted_payments", "Dinheiro,Pix,Débito,Crédito")
     tenant.hours_json = json.dumps(data.get("hours") or {})
     tenant.eta = t.get("eta", "40-50 min")
+    if tenant.notices is None:
+        tenant.notices = "\n".join(t.get("notices") or ["Pizzas meio a meio será cobrado pelo valor da maior!"])
     db.session.flush()
 
     for order, cat in enumerate(data.get("categories", [])):
@@ -91,6 +93,11 @@ def seed_from_file(path, reset=False):
             category.combo_extras = "\n".join(combo.get("extras") or [])
             category.combo_choice_label = combo.get("choice_label") or None
             category.combo_choice_options = combo.get("choice_options") or None
+        sizes = {}
+        for prod in cat.get("products", []):
+            for variant in prod.get("variants", []):
+                sizes.setdefault(variant["label"], variant.get("max_flavors", 1))
+        category.sizes_json = json.dumps([{"label": k, "max_flavors": v} for k, v in sizes.items()], ensure_ascii=False)
         db.session.add(category)
         db.session.flush()
 

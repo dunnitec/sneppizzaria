@@ -32,9 +32,9 @@ const CLOSED_MSG="Estamos fechados no momento. Confira nossos horários de atend
 /* ---------- menu ---------- */
 const CATS=[];  // {name, slug, kind, cards:[...]}
 (function build(){
-  const notes=["Pizzas meio a meio será cobrado pelo valor da maior!"];
+  const notes=[...(DATA.notices||[])];
   DATA.categories.filter(c=>c.kind==="metro"&&c.products.length).forEach(c=>notes.push(comboNote(c)));
-  CATS.push({name:"Recados",slug:"recados",kind:"notice",cards:[{notice:true,lines:notes}]});
+  if(notes.length)CATS.push({name:"Recados",slug:"recados",kind:"notice",cards:[{notice:true,lines:notes}]});
   DATA.categories.forEach(c=>{
     const cat={name:c.name,slug:c.slug,kind:c.kind,cards:[]};
     if(c.kind==="metro"){
@@ -179,6 +179,7 @@ function renderCart(){
     cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.extras?" · Acompanha: "+esc(i.extras):""}${i.notes?" · Obs: "+esc(i.notes):""}</small><span class="lt">${money(i.price*i.qty)}</span></div>
       <div class="q"><button class="m" onclick="qty(${idx},-1)">−</button>${i.qty}<button class="p" onclick="qty(${idx},1)">+</button></div></div>`).join("")+
     `<div class="ct"><span>Subtotal</span><span>${money(subtotal())}</span></div><div class="ct"><span>Entrega</span><span>${wd?"retirada":"por bairro"}</span></div>
+     ${DATA.min_order&&subtotal()<DATA.min_order?`<p class="closed-note">Pedido mínimo: ${money(DATA.min_order)} (sem a entrega).</p>`:""}
      ${CLOSED?`<p class="closed-note">${CLOSED_MSG}</p>`:`<button class="go" onclick="openCheckout()">Finalizar pedido</button>`}`;
 }
 function qty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);renderCart();}
@@ -197,6 +198,7 @@ function toast(m){const t=document.getElementById("toast");t.textContent=m;t.cla
 function openCheckout(){
   if(!cart.length)return;
   if(CLOSED){toast(CLOSED_MSG);return;}
+  if(DATA.min_order&&subtotal()<DATA.min_order){toast(`O pedido mínimo é de ${money(DATA.min_order)} (sem a entrega).`);return;}
   const wd=document.getElementById("withdraw").checked;
   const md=document.getElementById("md");
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Finalizar pedido</h2><p>Pagamento na entrega. O pedido é enviado pelo WhatsApp.</p></div>
@@ -210,7 +212,7 @@ function openCheckout(){
       <label>Bairro<select name="bairro" id="bairro" onchange="totals()"><option value="">Selecione…</option>${DATA.neighborhoods.map(n=>`<option value="${esc(n.name)}">${esc(n.name)} — ${money(n.fee)}</option>`).join("")}<option value="__outro__">Outro bairro (taxa a confirmar)</option></select></label>
       <label>Ponto de referência<input name="ref"></label>
     </div>
-    <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").map(p=>`<option>${p.trim()}</option>`).join("")}</select></label>
+    <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").filter(p=>p.trim()).map(p=>`<option>${esc(p.trim())}</option>`).join("")}</select></label>
     <label id="troco" style="display:none">Troco para quanto? (opcional)<input name="troco" type="number" step="0.01" min="0"></label>
     <div class="sum" id="sum"></div>
     <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>

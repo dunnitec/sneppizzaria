@@ -19,7 +19,8 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     csrf.init_app(app)
 
-    from app.cli import create_admin, import_photos
+    from app.cli import create_admin, import_photos, import_static_banners
+    from app.routes import admin_manage  # noqa: F401  (rotas extras do painel, mesmo blueprint)
     from app.routes.admin import admin_bp
     from app.routes.orders import orders_bp
     from app.routes.public import public_bp, static_url
@@ -35,6 +36,7 @@ def create_app(config_class=Config):
 
     app.cli.add_command(create_admin)
     app.cli.add_command(import_photos)
+    app.cli.add_command(import_static_banners)
     app.jinja_env.filters.update(phone=format_phone, brl=brl, money_input=money_input, local_time=local_time)
     app.jinja_env.globals.update(static_url=static_url)
 

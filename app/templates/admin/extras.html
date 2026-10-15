@@ -2,30 +2,63 @@
 {% block title %}Bordas e adicionais{% endblock %}
 {% block content %}
 <h1>Bordas e adicionais</h1>
-<form method="post">
+<form method="post" id="extras">
   {{ csrf() }}
   <section class="card">
     <h2>Bordas recheadas</h2>
     {% for b in borders %}
     <div class="row {{ 'off' if not b.active }}">
       <label class="check"><input type="checkbox" name="border-active-{{ b.id }}" {{ 'checked' if b.active }}> à venda</label>
-      <span class="grow name">{{ b.group_name }} — {{ b.name }}</span>
+      <label class="grow">Tipo<input name="border-group-{{ b.id }}" value="{{ b.group_name }}" maxlength="40" required></label>
+      <label class="grow">Recheio<input name="border-name-{{ b.id }}" value="{{ b.name }}" maxlength="60" required></label>
       <label class="money">Preço<input name="border-price-{{ b.id }}" value="{{ b.price|money_input }}" inputmode="decimal" required></label>
+      <button class="ghost small icon" form="del-border-{{ b.id }}">Excluir</button>
     </div>
     {% endfor %}
   </section>
   <section class="card">
     <h2>Adicionais</h2>
-    <p class="hint">Só aparecem nas pizzas da linha que aceita adicionais (Premium).</p>
+    <p class="hint">Só aparecem nas linhas marcadas como “aceita adicionais” (em Cardápio → Configurar linha).</p>
     {% for a in addons %}
     <div class="row {{ 'off' if not a.active }}">
       <label class="check"><input type="checkbox" name="addon-active-{{ a.id }}" {{ 'checked' if a.active }}> à venda</label>
-      <span class="grow name">{{ a.name }}</span>
+      <label class="grow">Nome<input name="addon-name-{{ a.id }}" value="{{ a.name }}" maxlength="80" required></label>
       <label class="money">Inteira<input name="addon-whole-{{ a.id }}" value="{{ a.price_whole|money_input }}" inputmode="decimal" required></label>
       <label class="money">Broto<input name="addon-half-{{ a.id }}" value="{{ a.price_half|money_input }}" inputmode="decimal" required></label>
+      <button class="ghost small icon" form="del-addon-{{ a.id }}">Excluir</button>
     </div>
     {% endfor %}
   </section>
   <div class="savebar"><button class="primary">Salvar bordas e adicionais</button></div>
 </form>
+{% for b in borders %}<form id="del-border-{{ b.id }}" method="post" action="{{ url_for('admin.border_delete', border_id=b.id) }}" data-msg="Excluir a borda {{ b.group_name }} — {{ b.name }}?" onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}</form>{% endfor %}
+{% for a in addons %}<form id="del-addon-{{ a.id }}" method="post" action="{{ url_for('admin.addon_delete', addon_id=a.id) }}" data-msg="Excluir o adicional {{ a.name }}?" onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}</form>{% endfor %}
+
+<div class="two">
+  <section class="card">
+    <h2>Nova borda</h2>
+    <form method="post" action="{{ url_for('admin.border_new') }}">
+      {{ csrf() }}
+      <div class="row">
+        <label class="grow">Tipo<input name="group" maxlength="40" required placeholder="Ex.: Borda Tradicional" list="border-groups"></label>
+        <label class="grow">Recheio<input name="name" maxlength="60" required placeholder="Ex.: Cheddar"></label>
+        <label class="money">Preço<input name="price" inputmode="decimal" required placeholder="0,00"></label>
+      </div>
+      <datalist id="border-groups">{% for g in borders|map(attribute='group_name')|unique %}<option value="{{ g }}">{% endfor %}</datalist>
+      <button class="primary small">Criar borda</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>Novo adicional</h2>
+    <form method="post" action="{{ url_for('admin.addon_new') }}">
+      {{ csrf() }}
+      <div class="row">
+        <label class="grow">Nome<input name="name" maxlength="80" required placeholder="Ex.: Cheddar"></label>
+        <label class="money">Inteira<input name="price_whole" inputmode="decimal" required placeholder="0,00"></label>
+        <label class="money">Broto<input name="price_half" inputmode="decimal" required placeholder="0,00"></label>
+      </div>
+      <button class="primary small">Criar adicional</button>
+    </form>
+  </section>
+</div>
 {% endblock %}

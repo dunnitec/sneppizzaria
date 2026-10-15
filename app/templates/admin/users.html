@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% block title %}Usuários{% endblock %}
+{% block content %}
+<h1>Usuários do painel</h1>
+<p class="hint">Funcionário só vê a aba Pedidos (confirmar e cancelar) e pode trocar a própria senha.</p>
+
+{% for u in accounts %}
+<article class="card user">
+  <div class="cust-head"><b>{{ u.username }}</b><span>{{ roles[u.role] }}{{ ' · você' if u.id == admin.id }}</span></div>
+  {% if u.id != admin.id %}
+  <div class="row">
+    <form method="post" action="{{ url_for('admin.user_password', user_id=u.id) }}" class="inline">
+      {{ csrf() }}
+      <label class="grow">Nova senha para {{ u.username }}<input name="password" type="text" minlength="8" autocomplete="off" required></label>
+      <button class="ghost small">Redefinir senha</button>
+    </form>
+    <form method="post" action="{{ url_for('admin.user_delete', user_id=u.id) }}" data-msg="Excluir o usuário {{ u.username }}? Ele deixa de entrar no painel." onsubmit="return confirm(this.dataset.msg)">
+      {{ csrf() }}<button class="ghost small danger">Excluir</button>
+    </form>
+  </div>
+  {% endif %}
+</article>
+{% endfor %}
+
+<section class="card">
+  <h2>Novo usuário</h2>
+  <form method="post">
+    {{ csrf() }}
+    <div class="row">
+      <label class="grow">Usuário (sem espaço)<input name="username" maxlength="60" required autocapitalize="none" placeholder="Ex.: caixa"></label>
+      <label class="grow">Senha inicial (mín. 8)<input name="password" type="text" minlength="8" autocomplete="off" required></label>
+      <label class="grow">Acesso<select name="role">{% for key, label in roles.items() %}<option value="{{ key }}" {{ 'selected' if key == 'funcionario' }}>{{ label }}</option>{% endfor %}</select></label>
+      <button class="primary small">Criar</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

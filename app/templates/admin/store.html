@@ -5,6 +5,33 @@
 <form method="post">
   {{ csrf() }}
   <section class="card">
+    <h2>Dados da pizzaria</h2>
+    <div class="row">
+      <label class="grow">Nome<input name="name" value="{{ tenant.name }}" maxlength="120" required></label>
+      <label class="grow">Instagram<input name="instagram" value="{{ tenant.instagram or '' }}" maxlength="120" placeholder="sneppizzariaitu"></label>
+    </div>
+    <div class="row"><label class="grow2">Endereço (aparece no site e na retirada)<input name="address" value="{{ tenant.address or '' }}" maxlength="255"></label></div>
+  </section>
+
+  <section class="card">
+    <h2>Pagamento e pedido</h2>
+    <fieldset>
+      <legend>Formas de pagamento aceitas na entrega</legend>
+      {% for p in payment_options %}<label class="check"><input type="checkbox" name="payments" value="{{ p }}" {{ 'checked' if p in payments }}> {{ p }}</label>{% endfor %}
+    </fieldset>
+    <div class="row">
+      <label class="grow">Outras formas, separadas por vírgula<input name="other_payments" value="{{ other_payments }}" placeholder="Ex.: Vale-refeição"></label>
+      <label class="money">Pedido mínimo<input name="min_order" value="{{ tenant.min_order|money_input if tenant.min_order else '' }}" inputmode="decimal" placeholder="sem mínimo"></label>
+    </div>
+    <p class="hint">Pedido mínimo vale para o valor das pizzas, sem a taxa de entrega. Deixe em branco para não ter mínimo.</p>
+  </section>
+
+  <section class="card">
+    <h2>Recados no topo do cardápio</h2>
+    <label class="grow2">Um recado por linha (até 10)<textarea name="notices" rows="4">{{ tenant.notices or '' }}</textarea></label>
+    <p class="hint">O recado do combo é escrito sozinho a partir das regras do combo.</p>
+  </section>
+  <section class="card">
     <h2>Aberta ou fechada</h2>
     <p class="hint">Com a loja fechada o cliente vê o cardápio, mas não consegue finalizar o pedido.</p>
     <label class="radio"><input type="radio" name="status" value="auto" {{ 'checked' if status == 'auto' }}> Seguir o horário de atendimento abaixo</label>

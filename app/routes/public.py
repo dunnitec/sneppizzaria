@@ -24,13 +24,18 @@ def static_url(filename):
 
 
 def tenant_assets(tenant):
-    """Imagens em app/static/img/<slug>/: logo.webp, banner*.webp, fundo.webp (todas opcionais)."""
+    """Banners e fundo enviados pelo painel; enquanto não houver, os padrões de app/static/img/<slug>/."""
+    from app.models import Banner
+    from app.services.photos import photo_url
+
     base = Path(current_app.static_folder) / "img" / tenant.slug
     url = lambda name: static_url(f"img/{tenant.slug}/{name}")  # noqa: E731
+    banners = Banner.query.filter_by(tenant_id=tenant.id).order_by(Banner.sort_order, Banner.id).all()
     return {
         "logo": url("logo.webp") if (base / "logo.webp").exists() else "",
-        "banners": [url(p.name) for p in sorted(base.glob("banner*.webp"))],
-        "fundo": url("fundo.webp") if (base / "fundo.webp").exists() else "",
+        "banners": [photo_url(b.image) for b in banners] or [url(p.name) for p in sorted(base.glob("banner*.webp"))],
+        "fundo": photo_url(tenant.background_image) if tenant.background_image
+        else (url("fundo.webp") if (base / "fundo.webp").exists() else ""),
     }
 
 
