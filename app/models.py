@@ -162,13 +162,23 @@ class Neighborhood(db.Model):
 
 
 class Customer(db.Model):
+    """Cliente cadastrado automaticamente no primeiro pedido (services/customers.py)."""
+
     __tablename__ = "customers"
+    __table_args__ = (db.UniqueConstraint("tenant_id", "phone_key", name="uq_customers_tenant_phone"),)
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     name = db.Column(db.String(120), nullable=False)
-    phone = db.Column(db.String(30), nullable=False)
+    phone = db.Column(db.String(30), nullable=False)  # como o cliente digitou
+    phone_key = db.Column(db.String(20), nullable=False)  # só dígitos, com DDD: identifica o cliente
+    street = db.Column(db.String(200))  # último endereço de entrega
+    number = db.Column(db.String(20))
+    complement = db.Column(db.String(120))
+    neighborhood = db.Column(db.String(120))
+    reference = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow)
 
 
 class Order(db.Model):
@@ -177,6 +187,7 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
 
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True)
     customer_name = db.Column(db.String(120), nullable=False)
     customer_phone = db.Column(db.String(30), nullable=False)
 
@@ -196,7 +207,7 @@ class Order(db.Model):
     status = db.Column(db.String(30), default="pendente")  # pendente | confirmado | cancelado
     whatsapp_message = db.Column(db.Text)
 
-    created_at = db.Column(db.DateTime, default=utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
     items = db.relationship("OrderItem", backref="order", lazy=True, cascade="all, delete-orphan")
 
@@ -217,3 +228,15 @@ class OrderItem(db.Model):
     unit_price = db.Column(db.Numeric(8, 2), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
     line_total = db.Column(db.Numeric(8, 2), nullable=False)
+
+
+class OrderItemFlavor(db.Model):
+    """Sabor de um item do pedido e a fração dele (1 = inteira, 0.5 = meia...). Alimenta o ranking de sabores."""
+
+    __tablename__ = "order_item_flavors"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_item_id = db.Column(db.Integer, db.ForeignKey("order_items.id"), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id", ondelete="SET NULL"))
+    product_name = db.Column(db.String(120), nullable=False)  # nome na hora da venda
+    share = db.Column(db.Numeric(6, 4), nullable=False)

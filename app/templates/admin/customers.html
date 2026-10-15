@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block content %}
+<h1>Clientes</h1>
+<p class="hint">O cliente é cadastrado sozinho no primeiro pedido, pelo telefone. Pedidos e total gasto contam só os confirmados.</p>
+<form method="get" class="card row">
+  <label class="grow">Buscar por nome ou telefone<input name="q" value="{{ q }}" placeholder="Ex.: Maria ou 99999" autocomplete="off"></label>
+  <button class="primary small">Buscar</button>
+  {% if q %}<a href="{{ url_for('admin.customers') }}" class="clear">Limpar</a>{% endif %}
+</form>
+<p class="hint">{{ total }} cliente(s){{ ' encontrado(s)' if q }}{% if total > rows|length %} · mostrando os {{ rows|length }} mais recentes{% endif %}.</p>
+
+{% for row in rows %}
+{% set c = row.customer %}
+<article class="card customer">
+  <div class="cust-head">
+    <b>{{ c.name }}</b>
+    <a href="https://wa.me/55{{ c.phone_key }}" target="_blank" rel="noopener">{{ c.phone_key|phone }}</a>
+  </div>
+  {% if c.street %}<p class="addr">{{ c.street }}, {{ c.number }}{% if c.complement %} · {{ c.complement }}{% endif %} · {{ c.neighborhood }}</p>{% endif %}
+  <div class="cust-stats">
+    <span><b>{{ row.orders }}</b> pedido(s)</span>
+    <span><b>{{ row.spent|brl }}</b> gasto</span>
+    <span>Último pedido: {{ (row.last_order|local_time).strftime('%d/%m/%Y') if row.last_order else '—' }}</span>
+  </div>
+  <form method="post" action="{{ url_for('admin.customer_erase', customer_id=c.id) }}"
+        data-msg="Apagar os dados de {{ c.name }}? Nome, telefone e endereço saem do cadastro e dos pedidos dele. Os valores continuam nos relatórios. Não dá para desfazer."
+        onsubmit="return confirm(this.dataset.msg)">
+    {{ csrf() }}<button class="ghost small">Apagar dados (LGPD)</button>
+  </form>
+</article>
+{% else %}
+<p class="card empty">{{ 'Nenhum cliente encontrado.' if q else 'Ainda não há clientes. Eles aparecem aqui depois do primeiro pedido.' }}</p>
+{% endfor %}
+{% endblock %}

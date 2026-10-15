@@ -6,7 +6,8 @@ menos o login, exigem sessão; todo POST exige o token CSRF (app/extensions.py).
 
 import json
 import re
-from datetime import timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -18,6 +19,7 @@ from app.models import (
     AdminUser,
     Border,
     Category,
+    Customer,
     Neighborhood,
     Order,
     Product,
@@ -26,10 +28,12 @@ from app.models import (
     utcnow,
 )
 from app.routes.public import get_tenant_or_404
-from app.services.hours import is_open
+from app.services.hours import STORE_TZ, is_open
 from app.services.menu_data import WEEKDAYS
+from app.services.customers import erase_customer
 from app.services.money import parse_money
 from app.services.photos import PhotoError, delete_photo, save_photo
+from app.services.reports import month_calendar, sales_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/<slug>/admin")
 
@@ -315,6 +319,117 @@ def combo_save(category_id):
     except FormError as e:
         _reject(e)
     return redirect(url_for("admin.menu", _anchor=f"cat-{category.id}"))
+
+
+# ---------- relatórios ----------
+
+MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro",
+          "novembro", "dezembro"]
+
+
+def _date(text):
+    try:
+        return date.fromisoformat(text or "")
+    except ValueError:
+        return None
+
+
+def _period_label(start, end):
+    if start == end:
+        return f"{start.day} de {MONTHS[start.month - 1]} de {start.year}"
+    if (start.year, start.month) == (end.year, end.month):
+        return f"{start.day} a {end.day} de {MONTHS[start.month - 1]} de {start.year}"
+    return f"{start.strftime('%d/%m/%Y')} a {end.strftime('%d/%m/%Y')}"
+
+
+@admin_bp.route("/relatorios")
+def reports():
+    today = datetime.now(STORE_TZ).date()
+    month_start = today.replace(day=1)
+    last_month_end = month_start - timedelta(days=1)
+    presets = [
+        ("Hoje", today, today),
+        ("Ontem", today - timedelta(days=1), today - timedelta(days=1)),
+        ("Últimos 7 dias", today - timedelta(days=6), today),
+        ("Este mês", month_start, today),
+        ("Mês passado", last_month_end.replace(day=1), last_month_end),
+    ]
+    start = _date(request.args.get("inicio")) or month_start
+    end = _date(request.args.get("fim")) or today
+    if end < start:
+        start, end = end, start
+    end = min(end, start + timedelta(days=366))  # no máximo um ano por consulta
+    report = sales_report(g.tenant, start, end)
+    cal_month = _date((request.args.get("mes") or "") + "-01") or end.replace(day=1)
+    prev_month = (cal_month - timedelta(days=1)).replace(day=1)
+    next_month = (cal_month + timedelta(days=32)).replace(day=1)
+    return render_template(
+        "admin/reports.html",
+        r=report,
+        period=_period_label(start, end),
+        presets=presets,
+        weeks=month_calendar(g.tenant, cal_month.year, cal_month.month),
+        cal_label=f"{MONTHS[cal_month.month - 1]} de {cal_month.year}",
+        cal_month=cal_month,
+        prev_month=prev_month,
+        next_month=next_month,
+        today=today,
+    )
+
+
+# ---------- clientes ----------
+
+def customer_rows(tenant_id, q=""):
+    """Clientes com nº de pedidos confirmados, total gasto e data do último pedido."""
+    stats = dict(
+        (cid, (n, total, last))
+        for cid, n, total, last in db.session.query(
+            Order.customer_id, db.func.count(Order.id), db.func.sum(Order.total), db.func.max(Order.created_at)
+        )
+        .filter(Order.tenant_id == tenant_id, Order.status == "confirmado", Order.customer_id.isnot(None))
+        .group_by(Order.customer_id)
+    )
+    last_any = dict(
+        db.session.query(Order.customer_id, db.func.max(Order.created_at))
+        .filter(Order.tenant_id == tenant_id, Order.customer_id.isnot(None))
+        .group_by(Order.customer_id)
+    )
+    query = Customer.query.filter_by(tenant_id=tenant_id)
+    q = q.strip()
+    if q:
+        digits = "".join(ch for ch in q if ch.isdigit())
+        cond = Customer.name.ilike(f"%{q}%")
+        if digits:
+            cond = cond | Customer.phone_key.like(f"%{digits}%")
+        query = query.filter(cond)
+    rows = []
+    for c in query:
+        n, total, _ = stats.get(c.id, (0, None, None))
+        rows.append({
+            "customer": c,
+            "orders": n,
+            "spent": Decimal(str(total)) if total is not None else Decimal("0"),
+            "last_order": last_any.get(c.id),
+        })
+    rows.sort(key=lambda r: r["last_order"] or datetime.min, reverse=True)
+    return rows
+
+
+@admin_bp.route("/clientes")
+def customers():
+    q = request.args.get("q", "")
+    rows = customer_rows(g.tenant.id, q)
+    return render_template("admin/customers.html", rows=rows[:300], total=len(rows), q=q)
+
+
+@admin_bp.route("/clientes/<int:customer_id>/apagar", methods=["POST"])
+def customer_erase(customer_id):
+    customer = Customer.query.filter_by(tenant_id=g.tenant.id, id=customer_id).first_or_404()
+    name = customer.name
+    erase_customer(customer)
+    db.session.commit()
+    flash(f"Dados de “{name}” apagados. Os valores dos pedidos continuam nos relatórios.", "ok")
+    return redirect(url_for("admin.customers"))
 
 
 # ---------- fotos ----------

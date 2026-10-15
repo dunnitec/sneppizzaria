@@ -23,6 +23,7 @@ def create_app(config_class=Config):
     from app.routes.admin import admin_bp
     from app.routes.orders import orders_bp
     from app.routes.public import public_bp, static_url
+    from app.services.customers import format_phone
     from app.services.hours import local_time
     from app.services.money import brl, money_input
 
@@ -34,7 +35,7 @@ def create_app(config_class=Config):
 
     app.cli.add_command(create_admin)
     app.cli.add_command(import_photos)
-    app.jinja_env.filters.update(brl=brl, money_input=money_input, local_time=local_time)
+    app.jinja_env.filters.update(phone=format_phone, brl=brl, money_input=money_input, local_time=local_time)
     app.jinja_env.globals.update(static_url=static_url)
 
     return app

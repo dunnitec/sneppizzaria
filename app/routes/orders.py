@@ -6,7 +6,8 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, jsonify, request
 
 from app.extensions import db
-from app.models import Order, OrderItem
+from app.models import Order, OrderItem, OrderItemFlavor
+from app.services.customers import phone_key, upsert_customer
 from app.routes.public import get_tenant_or_404
 from app.services.delivery import calculate_fee
 from app.services.hours import is_open
@@ -47,6 +48,10 @@ def create_order(slug):
     if not str(p.get("customer_name") or "").strip() or not str(p.get("customer_phone") or "").strip():
         return jsonify(ok=False, error="Informe nome e telefone."), 400
 
+    key = phone_key(p.get("customer_phone"))
+    if not key:
+        return jsonify(ok=False, error="Informe um telefone válido, com DDD."), 400
+
     withdraw = bool(p.get("withdraw"))
     if not withdraw and not (str(p.get("street") or "").strip() and str(p.get("number") or "").strip()):
         return jsonify(ok=False, error="Informe o endereço de entrega."), 400
@@ -78,8 +83,12 @@ def create_order(slug):
         "withdraw": withdraw,
     }
 
+    customer = upsert_customer(tenant, key, order_info)
+    db.session.flush()
+
     order = Order(
         tenant_id=tenant.id,
+        customer_id=customer.id,
         customer_name=order_info["customer_name"],
         customer_phone=order_info["customer_phone"],
         street=order_info["street"],
@@ -96,8 +105,7 @@ def create_order(slug):
     db.session.add(order)
     db.session.flush()  # gera o número do pedido usado na mensagem
     for line in cart:
-        db.session.add(
-            OrderItem(
+        item = OrderItem(
                 order_id=order.id,
                 product_names=line["product_names"],
                 variant_label=line["variant_label"],
@@ -108,8 +116,13 @@ def create_order(slug):
                 unit_price=line["unit_price"],
                 quantity=line["quantity"],
                 line_total=line["line_total"],
-            )
         )
+        db.session.add(item)
+        db.session.flush()
+        for product, share in line["flavors"]:
+            db.session.add(
+                OrderItemFlavor(order_item_id=item.id, product_id=product.id, product_name=product.name, share=share)
+            )
 
     message = build_order_message(tenant, order.id, order_info, cart, delivery_fee, subtotal, total)
     order.whatsapp_message = message

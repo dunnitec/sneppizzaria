@@ -213,9 +213,20 @@ function openCheckout(){
     <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").map(p=>`<option>${p.trim()}</option>`).join("")}</select></label>
     <label id="troco" style="display:none">Troco para quanto? (opcional)<input name="troco" type="number" step="0.01" min="0"></label>
     <div class="sum" id="sum"></div>
+    <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>
   </form>
   <div class="ft"><button class="bk" type="button" onclick="openCart()">‹ Voltar</button><button class="nx" type="submit" form="ckf" style="background:#25d366">Enviar pelo WhatsApp</button></div>`;
-  document.getElementById("ovl").classList.add("on");totals();
+  document.getElementById("ovl").classList.add("on");fillRemembered();totals();
+}
+// nome, telefone e endereço ficam salvos só neste aparelho, para o próximo pedido ser mais rápido
+const REMEMBER_KEY="snep_cliente_"+DATA.tenant.slug;
+function remember(p){try{localStorage.setItem(REMEMBER_KEY,JSON.stringify({nome:p.customer_name,tel:p.customer_phone,rua:p.street,num:p.number,comp:p.complement,bairro:p.neighborhood,ref:p.reference}));}catch(e){}}
+function fillRemembered(){
+  let d=null;try{d=JSON.parse(localStorage.getItem(REMEMBER_KEY)||"null");}catch(e){}
+  if(!d)return;
+  const f=document.getElementById("ckf");
+  ["nome","tel","rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&d[k])el.value=d[k];});
+  const b=document.getElementById("bairro");if(d.bairro&&[...b.options].some(o=>o.value===d.bairro))b.value=d.bairro;
 }
 function fee(){
   if(document.getElementById("ck-wd").checked) return 0;
@@ -234,7 +245,7 @@ function finish(ev){
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
       document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}<p>Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria.</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
-      cart=[];renderCart();
+      remember(payload);cart=[];renderCart();
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
   return false;
 }

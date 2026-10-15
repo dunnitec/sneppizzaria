@@ -1,0 +1,115 @@
+{% extends "admin/base.html" %}
+{% block title %}Relatórios{% endblock %}
+{% block content %}
+<h1>Relatórios</h1>
+<p class="hint">Contam só os pedidos <b>confirmados</b>. Pendentes e cancelados aparecem à parte.</p>
+
+<div class="filters">
+  {% for label, a, b in presets %}
+  <a href="{{ url_for('admin.reports', inicio=a.isoformat(), fim=b.isoformat()) }}" class="{{ 'cur' if a == r.start and b == r.end }}">{{ label }}</a>
+  {% endfor %}
+</div>
+<form method="get" class="card row period">
+  <label class="time">De<input type="date" name="inicio" value="{{ r.start.isoformat() }}"></label>
+  <label class="time">Até<input type="date" name="fim" value="{{ r.end.isoformat() }}"></label>
+  <button class="primary small">Ver período</button>
+</form>
+
+<h2 class="period-title">{{ period }}</h2>
+<div class="kpis">
+  <div class="kpi"><span>Faturamento</span><b>{{ r.revenue|brl }}</b></div>
+  <div class="kpi"><span>Pedidos</span><b>{{ r.orders }}</b></div>
+  <div class="kpi"><span>Pizzas</span><b>{{ r.pizzas }}</b></div>
+  <div class="kpi"><span>Ticket médio</span><b>{{ r.avg_ticket|brl }}</b></div>
+</div>
+<p class="hint">
+  Inclui {{ r.delivery_fees|brl }} de taxas de entrega.
+  {% if r.pending_orders %}<b>{{ r.pending_orders }} pedido(s) pendente(s)</b> somando {{ r.pending_value|brl }} ainda não entraram — confirme ou cancele em <a href="{{ url_for('admin.orders', status='pendente') }}">Pedidos</a>.{% endif %}
+  {% if r.cancelled_orders %}{{ r.cancelled_orders }} cancelado(s).{% endif %}
+</p>
+
+{% set max_day = r.by_day|map(attribute='revenue')|max if r.by_day else 0 %}
+{% if r.by_day|length > 1 %}
+<section class="card">
+  <h2>Faturamento por dia</h2>
+  <div class="bars" role="img" aria-label="Faturamento por dia no período; os valores estão no calendário abaixo">
+    {% for d in r.by_day %}
+    <div class="bar-col" tabindex="0" data-tip="{{ d.date.strftime('%d/%m') }}: {{ d.revenue|brl }} · {{ d.orders }} pedido(s)">
+      <div class="bar" style="height:{{ ((d.revenue / max_day * 100) if max_day else 0)|round(1) }}%"></div>
+      {% if r.by_day|length <= 16 or loop.first or loop.last or d.date.day in (1, 10, 20) %}<span class="tick">{{ d.date.strftime('%d/%m') }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<div class="two">
+  <section class="card">
+    <h2>Sabores mais vendidos</h2>
+    {% if r.top_flavors %}
+    {% set max_q = r.top_flavors[0].qty %}
+    <table class="rank">
+      {% for f in r.top_flavors %}
+      <tr><td class="n">{{ loop.index }}</td><td>{{ f.name }}<div class="hbar" style="width:{{ (f.qty / max_q * 100)|round(1) }}%"></div></td><td class="v">{{ '%g'|format(f.qty|float) }}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="hint">Em pizzas. Meio a meio conta meia para cada sabor.</p>
+    {% else %}<p class="empty">Nenhuma venda confirmada no período.</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Horário dos pedidos</h2>
+    {% if r.by_hour %}
+    {% set max_h = r.by_hour|map(attribute='orders')|max %}
+    <table class="rank">
+      {% for h in r.by_hour %}
+      <tr><td class="n">{{ '%02d'|format(h.hour) }}h</td><td><div class="hbar" style="width:{{ (h.orders / max_h * 100)|round(1) }}%"></div></td><td class="v">{{ h.orders }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="empty">Sem pedidos confirmados.</p>{% endif %}
+  </section>
+</div>
+
+<div class="two">
+  <section class="card">
+    <h2>Formas de pagamento</h2>
+    <table class="list">
+      {% for row in r.by_payment %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>
+      {% else %}<tr><td class="empty">Sem dados no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="card">
+    <h2>Bairros que mais pedem</h2>
+    <table class="list">
+      {% for row in r.by_neighborhood %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>
+      {% else %}<tr><td class="empty">Sem dados no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>
+
+<section class="card">
+  <div class="cal-head">
+    <a href="{{ url_for('admin.reports', inicio=r.start.isoformat(), fim=r.end.isoformat(), mes=prev_month.strftime('%Y-%m')) }}" aria-label="Mês anterior">‹</a>
+    <h2>Calendário · {{ cal_label }}</h2>
+    <a href="{{ url_for('admin.reports', inicio=r.start.isoformat(), fim=r.end.isoformat(), mes=next_month.strftime('%Y-%m')) }}" aria-label="Próximo mês">›</a>
+  </div>
+  <p class="hint">Toque em um dia para ver o relatório dele.</p>
+  <table class="cal">
+    <tr>{% for w in ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] %}<th>{{ w }}</th>{% endfor %}</tr>
+    {% for week in weeks %}
+    <tr>
+      {% for d in week %}
+      <td class="{{ 'out' if not d.in_month }} {{ 'has' if d.orders }} {{ 'today' if d.date == today }}">
+        {% if d.in_month %}
+        <a href="{{ url_for('admin.reports', inicio=d.date.isoformat(), fim=d.date.isoformat(), mes=cal_month.strftime('%Y-%m')) }}">
+          <span class="day">{{ d.date.day }}</span>
+          {% if d.orders %}<span class="money">{{ d.revenue|brl }}</span><span class="cnt">{{ d.orders }} ped.</span>{% endif %}
+        </a>
+        {% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

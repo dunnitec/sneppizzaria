@@ -91,3 +91,55 @@ form.combo{border-bottom:1px solid #eee;padding-bottom:14px;margin-bottom:6px}
 label.file{position:relative;display:block;text-align:center;padding:8px;border-radius:6px;background:var(--red);color:#fff;font-size:13px;font-weight:700;cursor:pointer}
 label.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
 label.file:focus-within{outline:3px solid #f5a623}
+
+/* ---------- relatórios ---------- */
+.period{align-items:flex-end}
+.period-title{font-size:18px;margin:6px 0 10px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:6px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}
+.kpi span{display:block;font-size:12px;color:var(--muted);font-weight:600}
+.kpi b{display:block;font-size:24px;margin-top:4px;font-variant-numeric:tabular-nums}
+.bars{display:flex;align-items:flex-end;gap:2px;height:180px;padding-bottom:22px;position:relative}
+.bar-col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;position:relative;outline:none}
+.bar{background:var(--red);border-radius:4px 4px 0 0;min-height:1px}
+.bar-col:hover .bar,.bar-col:focus .bar{background:var(--red-dark)}
+.bar-col .tick{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--muted);white-space:nowrap}
+.bar-col:hover::after,.bar-col:focus::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:12px;padding:6px 8px;border-radius:6px;white-space:nowrap;z-index:5;pointer-events:none}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two .card{margin-bottom:16px}
+table.rank,table.list{width:100%;border-collapse:collapse;font-size:14px}
+.rank td,.list td{padding:6px 4px;border-top:1px solid #eee;vertical-align:middle}
+.rank tr:first-child td,.list tr:first-child td{border-top:0}
+.rank .n{width:42px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rank .v,.list .v{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hbar{height:6px;background:var(--red);border-radius:3px;margin-top:4px;min-width:2px}
+.empty{color:var(--muted)}
+.cal-head{display:flex;align-items:center;justify-content:space-between}
+.cal-head h2{margin:0}
+.cal-head a{font-size:26px;text-decoration:none;padding:0 12px}
+table.cal{width:100%;border-collapse:collapse;table-layout:fixed}
+.cal th{font-size:12px;color:var(--muted);padding:6px 0}
+.cal td{border:1px solid #eee;height:74px;vertical-align:top;padding:0}
+.cal td a{display:flex;flex-direction:column;height:100%;padding:6px;text-decoration:none;color:var(--ink)}
+.cal td a:hover{background:#fff4f4}
+.cal td.out{background:#fafafa}
+.cal td.has{background:#fff1f1}
+.cal td.today .day{background:var(--red);color:#fff;border-radius:99px;padding:0 6px;align-self:flex-start}
+.cal .day{font-size:13px;font-weight:700}
+.cal .money{font-size:12px;font-weight:700;margin-top:auto;font-variant-numeric:tabular-nums}
+.cal .cnt{font-size:11px;color:var(--muted)}
+
+/* ---------- clientes ---------- */
+.customer .cust-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:16px}
+.customer .addr{color:var(--muted);font-size:13px;margin:6px 0}
+.cust-stats{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;margin:8px 0}
+.customer form{margin-top:8px}
+.clear{align-self:center;font-size:13px}
+
+@media (max-width:700px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .two{grid-template-columns:1fr}
+  .cal td{height:58px}
+  .cal .money{font-size:10px}
+  .cal .cnt{display:none}
+}

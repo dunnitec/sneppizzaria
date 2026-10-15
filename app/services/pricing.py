@@ -149,6 +149,8 @@ def price_item(tenant, raw):
         "border_name": f"{re.sub(r'^Borda ', '', border.group_name)} - {border.name}"[:60] if border else "",
         "addon_names": ", ".join(f"{qty}x {addon.name}" for addon, qty in addons)[:255],
         "extras": ", ".join(extras)[:255],
+        # combo: cada sabor é 1/n da pizza; meio a meio: 1/n de cada
+        "flavors": [(p, Decimal(1) / len(flavors)) for p in flavors],
         "notes": str(raw.get("notes") or "").strip()[:255],
         "unit_price": price,
         "quantity": quantity,

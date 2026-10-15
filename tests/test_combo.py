@@ -102,7 +102,7 @@ def test_menu_data_exposes_combo_settings(tenant):
 def test_whatsapp_message_lists_what_comes_with_the_combo(client, open_store):
     r = client.post(
         "/snep/api/pedido",
-        json={"withdraw": True, "customer_name": "Ana", "customer_phone": "119", "payment_method": "Pix",
+        json={"withdraw": True, "customer_name": "Ana", "customer_phone": "11999990000", "payment_method": "Pix",
               "items": [combo_item(premium_flavors(2))]},
     )
     assert r.status_code == 200, r.json
