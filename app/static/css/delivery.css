@@ -122,6 +122,7 @@ footer .st.open{color:#7CFC8A}
 .opt.sel{background:#9a0202;color:#fff;border-left:4px solid #c70000}
 .opt input[type=radio]{width:18px;height:18px;accent-color:#c70000}
 .opt .grow{flex:1}
+.opt .th{width:72px;height:72px;flex:none;object-fit:cover;border-radius:8px;background:#eee}
 .opt .pr{font-size:12px;white-space:nowrap}
 .opt .cnt{display:flex;align-items:center;gap:8px}
 .opt .cnt button{width:22px;height:22px;border-radius:50%;border:0;color:#fff;font-weight:700;cursor:pointer;line-height:20px}

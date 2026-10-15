@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, redirect, render_template, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, send_from_directory, url_for
 
 from app.models import Tenant
 from app.services.menu_data import PAY_ICONS, data_from_db
@@ -32,6 +32,12 @@ def tenant_assets(tenant):
         "banners": [url(p.name) for p in sorted(base.glob("banner*.webp"))],
         "fundo": url("fundo.webp") if (base / "fundo.webp").exists() else "",
     }
+
+
+@public_bp.route("/uploads/<path:name>")
+def uploaded_file(name):
+    # nome com trecho aleatório: o arquivo nunca muda, pode ficar em cache por 1 ano
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], name, max_age=365 * 24 * 3600)
 
 
 @public_bp.route("/")

@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+{% block title %}Fotos{% endblock %}
+{% block content %}
+<h1>Fotos dos sabores</h1>
+<p class="hint">A foto aparece ao lado do nome quando o cliente escolhe o sabor. Pode mandar a foto do celular: o site reduz o tamanho sozinho.</p>
+<div class="filters">
+  {% for c in categories %}<a href="#cat-{{ c.id }}">{{ c.name }}</a>{% endfor %}
+</div>
+{% for c in categories %}
+<section id="cat-{{ c.id }}" class="card">
+  <h2>{{ c.name }}</h2>
+  <div class="photo-grid">
+    {% for p in c.products %}
+    <div class="photo-item" id="p-{{ p.id }}">
+      {% if p.image %}<img src="{{ url_for('public.uploaded_file', name=p.image) }}" alt="Foto de {{ p.name }}" loading="lazy">
+      {% else %}<div class="no-photo">Sem foto</div>{% endif %}
+      <b>{{ p.name }}</b>
+      <form method="post" action="{{ url_for('admin.photo_upload', product_id=p.id) }}" enctype="multipart/form-data">
+        {{ csrf() }}
+        <label class="file">{{ 'Trocar foto' if p.image else 'Enviar foto' }}<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label>
+      </form>
+      {% if p.image %}
+      <form method="post" action="{{ url_for('admin.photo_remove', product_id=p.id) }}">
+        {{ csrf() }}<button class="ghost small">Remover</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

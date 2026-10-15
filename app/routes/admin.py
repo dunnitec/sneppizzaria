@@ -29,6 +29,7 @@ from app.routes.public import get_tenant_or_404
 from app.services.hours import is_open
 from app.services.menu_data import WEEKDAYS
 from app.services.money import parse_money
+from app.services.photos import PhotoError, delete_photo, save_photo
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/<slug>/admin")
 
@@ -314,6 +315,48 @@ def combo_save(category_id):
     except FormError as e:
         _reject(e)
     return redirect(url_for("admin.menu", _anchor=f"cat-{category.id}"))
+
+
+# ---------- fotos ----------
+
+@admin_bp.route("/fotos")
+def photos():
+    categories = Category.query.filter(Category.tenant_id == g.tenant.id, Category.kind != "metro")
+    return render_template("admin/photos.html", categories=categories.order_by(Category.sort_order, Category.id).all())
+
+
+def _product_or_404(product_id):
+    return Product.query.filter_by(tenant_id=g.tenant.id, id=product_id).first_or_404()
+
+
+@admin_bp.route("/fotos/<int:product_id>", methods=["POST"])
+def photo_upload(product_id):
+    product = _product_or_404(product_id)
+    back = redirect(url_for("admin.photos", _anchor=f"p-{product.id}"))
+    file = request.files.get("photo")
+    if not file or not file.filename:
+        flash("Escolha uma foto para enviar.", "error")
+        return back
+    try:
+        new = save_photo(file.stream, g.tenant.slug)
+    except PhotoError as e:
+        flash(str(e), "error")
+        return back
+    old, product.image = product.image, new
+    db.session.commit()
+    delete_photo(old)
+    flash(f"Foto de “{product.name}” salva.", "ok")
+    return back
+
+
+@admin_bp.route("/fotos/<int:product_id>/remover", methods=["POST"])
+def photo_remove(product_id):
+    product = _product_or_404(product_id)
+    old, product.image = product.image, None
+    db.session.commit()
+    delete_photo(old)
+    flash(f"Foto de “{product.name}” removida.", "ok")
+    return redirect(url_for("admin.photos", _anchor=f"p-{product.id}"))
 
 
 # ---------- bordas e adicionais ----------

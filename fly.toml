@@ -7,6 +7,8 @@ primary_region = "gru"
   PORT = "8080"
   # banco SQLite dentro do volume persistente montado em /data
   DATABASE_URL = "sqlite:////data/snep.db"
+  # fotos dos sabores enviadas pelo painel, no mesmo volume (entram nos snapshots)
+  UPLOAD_FOLDER = "/data/uploads"
 
 # disco persistente: sobrevive a deploys e reinícios. O Fly tira uma cópia
 # (snapshot) por dia; aqui ficam guardadas as dos últimos 14 dias.

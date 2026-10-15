@@ -103,6 +103,7 @@ class Product(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text)  # ingredientes
+    image = db.Column(db.String(255))  # arquivo da foto em UPLOAD_FOLDER (services/photos.py)
     active = db.Column(db.Boolean, default=True)
 
     variants = db.relationship(

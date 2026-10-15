@@ -69,6 +69,7 @@ def data_from_db(tenant, order_url, assets):
 
     from app.models import Addon, Border, Category, Neighborhood
     from app.services.hours import is_open
+    from app.services.photos import photo_url
 
     # os ids vão para o navegador para que o pedido diga o que foi escolhido;
     # o preço é sempre recalculado no servidor (services/pricing.py)
@@ -86,6 +87,7 @@ def data_from_db(tenant, order_url, assets):
                     {
                         "id": p.id,
                         "name": p.name,
+                        "image": photo_url(p.image),
                         "description": p.description or "",
                         "variants": [
                             {"label": v.label, "price": float(v.price), "max_flavors": v.max_flavors}

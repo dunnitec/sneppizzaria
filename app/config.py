@@ -24,6 +24,10 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # fotos dos sabores enviadas pelo painel (em produção: volume do Fly, ver fly.toml)
+    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(basedir, "instance", "uploads"))
+    MAX_CONTENT_LENGTH = 15 * 1024 * 1024  # foto de celular de até 15 MB
+
     DEFAULT_TENANT_SLUG = os.environ.get("DEFAULT_TENANT_SLUG", "snep")
 
     # Nome usado nas mensagens de pedido enviadas via WhatsApp

@@ -119,7 +119,7 @@ function renderStep(){
   if(st.type==="flavor"){
     t=`Escolha o ${ordinal(st.i)} sabor.`;
     const cur=F.flavors[st.i];
-    body=`<input class="srch" placeholder="Busque por um sabor" oninput="fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})"><div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
+    body=`<input class="srch" placeholder="Busque por um sabor" oninput="fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
   } else if(st.type==="choice"){
     const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
