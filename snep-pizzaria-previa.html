@@ -131,6 +131,7 @@ footer .st.open{color:#7CFC8A}
 .opt.sel{background:#9a0202;color:#fff;border-left:4px solid #c70000}
 .opt input[type=radio]{width:18px;height:18px;accent-color:#c70000}
 .opt .grow{flex:1}
+.opt .th{width:72px;height:72px;flex:none;object-fit:cover;border-radius:8px;background:#eee}
 .opt .pr{font-size:12px;white-space:nowrap}
 .opt .cnt{display:flex;align-items:center;gap:8px}
 .opt .cnt button{width:22px;height:22px;border-radius:50%;border:0;color:#fff;font-weight:700;cursor:pointer;line-height:20px}
@@ -356,11 +357,13 @@ function unitPrice(){
   return p;
 }
 function renderStep(){
+  const prevBody=document.querySelector("#md .body"), sameStep=F._shown===F.step, keepTop=sameStep&&prevBody?prevBody.scrollTop:0;
+  if(!sameStep)F.q="";
   const st=steps()[F.step], md=document.getElementById("md"); let t="",sub="",body="",nextOk=true,nextLbl="Avançar ›";
   if(st.type==="flavor"){
     t=`Escolha o ${ordinal(st.i)} sabor.`;
     const cur=F.flavors[st.i];
-    body=`<input class="srch" placeholder="Busque por um sabor" oninput="fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})"><div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
+    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
   } else if(st.type==="choice"){
     const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
@@ -387,6 +390,9 @@ function renderStep(){
   }
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>${t}</h2>${sub?`<p>${sub}</p>`:""}</div><div class="body">${body}</div>
     <div class="ft">${F.step>0?`<button class="bk" onclick="F.step--;renderStep()">‹ Voltar</button>`:""}<button class="nx" ${nextOk?"":"disabled"} onclick="next()">${nextLbl}</button></div>`;
+  F._shown=F.step;
+  if(F.q)fl(F.q);
+  const b=md.querySelector(".body"); if(b)b.scrollTop=keepTop;
 }
 function fl(q){q=q.toLowerCase();document.querySelectorAll("#fl .opt").forEach(o=>o.style.display=o.dataset.n.includes(q)?"":"none");}
 function pickFlavor(pi){F.flavors[steps()[F.step].i]=flavorPool()[pi];renderStep();}
