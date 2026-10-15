@@ -27,7 +27,7 @@ button{font-family:inherit}
 #menu li:hover{background:#9a0202}
 
 /* ---------- banner ---------- */
-.banner{position:relative;margin:18px 0 12px;border-radius:8px;overflow:hidden;background:#111;aspect-ratio:1024/280}
+.banner{position:relative;margin:18px 0 12px;border-radius:8px;overflow:hidden;background:#111;aspect-ratio:1600/550}
 .banner .sl{position:absolute;inset:0;display:none;background-size:cover;background-position:center}
 .banner .sl.on{display:block}
 .banner .sl::before{content:"";position:absolute;inset:0;backdrop-filter:blur(14px);background:#0005}
@@ -165,7 +165,7 @@ footer .st.open{color:#7CFC8A}
   #header .info h1{font-size:16px}#header .info p{font-size:11px}
   #header .actions{top:10px}
   #menu li{width:50%;font-size:12px}
-  .banner{border-radius:0;margin:0 -12px 8px;aspect-ratio:375/100}
+  .banner{border-radius:0;margin:0 -12px 8px;aspect-ratio:1600/550}
   .banner .arr{font-size:30px}
   .infobar{font-size:12px;border-radius:0;margin:0 -12px 8px}
   .infobar small{display:none}
