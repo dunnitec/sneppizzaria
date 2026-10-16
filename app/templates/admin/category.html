@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}{{ c.name }}{% endblock %}
+{% block help %}
+<ul>
+  <li><b>Adicionar</b>: escreva o nome, coloque o preço de cada tamanho e toque em Adicionar.</li>
+  <li><b>Mudar preço</b>: altere o valor na lista e toque em <b>Salvar alterações</b> no fim da lista.</li>
+  <li>Preço em branco = o item não tem aquele tamanho. Para tirar um item do ar por um tempo, use a aba Estoque.</li>
+</ul>
+{% endblock %}
 {% block content %}
 {% set info = kinds[c.kind] %}
 {% set drink = c.kind == 'bebida' %}

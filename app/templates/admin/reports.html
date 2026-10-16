@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Relatórios{% endblock %}
+{% block help %}
+<ul>
+  <li>Escolha o período nos botões (Hoje, Este mês...) ou nas datas.</li>
+  <li>Só entram os pedidos que você <b>confirmou</b>. Pedidos pendentes aparecem num aviso à parte.</li>
+  <li>No calendário, toque em um dia para ver só aquele dia.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Relatórios</h1>
 <p class="hint">Contam só os pedidos <b>confirmados</b>. Pendentes e cancelados aparecem à parte.</p>

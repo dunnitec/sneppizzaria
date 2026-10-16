@@ -30,6 +30,7 @@ def create_admin(slug, username, password):
         user = AdminUser(tenant_id=tenant.id, username=username)
         db.session.add(user)
     user.set_password(password)
+    user.password_changed = False
     user.failed_attempts = 0
     user.locked_until = None
     db.session.commit()

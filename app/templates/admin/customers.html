@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Clientes{% endblock %}
+{% block help %}
+<ul>
+  <li>Quem faz um pedido entra aqui sozinho, pelo telefone. Não precisa cadastrar ninguém.</li>
+  <li>Toque no telefone para abrir a conversa no WhatsApp.</li>
+  <li>Se um cliente pedir para apagar os dados dele (LGPD), use <b>Apagar dados</b>.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Clientes</h1>
 <p class="hint">O cliente é cadastrado sozinho no primeiro pedido, pelo telefone. Pedidos e total gasto contam só os confirmados.</p>

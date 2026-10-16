@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Loja{% endblock %}
+{% block help %}
+<ul>
+  <li>Aqui ficam nome, endereço, formas de pagamento, recados do topo do site, pedido mínimo e o <b>horário</b>.</li>
+  <li>O site abre e fecha sozinho no horário. Para abrir ou fechar na hora, use a tela <b>Início</b>.</li>
+  <li>Depois de mudar, toque em <b>Salvar dados da loja</b> no fim da página.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Loja</h1>
 <form method="post" data-track>

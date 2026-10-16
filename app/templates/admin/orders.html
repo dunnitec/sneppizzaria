@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Pedidos{% endblock %}
+{% block help %}
+<ul>
+  <li>Todo pedido feito no site aparece aqui como <b>pendente</b>. A lista atualiza sozinha.</li>
+  <li>Quando a mensagem do cliente chegar no WhatsApp, toque em <b>Confirmar</b>. Se ela nunca chegar, toque em <b>Cancelar</b>.</li>
+  <li>Toque em <b>Ativar som</b> uma vez para ouvir um aviso quando chegar pedido novo (o celular precisa ficar nesta tela).</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Pedidos</h1>
 <div id="live" class="live card" data-poll="{{ url_for('admin.orders_poll') }}" data-latest="{{ latest_id }}">

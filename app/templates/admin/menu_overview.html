@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Cardápio{% endblock %}
+{% block help %}
+<ul>
+  <li>Toque em <b>Editar itens e preços</b> para mudar preço, nome, foto ou adicionar um item novo.</li>
+  <li><b>+ Nova categoria</b> cria um grupo novo (ex.: Refrigerantes, Esfihas).</li>
+  <li>As setas ↑ ↓ mudam a ordem no site. <b>Excluir</b> apaga a categoria inteira; para tirar só por um tempo, use o Estoque.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>

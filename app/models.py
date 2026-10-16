@@ -29,6 +29,8 @@ class AdminUser(db.Model):
     username = db.Column(db.String(60), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)  # nunca a senha em si
     role = db.Column(db.String(20), nullable=False, default="dono", server_default="dono")  # dono | funcionario
+    # False enquanto a senha for a provisória (criada no comando ou por outra pessoa); True depois que a pessoa troca
+    password_changed = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     failed_attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime)  # bloqueio temporário após senhas erradas seguidas
     created_at = db.Column(db.DateTime, default=utcnow)

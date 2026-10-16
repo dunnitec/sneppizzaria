@@ -1,5 +1,11 @@
 {% extends "admin/base.html" %}
 {% block title %}Usuários{% endblock %}
+{% block help %}
+<ul>
+  <li>Crie um usuário para cada funcionário. <b>Funcionário</b> só vê Pedidos e Estoque.</li>
+  <li>Se alguém esquecer a senha, use <b>Redefinir senha</b> e passe a nova para a pessoa.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Conta</h1>
 <section class="card">

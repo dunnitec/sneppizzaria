@@ -28,3 +28,26 @@ def is_open(tenant, now=None):
         return False
     minute = now.hour * 60 + now.minute
     return today[0] <= minute < today[1]
+
+
+def _hhmm(minutes):
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def status_text(tenant, now=None):
+    """Frase curta para o painel: por que a loja está aberta/fechada e o que vem a seguir."""
+    if tenant.is_open_override is True:
+        return "Aberta por você, até você fechar ou voltar ao horário."
+    if tenant.is_open_override is False:
+        return "Fechada por você, até você abrir de novo."
+    now = (now or datetime.now(STORE_TZ)).astimezone(STORE_TZ)
+    hours = json.loads(tenant.hours_json) if tenant.hours_json else {}
+    today = hours.get(str((now.weekday() + 1) % 7))
+    if not today:
+        return "Fechada agora. Hoje não abre."
+    minute = now.hour * 60 + now.minute
+    if minute < today[0]:
+        return f"Fechada agora. Hoje abre às {_hhmm(today[0])}."
+    if minute < today[1]:
+        return f"Aberta, seguindo o horário. Fecha às {_hhmm(today[1])}."
+    return "Fechada agora. Hoje já encerrou."

@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Entrega{% endblock %}
+{% block help %}
+<ul>
+  <li>Cada bairro tem sua taxa de entrega. O cliente escolhe o bairro e a taxa entra no total.</li>
+  <li>Bairro que não está na lista aparece como “taxa a confirmar” — você combina pelo WhatsApp.</li>
+  <li>Mude as taxas e toque em <b>Salvar bairros</b>.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Taxa de entrega por bairro</h1>
 <p class="hint">Bairro fora da lista (ou desmarcado) aparece para o cliente como “taxa a confirmar”.</p>

@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Estoque{% endblock %}
+{% block help %}
+<ul>
+  <li>Acabou algum ingrediente ou bebida? Toque no botão verde para ficar <b>cinza (Esgotado)</b>. O item some do site na hora.</li>
+  <li>Acabou um ingrediente que vai em várias pizzas? Digite o nome (ex.: <i>calabresa</i>) e toque em <b>Desativar todos os encontrados</b>.</li>
+  <li>Quando chegar de novo, faça o mesmo e ligue outra vez.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Estoque</h1>
 <p class="hint">Acabou algo? Desligue aqui e o item some do site na hora (não precisa salvar). Ligue de novo quando voltar.</p>

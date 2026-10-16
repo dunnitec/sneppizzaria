@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Bordas e adicionais{% endblock %}
+{% block help %}
+<ul>
+  <li><b>Bordas</b>: o cliente escolhe uma ao montar a pizza. <b>Adicionais</b>: ingredientes extras pagos.</li>
+  <li>Mude preços ou nomes e toque em <b>Salvar</b> no fim da página. Para criar, use os quadros no fim.</li>
+  <li>Desmarcar “à venda” esconde do site sem apagar.</li>
+</ul>
+{% endblock %}
 {% block content %}
 <h1>Bordas e adicionais</h1>
 <form method="post" id="extras" data-track>

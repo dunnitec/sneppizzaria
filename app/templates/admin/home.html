@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+{% block title %}Início{% endblock %}
+{% block help %}
+<p>Esta é a primeira tela do painel. Aqui você vê se a loja está recebendo pedidos e o resumo do dia.</p>
+<ul>
+  <li><b>Fechar agora</b>: o site para de aceitar pedidos na hora (bom para feriado ou imprevisto). Fica fechado até você abrir de novo.</li>
+  <li><b>Voltar a seguir o horário</b>: o site abre e fecha sozinho, no horário da aba Loja.</li>
+  <li>Os números de hoje contam só os pedidos que você <b>confirmou</b> na aba Pedidos.</li>
+</ul>
+{% endblock %}
+{% block content %}
+<h1>Início</h1>
+
+<section class="card store-now {{ 'is-open' if store_open else 'is-closed' }}">
+  <p class="big-status">A loja está <b>{{ 'ABERTA' if store_open else 'FECHADA' }}</b> para pedidos</p>
+  <p class="hint">{{ status_line }}</p>
+  <form method="post" action="{{ url_for('admin.store_now') }}" class="now-buttons">
+    {{ csrf() }}
+    {% if store_open %}<button name="status" value="closed" class="primary big">Fechar agora</button>
+    {% else %}<button name="status" value="open" class="primary big green">Abrir agora</button>{% endif %}
+    {% if tenant.is_open_override is not none %}<button name="status" value="auto" class="ghost">Voltar a seguir o horário</button>{% endif %}
+  </form>
+</section>
+
+<div class="home-grid">
+  <a class="card tile {{ 'attention' if pending_count }}" href="{{ url_for('admin.orders', status='pendente') }}">
+    <span class="tile-num">{{ pending_count }}</span>
+    <span>{{ 'pedido esperando confirmação' if pending_count == 1 else 'pedidos esperando confirmação' }}</span>
+    <span class="tile-link">Ver pedidos ›</span>
+  </a>
+  <a class="card tile" href="{{ url_for('admin.reports', inicio=today.isoformat(), fim=today.isoformat()) }}">
+    <span class="tile-num">{{ report.revenue|brl }}</span>
+    <span>vendido hoje · {{ report.orders }} pedido(s) · {{ report.pizzas }} pizza(s)</span>
+    <span class="tile-link">Ver relatório ›</span>
+  </a>
+  <a class="card tile {{ 'attention' if sold_out }}" href="{{ url_for('admin.stock') }}">
+    <span class="tile-num">{{ sold_out }}</span>
+    <span>{{ 'item esgotado' if sold_out == 1 else 'itens esgotados' }} (fora do site)</span>
+    <span class="tile-link">Ir para o Estoque ›</span>
+  </a>
+</div>
+
+{% if steps|selectattr('done', 'equalto', False)|list %}
+<section class="card">
+  <h2>Primeiros passos</h2>
+  <p class="hint">Some daqui quando estiver tudo feito.</p>
+  <ul class="steps">
+    {% for s in steps %}
+    <li class="{{ 'done' if s.done }}">
+      <span class="tick" aria-hidden="true">{{ '✔' if s.done else '○' }}</span>
+      <span class="step-text">{{ s.text }}{% if s.done %} <small>(feito)</small>{% endif %}</span>
+      {% if not s.done %}<a class="button ghost small" href="{{ s.url }}">{{ s.action }}</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Atalhos</h2>
+  <div class="shortcuts">
+    <a class="button ghost small" href="{{ url_for('public.menu', slug=tenant.slug) }}" target="_blank" rel="noopener">Ver o site como o cliente ↗</a>
+    <a class="button ghost small" href="{{ url_for('admin.menu') }}">Mudar preços e itens</a>
+    <a class="button ghost small" href="{{ url_for('admin.store') }}">Horário e dados da loja</a>
+    <a class="button ghost small" href="{{ url_for('admin.delivery') }}">Taxas de entrega</a>
+  </div>
+</section>
+{% endblock %}

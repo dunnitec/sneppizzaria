@@ -12,7 +12,7 @@
 {% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
 <header class="top">
   <div class="wrap bar">
-    <div class="brand">{{ tenant.name }} <span class="pill {{ 'on' if store_open else 'off' }}">{{ 'Aberta' if store_open else 'Fechada' }}</span></div>
+    <div class="brand">{{ tenant.name }} {% if admin and is_owner %}<a href="{{ url_for('admin.index') }}" class="pill {{ 'on' if store_open else 'off' }}" title="Abrir ou fechar a loja">{{ 'Aberta' if store_open else 'Fechada' }}</a>{% else %}<span class="pill {{ 'on' if store_open else 'off' }}">{{ 'Aberta' if store_open else 'Fechada' }}</span>{% endif %}</div>
     {% if admin %}
     <form method="post" action="{{ url_for('admin.logout') }}">{{ csrf() }}<button class="ghost">Sair</button></form>
     {% endif %}
@@ -20,6 +20,7 @@
   {% if admin %}
   <nav class="wrap tabs">
     {% set tabs = [
+      ('admin.index', 'Início', ['admin.index']),
       ('admin.orders', 'Pedidos', ['admin.orders']),
       ('admin.stock', 'Estoque', ['admin.stock']),
       ('admin.menu', 'Cardápio', ['admin.menu', 'admin.category_page', 'admin.category_new', 'admin.photos']),
@@ -46,6 +47,9 @@
   {% for category, message in get_flashed_messages(with_categories=true) %}
   <p class="flash {{ category }}" role="status">{{ message }}</p>
   {% endfor %}
+  {% if self.help()|trim %}
+  <details class="help"><summary>❔ Como usar esta tela</summary><div class="help-body">{% block help %}{% endblock %}</div></details>
+  {% endif %}
   {% block content %}{% endblock %}
 </main>
 <script src="{{ static_url('js/admin.js') }}"></script>

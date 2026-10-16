@@ -28,7 +28,7 @@ from app.models import (
     utcnow,
 )
 from app.routes.public import get_tenant_or_404
-from app.services.hours import STORE_TZ, is_open
+from app.services.hours import STORE_TZ, is_open, status_text
 from app.services.menu_data import WEEKDAYS
 from app.services.customers import erase_customer
 from app.services.money import brl, parse_money
@@ -153,7 +153,7 @@ def login():
             session.permanent = True
             session["admin_id"] = user.id
             session["admin_key"] = _session_key(user)
-            return redirect(url_for("admin.orders"))
+            return redirect(url_for("admin.index"))
         else:
             user.failed_attempts += 1
             if user.failed_attempts >= MAX_FAILED_LOGINS:
@@ -172,7 +172,40 @@ def logout():
 
 @admin_bp.route("/")
 def index():
-    return redirect(url_for("admin.orders"))
+    if g.admin.role != "dono":
+        return redirect(url_for("admin.orders"))
+    today = datetime.now(STORE_TZ).date()
+    tenant_products = Product.query.filter_by(tenant_id=g.tenant.id)
+    sold_out = (tenant_products.filter_by(active=False).count()
+                + Border.query.filter_by(tenant_id=g.tenant.id, active=False).count()
+                + Addon.query.filter_by(tenant_id=g.tenant.id, active=False).count())
+    without_photo = tenant_products.join(Category).filter(Product.image.is_(None), Category.kind != "metro").count()
+    has_drinks = tenant_products.join(Category).filter(Category.kind == "bebida").first() is not None
+    steps = [
+        {"done": g.admin.password_changed, "text": "Trocar a senha temporária do painel por uma só sua",
+         "url": url_for("admin.password"), "action": "Trocar senha"},
+        {"done": without_photo == 0, "text": f"Pôr as fotos dos itens ({without_photo} ainda sem foto)",
+         "url": url_for("admin.photos"), "action": "Pôr fotos"},
+        {"done": has_drinks, "text": "Cadastrar as bebidas (refrigerantes, sucos...)",
+         "url": url_for("admin.category_new"), "action": "Cadastrar bebidas"},
+    ]
+    return render_template(
+        "admin/home.html", today=today, report=sales_report(g.tenant, today, today), sold_out=sold_out,
+        steps=steps, status_line=status_text(g.tenant),
+    )
+
+
+@admin_bp.route("/loja/agora", methods=["POST"])
+def store_now():
+    """Abrir/fechar com um toque na tela Início."""
+    status = request.form.get("status")
+    if status not in STORE_STATUS:
+        abort(400)
+    g.tenant.is_open_override = STORE_STATUS[status]
+    db.session.commit()
+    flash({"open": "Loja aberta. O site já aceita pedidos.", "closed": "Loja fechada. O site não aceita pedidos até você abrir.",
+           "auto": "Pronto: a loja volta a abrir e fechar sozinha no horário."}[status], "ok")
+    return redirect(url_for("admin.index"))
 
 
 @admin_bp.route("/senha", methods=["GET", "POST"])
@@ -187,6 +220,7 @@ def password():
             flash("A confirmação não é igual à nova senha.", "error")
         else:
             g.admin.set_password(new)
+            g.admin.password_changed = True
             db.session.commit()
             session["admin_key"] = _session_key(g.admin)
             flash("Senha alterada.", "ok")

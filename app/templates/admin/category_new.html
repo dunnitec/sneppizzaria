@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 {% block title %}Nova categoria{% endblock %}
+{% block help %}
+<ol>
+  <li>Escolha o tipo (pizza salgada, pizza doce ou bebida).</li>
+  <li>Dê um nome, como vai aparecer no site.</li>
+  <li>Confira os tamanhos sugeridos. Depois de criar, você coloca os itens e os preços.</li>
+</ol>
+{% endblock %}
 {% block content %}
 <a class="back" href="{{ url_for('admin.menu') }}">‹ Voltar para o cardápio</a>
 <h1>Nova categoria</h1>

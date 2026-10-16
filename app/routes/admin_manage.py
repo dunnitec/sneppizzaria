@@ -383,6 +383,7 @@ def user_password(user_id):
         flash(f"A senha precisa ter pelo menos {MIN_PASSWORD_LENGTH} caracteres.", "error")
     else:
         user.set_password(password)
+        user.password_changed = False  # senha passada por outra pessoa: a dona dela deve trocar
         user.failed_attempts, user.locked_until = 0, None
         db.session.commit()
         flash(f"Senha de “{user.username}” redefinida.", "ok")
