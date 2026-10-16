@@ -201,3 +201,49 @@ button.pulse{box-shadow:0 0 0 0 rgba(199,0,0,.6);animation:pulse 1.6s infinite}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #b9dfc4;background:#e6f5ea;border-radius:99px;font-size:13px;color:var(--ink);font-weight:600;cursor:pointer}
 .chip.off{border-color:#f0b4b4;background:#fdeaea;text-decoration:line-through;color:var(--muted)}
 .chip input{width:16px;height:16px;margin:0;accent-color:#2fb344}
+
+/* ---------- cardápio para leigos ---------- */
+.page-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+.page-head h1{margin-bottom:2px}
+a.button{display:inline-block;text-decoration:none;border-radius:6px;padding:10px 18px;font-weight:700;border:1px solid transparent}
+a.button.primary{background:var(--red);color:#fff}
+a.button.primary:hover{background:var(--red-dark)}
+a.button.ghost{border-color:currentColor;color:var(--ink);font-weight:400}
+a.button.small{padding:8px 12px;font-size:13px}
+a.back{display:inline-block;margin:4px 0 8px;font-size:14px;text-decoration:none}
+.cat-list{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
+.cat-overview{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin:0}
+.cat-icon{font-size:34px;line-height:1;width:48px;text-align:center}
+.cat-info{flex:1 1 260px}
+.cat-info h2{margin:0 0 4px}
+.cat-info h2 a{color:var(--ink);text-decoration:none}
+.cat-meta{margin:2px 0;font-size:13px;color:var(--muted)}
+.cat-meta .warn{color:#b25e00;font-weight:700}
+.cat-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.cat-actions form{margin:0}
+.cat-order{display:flex;gap:4px}
+.add-card{border:2px solid var(--red)}
+.item-row{display:flex;gap:14px;padding:14px 0;border-top:1px solid #eee}
+.item-row:first-of-type{border-top:0}
+.item-row.off{opacity:.55}
+.item-row .thumb{flex:none;width:92px;display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.item-row .thumb img,.item-row .thumb span{width:92px;height:92px;border-radius:8px;object-fit:cover;border:1px solid var(--line);background:#f6f6f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+label.file.small{padding:6px;font-size:12px}
+.item-fields{flex:1;min-width:0}
+.item-fields .row{border-top:0;padding:4px 0}
+h3{font-size:15px;margin:14px 0 4px}
+.danger-card{border-color:#f0b4b4}
+.kind-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.kind-choice{position:relative;display:flex;flex-direction:column;gap:4px;padding:16px;border:2px solid var(--line);border-radius:10px;cursor:pointer;color:var(--ink);font-size:15px;font-weight:400}
+.kind-choice input{position:absolute;opacity:0}
+.kind-choice:has(input:checked){border-color:var(--red);background:#fff4f4}
+.kind-choice:has(input:focus-visible){outline:3px solid #f5a623}
+.kind-choice .kind-icon{font-size:30px}
+.kind-choice small{color:var(--muted);font-size:13px;line-height:1.35}
+#new-category .check{margin-top:10px}
+@media (max-width:560px){
+  .item-row{flex-direction:column}
+  .item-row .thumb{flex-direction:row;width:auto;align-items:center}
+  .item-row .thumb img,.item-row .thumb span{width:64px;height:64px}
+  .cat-actions{width:100%}
+}

@@ -19,9 +19,24 @@
   </div>
   {% if admin %}
   <nav class="wrap tabs">
-    {% set tabs = [('admin.orders', 'Pedidos'), ('admin.stock', 'Estoque'), ('admin.reports', 'Relatórios'), ('admin.customers', 'Clientes'), ('admin.menu', 'Cardápio'), ('admin.photos', 'Fotos'), ('admin.extras', 'Bordas e adicionais'), ('admin.delivery', 'Entrega'), ('admin.store', 'Loja'), ('admin.visual', 'Visual'), ('admin.users', 'Usuários'), ('admin.password', 'Senha')] if is_owner else [('admin.orders', 'Pedidos'), ('admin.stock', 'Estoque'), ('admin.password', 'Senha')] %}
-    {% for endpoint, label in tabs %}
-    <a href="{{ url_for(endpoint) }}" class="{{ 'cur' if request.endpoint == endpoint }}">{{ label }}{% if endpoint == 'admin.orders' %} <span class="badge" {{ 'hidden' if not pending_count }}>{{ pending_count }}</span>{% endif %}</a>
+    {% set tabs = [
+      ('admin.orders', 'Pedidos', ['admin.orders']),
+      ('admin.stock', 'Estoque', ['admin.stock']),
+      ('admin.menu', 'Cardápio', ['admin.menu', 'admin.category_page', 'admin.category_new', 'admin.photos']),
+      ('admin.extras', 'Bordas e adicionais', ['admin.extras']),
+      ('admin.delivery', 'Entrega', ['admin.delivery']),
+      ('admin.reports', 'Relatórios', ['admin.reports']),
+      ('admin.customers', 'Clientes', ['admin.customers']),
+      ('admin.store', 'Loja', ['admin.store']),
+      ('admin.visual', 'Aparência', ['admin.visual']),
+      ('admin.users', 'Conta', ['admin.users', 'admin.password']),
+    ] if is_owner else [
+      ('admin.orders', 'Pedidos', ['admin.orders']),
+      ('admin.stock', 'Estoque', ['admin.stock']),
+      ('admin.password', 'Minha senha', ['admin.password']),
+    ] %}
+    {% for endpoint, label, group in tabs %}
+    <a href="{{ url_for(endpoint) }}" class="{{ 'cur' if request.endpoint in group }}">{{ label }}{% if endpoint == 'admin.orders' %} <span class="badge" {{ 'hidden' if not pending_count }}>{{ pending_count }}</span>{% endif %}</a>
     {% endfor %}
     <a href="{{ url_for('public.menu', slug=tenant.slug) }}" target="_blank" rel="noopener">Ver site ↗</a>
   </nav>

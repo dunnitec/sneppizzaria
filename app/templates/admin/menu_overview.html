@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block title %}Cardápio{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Cardápio</h1>
+    <p class="hint">O cardápio é dividido em <b>categorias</b> (ex.: Pizzas Premium, Refrigerantes). Dentro de cada categoria ficam os <b>itens</b> com os preços.</p>
+  </div>
+  <a class="button primary" href="{{ url_for('admin.category_new') }}">+ Nova categoria</a>
+</div>
+
+<div class="card search-bar">
+  <label class="grow">Procurar um item<input id="search" type="search" placeholder="Ex.: calabresa, coca" autocomplete="off"
+         data-items=".cat-overview" data-sections=".none"></label>
+  <span id="search-count" class="hint" aria-live="polite"></span>
+</div>
+
+<div class="cat-list">
+  {% for c in categories %}
+  {% set info = kinds[c.kind] %}
+  {% set sold_out = c.products|selectattr('active', 'equalto', False)|list|length %}
+  <article class="card cat-overview" data-name="{{ c.name }} {% for p in c.products %}{{ p.name }} {% endfor %}">
+    <div class="cat-icon" aria-hidden="true">{{ info.icon }}</div>
+    <div class="cat-info">
+      <h2><a href="{{ url_for('admin.category_page', category_id=c.id) }}">{{ c.name }}</a></h2>
+      <p class="cat-meta">
+        {{ info.label }} · {{ c.products|length }} {{ 'item' if c.products|length == 1 else 'itens' }}
+        {% if sold_out %}· <span class="warn">{{ sold_out }} esgotado(s)</span>{% endif %}
+        {% if not c.products %}· <span class="warn">vazia — não aparece no site</span>{% endif %}
+      </p>
+      {% if c.kind != 'metro' %}<p class="cat-meta">Tamanhos: {% for s in c.sizes() %}{{ s.label }}{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+    </div>
+    <div class="cat-actions">
+      <a class="button primary small" href="{{ url_for('admin.category_page', category_id=c.id) }}">{{ 'Editar combo' if c.kind == 'metro' else 'Editar itens e preços' }}</a>
+      <div class="cat-order" aria-label="Posição no site">
+        <form method="post" action="{{ url_for('admin.line_move', category_id=c.id) }}">{{ csrf() }}<input type="hidden" name="dir" value="up"><button class="ghost small" {{ 'disabled' if loop.first }} title="Mostrar mais para cima no site" aria-label="Subir {{ c.name }}">↑</button></form>
+        <form method="post" action="{{ url_for('admin.line_move', category_id=c.id) }}">{{ csrf() }}<input type="hidden" name="dir" value="down"><button class="ghost small" {{ 'disabled' if loop.last }} title="Mostrar mais para baixo no site" aria-label="Descer {{ c.name }}">↓</button></form>
+      </div>
+      {% if c.kind != 'metro' %}
+      <form method="post" action="{{ url_for('admin.line_delete', category_id=c.id) }}"
+            data-msg="Excluir a categoria “{{ c.name }}” e os {{ c.products|length }} itens dela? Os pedidos antigos continuam nos relatórios. Não dá para desfazer."
+            onsubmit="return confirm(this.dataset.msg)">
+        {{ csrf() }}<button class="ghost small danger">Excluir</button>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+<p class="hint">As setas ↑ ↓ mudam a ordem em que as categorias aparecem no site. Para tirar um item do ar por um tempo, use a aba <a href="{{ url_for('admin.stock') }}">Estoque</a>.
+  Fotos de todos os itens de uma vez: <a href="{{ url_for('admin.photos') }}">ver fotos</a>.</p>
+{% endblock %}

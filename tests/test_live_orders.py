@@ -70,6 +70,10 @@ def test_orders_page_has_live_settings(panel):
 
 
 def test_menu_page_has_search_and_tracked_forms(panel):
-    html = panel.get("/snep/admin/cardapio").get_data(as_text=True)
+    from app.models import Category
+
+    premium = Category.query.filter_by(slug="premium").one()
+    assert 'id="search"' in panel.get("/snep/admin/cardapio").get_data(as_text=True)
+    html = panel.get(f"/snep/admin/cardapio/{premium.id}").get_data(as_text=True)
     assert 'id="search"' in html
     assert "data-track" in html

@@ -18,7 +18,7 @@
   </section>
   <section class="card">
     <h2>Adicionais</h2>
-    <p class="hint">Só aparecem nas linhas marcadas como “aceita adicionais” (em Cardápio → Configurar linha).</p>
+    <p class="hint">Aparecem só nas categorias em que você marcou “o cliente pode pedir adicionais” (Cardápio → abrir a categoria → Configurações).</p>
     {% for a in addons %}
     <div class="row {{ 'off' if not a.active }}">
       <label class="check"><input type="checkbox" name="addon-active-{{ a.id }}" {{ 'checked' if a.active }}> à venda</label>

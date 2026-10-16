@@ -24,6 +24,48 @@
     if (dirty.size) { e.preventDefault(); e.returnValue = ""; }
   });
 
+  /* ---------- nova categoria: tamanhos sugeridos conforme o tipo ---------- */
+  const newCat = document.getElementById("new-category");
+  if (newCat) {
+    const box = document.getElementById("sizes");
+    const tpl = document.getElementById("size-row");
+    const nameInput = newCat.querySelector('[name="name"]');
+    const SUGGEST = {
+      pizza: [["Broto", 1], ["Inteira", 2]],
+      doce: [["Broto", 1], ["Inteira", 2]],
+      bebida: [["Lata 350ml", 1], ["2 litros", 1]],
+    };
+    let touched = false;  // depois que o dono mexe nos tamanhos, não troca mais sozinho
+    const kind = () => newCat.querySelector('[name="kind"]:checked').value;
+    const renumber = () => box.querySelectorAll(".size-row").forEach((row, i) => {
+      row.querySelector('[data-name="size_label"]').name = `size_label-${i}`;
+      row.querySelector('[data-name="size_max"]').name = `size_max-${i}`;
+      row.querySelector(".remove-size").hidden = box.children.length === 1;
+    });
+    const addRow = (label = "", max = 2) => {
+      const row = tpl.content.firstElementChild.cloneNode(true);
+      row.querySelector('[data-name="size_label"]').value = label;
+      row.querySelector('[data-name="size_label"]').placeholder = kind() === "bebida" ? "Ex.: Lata 350ml" : "Ex.: Inteira";
+      row.querySelector('[data-name="size_max"]').value = String(max);
+      row.querySelector(".remove-size").addEventListener("click", () => { touched = true; row.remove(); renumber(); });
+      row.addEventListener("input", () => { touched = true; });
+      box.appendChild(row);
+      renumber();
+      showFor();
+    };
+    const showFor = () => newCat.querySelectorAll("[data-only]").forEach((el) => {
+      el.hidden = !el.dataset.only.split(" ").includes(kind());
+    });
+    const applyKind = () => {
+      nameInput.placeholder = nameInput.dataset["placeholder" + kind().charAt(0).toUpperCase() + kind().slice(1)];
+      if (!touched) { box.innerHTML = ""; SUGGEST[kind()].forEach(([l, m]) => addRow(l, m)); }
+      showFor();
+    };
+    newCat.querySelectorAll('[name="kind"]').forEach((r) => r.addEventListener("change", applyKind));
+    document.getElementById("add-size").addEventListener("click", () => { touched = true; addRow("", kind() === "bebida" ? 1 : 2); });
+    applyKind();
+  }
+
   /* ---------- criar linha: campos de bebida ---------- */
   document.querySelectorAll("[data-kind-select]").forEach((select) => {
     const form = select.form;

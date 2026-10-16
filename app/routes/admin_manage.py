@@ -21,7 +21,7 @@ from app.models import (
     Product,
     ProductVariant,
 )
-from app.routes.admin import FormError, _category_or_404, _name, _price, _reject, _save, admin_bp
+from app.routes.admin import FormError, _category_or_404, _category_url, _name, _price, _reject, _save, admin_bp
 from app.services.photos import PhotoError, delete_photo, normalize, save_photo
 
 MAX_SIZE_FLAVORS = 6
@@ -29,8 +29,9 @@ BANNER_SIDE = 1600
 ROLES = {"dono": "Dono (acesso a tudo)", "funcionario": "Funcionário (só pedidos)"}
 
 
-def _back(anchor=None):
-    return redirect(url_for("admin.menu", _anchor=anchor))
+def _back(category_id=None, anchor=None):
+    """Volta para a página da categoria ou, sem categoria, para o resumo do cardápio."""
+    return _category_url(category_id, anchor) if category_id else redirect(url_for("admin.menu"))
 
 
 def _max_flavors(text, what):
@@ -59,16 +60,34 @@ def _ordered_categories():
     return cats
 
 
-# ---------- linhas ----------
+# ---------- categorias (no código: Category; o dono vê "categoria") ----------
+
+def _new_sizes(form, kind):
+    """Tamanhos do formulário de nova categoria: size_label-0, size_max-0, ... (ou o par antigo size_label/size_max)."""
+    pairs = [(form.get(f"size_label-{i}", ""), form.get(f"size_max-{i}")) for i in range(20)]
+    if form.get("size_label"):
+        pairs.insert(0, (form["size_label"], form.get("size_max")))
+    sizes = []
+    for label, max_text in pairs:
+        if not label.strip():
+            continue
+        label = _name(label, "o nome do tamanho", max_length=30)
+        sizes.append({"label": label, "max_flavors": 1 if kind == "bebida" else _max_flavors(max_text, label)})
+    if not sizes:
+        raise FormError("Informe pelo menos um tamanho (ex.: Inteira, ou Lata 350ml para bebida).")
+    labels = [s["label"].lower() for s in sizes]
+    if len(set(labels)) != len(labels):
+        raise FormError("Há dois tamanhos com o mesmo nome.")
+    return sizes
+
 
 @admin_bp.route("/cardapio/linha/nova", methods=["POST"])
 def line_new():
     form = request.form
     try:
-        name = _name(form.get("name"), "o nome da linha", max_length=80)
+        name = _name(form.get("name"), "o nome da categoria", max_length=80)
         kind = form.get("kind") if form.get("kind") in ("pizza", "doce", "bebida") else "pizza"
-        label = _name(form.get("size_label"), "o nome do primeiro tamanho", max_length=30)
-        max_flavors = 1 if kind == "bebida" else _max_flavors(form.get("size_max"), label)
+        sizes = _new_sizes(form, kind)
         cats = _ordered_categories()
         combos = [c for c in cats if c.kind == "metro"]
         position = combos[0].sort_order if combos else len(cats)  # nova linha entra antes do combo
@@ -77,16 +96,16 @@ def line_new():
                 c.sort_order += 1
         category = Category(
             tenant_id=g.tenant.id, name=name, slug=_unique_slug(name), kind=kind,
-            allows_addons="allows_addons" in form, sort_order=position,
-            sizes_json=json.dumps([{"label": label, "max_flavors": max_flavors}], ensure_ascii=False),
+            allows_addons=kind != "bebida" and "allows_addons" in form, sort_order=position,
+            sizes_json=json.dumps(sizes, ensure_ascii=False),
         )
         db.session.add(category)
-        _save(f"Linha “{name}” criada. Agora adicione os sabores dela.")
+        _save(f"Categoria “{name}” criada. Agora cadastre os itens com os preços.")
         db.session.refresh(category)
-        return _back(f"cat-{category.id}")
+        return _back(category.id, "adicionar")
     except FormError as e:
         _reject(e)
-    return _back()
+    return redirect(url_for("admin.category_new"))
 
 
 @admin_bp.route("/cardapio/<int:category_id>/linha", methods=["POST"])
@@ -96,7 +115,7 @@ def line_save(category_id):
         abort(400)
     form = request.form
     try:
-        category.name = _name(form.get("name"), "o nome da linha", max_length=80)
+        category.name = _name(form.get("name"), "o nome da categoria", max_length=80)
         category.allows_addons = "allows_addons" in form
         old_sizes = category.sizes()
         new_sizes, renames, removed = [], {}, []
@@ -114,13 +133,13 @@ def line_save(category_id):
             new_sizes.append({"label": label, "max_flavors": n})
         labels = [s["label"].lower() for s in new_sizes]
         if not new_sizes:
-            raise FormError("A linha precisa ter pelo menos um tamanho.")
+            raise FormError("A categoria precisa ter pelo menos um tamanho.")
         if len(set(labels)) != len(labels):
             raise FormError("Há dois tamanhos com o mesmo nome.")
         orphans = [p.name for p in category.products if p.variants and all(v.label in removed for v in p.variants)]
         if orphans:
-            raise FormError(f"Não dá para remover: {', '.join(orphans[:5])} ficaria(m) sem nenhum tamanho. "
-                            "Dê outro preço a esses sabores primeiro.")
+            raise FormError(f"Não dá para remover esse tamanho: {', '.join(orphans[:5])} só tem(êm) ele. "
+                            "Coloque o preço de outro tamanho nesses itens primeiro, ou exclua os itens.")
         for product in category.products:
             for variant in list(product.variants):
                 if variant.label in removed:
@@ -129,10 +148,10 @@ def line_save(category_id):
                     size = renames[variant.label]
                     variant.label, variant.max_flavors = size["label"], size["max_flavors"]
         category.sizes_json = json.dumps(new_sizes, ensure_ascii=False)
-        _save(f"Linha “{category.name}” salva.")
+        _save(f"Configurações de “{category.name}” salvas.")
     except FormError as e:
         _reject(e)
-    return _back(f"cat-{category.id}")
+    return _back(category.id)
 
 
 @admin_bp.route("/cardapio/<int:category_id>/mover", methods=["POST"])
@@ -144,7 +163,7 @@ def line_move(category_id):
     if 0 <= j < len(cats):
         cats[i].sort_order, cats[j].sort_order = cats[j].sort_order, cats[i].sort_order
     db.session.commit()
-    return _back(f"cat-{category.id}")
+    return _back()
 
 
 @admin_bp.route("/cardapio/<int:category_id>/excluir", methods=["POST"])
@@ -161,7 +180,7 @@ def line_delete(category_id):
             combo.combo_sources = json.dumps([s for s in sources if s != slug])
     db.session.delete(category)
     db.session.commit()
-    flash(f"Linha “{name}” e os sabores dela foram excluídos.", "ok")
+    flash(f"Categoria “{name}” e os itens dela foram excluídos.", "ok")
     return _back()
 
 
@@ -180,8 +199,8 @@ def product_delete(product_id):
     name, category_id = product.name, product.category_id
     _delete_product(product)
     db.session.commit()
-    flash(f"Sabor “{name}” excluído. Os pedidos antigos continuam nos relatórios.", "ok")
-    return _back(f"cat-{category_id}")
+    flash(f"“{name}” excluído. Os pedidos antigos continuam nos relatórios.", "ok")
+    return _back(category_id)
 
 
 # ---------- bordas e adicionais ----------

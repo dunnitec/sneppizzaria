@@ -1,7 +1,13 @@
 {% extends "admin/base.html" %}
 {% block title %}Usuários{% endblock %}
 {% block content %}
-<h1>Usuários do painel</h1>
+<h1>Conta</h1>
+<section class="card">
+  <h2>Minha senha</h2>
+  <p class="hint">Você está como <b>{{ admin.username }}</b>.</p>
+  <a class="button ghost small" href="{{ url_for('admin.password') }}">Trocar minha senha</a>
+</section>
+<h2>Pessoas com acesso ao painel</h2>
 <p class="hint">Funcionário só vê a aba Pedidos (confirmar e cancelar) e pode trocar a própria senha.</p>
 
 {% for u in accounts %}

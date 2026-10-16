@@ -45,6 +45,13 @@ STORE_STATUS = {"auto": None, "open": True, "closed": False}
 STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.orders_poll",
                    "admin.order_status", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
+# tipos de categoria, com as palavras que o dono vê no painel
+KINDS = {
+    "pizza": {"icon": "🍕", "label": "Pizza salgada", "help": "Sabores com preço por tamanho. Aceita meio a meio, borda e adicionais."},
+    "doce": {"icon": "🍫", "label": "Pizza doce", "help": "Igual à salgada, mas aparece separada no cardápio."},
+    "bebida": {"icon": "🥤", "label": "Bebida", "help": "Refrigerantes, sucos, água. O cliente só escolhe o tamanho."},
+    "metro": {"icon": "🎁", "label": "Combo de preço fixo", "help": ""},
+}
 # gasta o mesmo tempo de uma conferência de senha quando o usuário não existe,
 # para a resposta não revelar quais usuários existem
 _DUMMY_HASH = generate_password_hash("usuario-inexistente")
@@ -93,7 +100,7 @@ def _no_cache(response):
 def _template_context():
     pending = Order.query.filter_by(tenant_id=g.tenant.id, status="pendente").count() if g.admin else 0
     return {"tenant": g.tenant, "admin": g.admin, "store_open": is_open(g.tenant),
-            "is_owner": bool(g.admin and g.admin.role == "dono"), "pending_count": pending}
+            "is_owner": bool(g.admin and g.admin.role == "dono"), "pending_count": pending, "kinds": KINDS}
 
 
 def _price(text, what, positive=False):
@@ -245,13 +252,28 @@ def _category_or_404(category_id):
     return Category.query.filter_by(tenant_id=g.tenant.id, id=category_id).first_or_404()
 
 
+def _category_url(category_id, anchor=None):
+    return redirect(url_for("admin.category_page", category_id=category_id, _anchor=anchor))
+
+
 @admin_bp.route("/cardapio")
 def menu():
     categories = Category.query.filter_by(tenant_id=g.tenant.id).order_by(Category.sort_order, Category.id).all()
-    lines = [c for c in categories if c.kind not in ("metro", "bebida")]  # linhas que podem entrar no combo
-    return render_template(
-        "admin/menu.html", categories=categories, lines=lines, sizes={c.id: category_sizes(c) for c in categories}
-    )
+    return render_template("admin/menu_overview.html", categories=categories)
+
+
+@admin_bp.route("/cardapio/nova")
+def category_new():
+    return render_template("admin/category_new.html")
+
+
+@admin_bp.route("/cardapio/<int:category_id>")
+def category_page(category_id):
+    category = _category_or_404(category_id)
+    combo_lines = Category.query.filter(
+        Category.tenant_id == g.tenant.id, Category.kind.notin_(("metro", "bebida"))
+    ).order_by(Category.sort_order).all()
+    return render_template("admin/category.html", c=category, sizes=category_sizes(category), combo_lines=combo_lines)
 
 
 @admin_bp.route("/cardapio/<int:category_id>", methods=["POST"])
@@ -279,11 +301,11 @@ def menu_save(category_id):
                     price = _price(text, f"{product.name} ({label})", positive=True)
                     product.variants.append(ProductVariant(label=label, max_flavors=max_flavors, price=price))
             if not product.variants:
-                raise FormError(f"“{product.name}” precisa ter preço em pelo menos um tamanho.")
+                raise FormError(f"“{product.name}” precisa ter preço em pelo menos um tamanho. Para tirar do ar, use a aba Estoque.")
         _save(f"{category.name}: alterações salvas.")
     except FormError as e:
         _reject(e)
-    return redirect(url_for("admin.menu", _anchor=f"cat-{category.id}"))
+    return _category_url(category.id)
 
 
 @admin_bp.route("/cardapio/<int:category_id>/novo", methods=["POST"])
@@ -315,7 +337,7 @@ def product_new(category_id):
         _save(f"“{name}” adicionado em {category.name}.")
     except FormError as e:
         _reject(e)
-    return redirect(url_for("admin.menu", _anchor=f"cat-{category.id}"))
+    return _category_url(category.id)
 
 
 MAX_COMBO_FLAVORS = 6
@@ -333,7 +355,7 @@ def combo_save(category_id):
         valid = {c.slug for c in lines}
         sources = [s for s in form.getlist("sources") if s in valid]
         if not sources:
-            raise FormError("Marque pelo menos uma linha de onde o cliente escolhe os sabores do combo.")
+            raise FormError("Marque pelo menos uma categoria de onde o cliente escolhe os sabores do combo.")
         try:
             max_flavors = int(form.get("max_flavors", ""))
         except ValueError:
@@ -353,7 +375,7 @@ def combo_save(category_id):
         _save(f"{category.name}: configuração do combo salva.")
     except FormError as e:
         _reject(e)
-    return redirect(url_for("admin.menu", _anchor=f"cat-{category.id}"))
+    return _category_url(category.id)
 
 
 # ---------- relatórios ----------
@@ -482,7 +504,9 @@ def _product_or_404(product_id):
 @admin_bp.route("/fotos/<int:product_id>", methods=["POST"])
 def photo_upload(product_id):
     product = _product_or_404(product_id)
-    back = redirect(url_for("admin.photos", _anchor=f"p-{product.id}"))
+    # foto enviada da página da categoria volta para ela; da aba Fotos, volta para a aba
+    back = (_category_url(product.category_id) if request.form.get("back")
+            else redirect(url_for("admin.photos", _anchor=f"p-{product.id}")))
     file = request.files.get("photo")
     if not file or not file.filename:
         flash("Escolha uma foto para enviar.", "error")

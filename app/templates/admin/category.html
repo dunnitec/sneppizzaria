@@ -1,0 +1,159 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ c.name }}{% endblock %}
+{% block content %}
+{% set info = kinds[c.kind] %}
+{% set drink = c.kind == 'bebida' %}
+{% set word = 'bebida' if drink else 'sabor' %}
+<a class="back" href="{{ url_for('admin.menu') }}">‹ Voltar para o cardápio</a>
+<div class="page-head">
+  <div>
+    <h1><span aria-hidden="true">{{ info.icon }}</span> {{ c.name }}</h1>
+    <p class="hint">{{ info.label }}{% if c.kind != 'metro' %} · Tamanhos: {% for s in c.sizes() %}{{ s.label }}{% if not drink %} ({{ s.max_flavors }} {{ 'sabor' if s.max_flavors == 1 else 'sabores' }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}</p>
+  </div>
+</div>
+
+{% if c.kind == 'metro' %}
+{# ---------- combo ---------- #}
+{% set combo = c.combo_settings() %}
+{% set flavors = (c.products[0].variants[0].max_flavors if c.products and c.products[0].variants else 4) %}
+<section class="card">
+  <h2>Preço e descrição do combo</h2>
+  <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}" data-track>
+    {{ csrf() }}
+    {% for p in c.products %}
+    <div class="row">
+      <label class="check"><input type="checkbox" name="active-{{ p.id }}" {{ 'checked' if p.active }}> à venda</label>
+      <label class="grow">Nome no site<input name="name-{{ p.id }}" value="{{ p.name }}" maxlength="120" required></label>
+      <label class="grow2">Descrição<input name="desc-{{ p.id }}" value="{{ p.description or '' }}" maxlength="500"></label>
+      {% for v in p.variants %}<label class="money">Preço<input name="price-{{ v.id }}" value="{{ v.price|money_input }}" inputmode="decimal" required></label>{% endfor %}
+    </div>
+    {% endfor %}
+    <div class="savebar"><button class="primary">Salvar preço e descrição</button></div>
+  </form>
+</section>
+<section class="card">
+  <h2>Regras do combo</h2>
+  <form method="post" action="{{ url_for('admin.combo_save', category_id=c.id) }}" data-track class="combo">
+    {{ csrf() }}
+    <div class="row">
+      <label class="grow">Nome da categoria do combo<input name="name" value="{{ c.name }}" maxlength="80" required></label>
+      <label class="money">Nº de sabores<input name="max_flavors" type="number" min="1" max="6" value="{{ flavors }}" required></label>
+    </div>
+    <fieldset>
+      <legend>O cliente escolhe os sabores destas categorias</legend>
+      {% for line in combo_lines %}
+      <label class="check"><input type="checkbox" name="sources" value="{{ line.slug }}" {{ 'checked' if line.slug in combo.sources }}> {{ line.name }}</label>
+      {% endfor %}
+    </fieldset>
+    <label class="grow2">O que vem junto no combo (um por linha)<textarea name="extras" rows="4">{{ combo.extras|join('\n') }}</textarea></label>
+    <div class="row">
+      <label class="grow">Pergunta ao cliente (opcional)<input name="choice_label" value="{{ combo.choice_label }}" maxlength="60" placeholder="Ex.: Sabor do Kuat 2L"></label>
+      <label class="grow2">Respostas, separadas por vírgula<input name="choice_options" value="{{ combo.choice_options|join(', ') }}" placeholder="Ex.: Guaraná, Guaraná Zero"></label>
+    </div>
+    <p class="hint">Deixe as respostas em branco para não perguntar nada ao cliente.</p>
+    <div class="savebar"><button class="primary">Salvar regras do combo</button></div>
+  </form>
+</section>
+
+{% else %}
+{# ---------- 1. adicionar item ---------- #}
+<section class="card add-card" id="adicionar">
+  <h2>+ Adicionar {{ word }}</h2>
+  {% if not c.products %}<p class="flash ok">Esta categoria ainda está vazia e <b>não aparece no site</b>. Cadastre o primeiro {{ 'item' if drink else 'sabor' }} abaixo.</p>{% endif %}
+  <form method="post" action="{{ url_for('admin.product_new', category_id=c.id) }}" data-track>
+    {{ csrf() }}
+    <div class="row">
+      <label class="grow">Nome da {{ word }}<input name="name" maxlength="120" required placeholder="{{ 'Ex.: Coca-Cola' if drink else 'Ex.: Calabresa' }}"></label>
+      <label class="grow2">{{ 'Descrição (opcional)' if drink else 'Ingredientes' }}<input name="desc" maxlength="500" placeholder="{{ 'Ex.: sem açúcar' if drink else 'Ex.: molho, mussarela, calabresa, cebola' }}"></label>
+    </div>
+    <div class="row">
+      {% for label, max_flavors in sizes %}
+      <label class="money">Preço {{ label }}<input name="newprice-{{ loop.index0 }}" inputmode="decimal" placeholder="0,00"></label>
+      {% endfor %}
+      <button class="primary">Adicionar</button>
+    </div>
+    <p class="hint">Preencha o preço de cada tamanho. Se a {{ word }} não tiver algum tamanho, deixe aquele preço em branco.</p>
+  </form>
+</section>
+
+{# ---------- 2. itens ---------- #}
+{% if c.products %}
+<section class="card">
+  <div class="line-head">
+    <h2>{{ 'Bebidas' if drink else 'Sabores' }} ({{ c.products|length }})</h2>
+  </div>
+  <div class="search-bar inline-search"><label class="grow">Procurar<input id="search" type="search" autocomplete="off" data-items=".flavor" data-sections=".none"></label><span id="search-count" class="hint" aria-live="polite"></span></div>
+  <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}" data-track>
+    {{ csrf() }}
+    {% for p in c.products %}
+    <div class="item-row flavor {{ 'off' if not p.active }}" data-name="{{ p.name }} {{ p.description or '' }}">
+      <div class="thumb">
+        {% if p.image %}<img src="{{ url_for('public.uploaded_file', name=p.image) }}" alt="">{% else %}<span>sem foto</span>{% endif %}
+        <label class="file small">{{ 'Trocar foto' if p.image else 'Pôr foto' }}<input type="file" name="photo" accept="image/*" form="photo-{{ p.id }}" onchange="this.form.submit()"></label>
+      </div>
+      <div class="item-fields">
+        <div class="row">
+          <label class="grow">Nome<input name="name-{{ p.id }}" value="{{ p.name }}" maxlength="120" required></label>
+          <label class="grow2">{{ 'Descrição' if drink else 'Ingredientes' }}<input name="desc-{{ p.id }}" value="{{ p.description or '' }}" maxlength="500"></label>
+        </div>
+        <div class="row">
+          {% for label, max_flavors in sizes %}
+          {% set v = p.variants|selectattr('label', 'equalto', label)|first %}
+          {% if v %}<label class="money">Preço {{ label }}<input name="price-{{ v.id }}" value="{{ v.price|money_input }}" inputmode="decimal"></label>
+          {% else %}<label class="money">Preço {{ label }}<input name="newv-{{ p.id }}-{{ loop.index0 }}" inputmode="decimal" placeholder="não tem"></label>{% endif %}
+          {% endfor %}
+          <label class="check"><input type="checkbox" name="active-{{ p.id }}" {{ 'checked' if p.active }}> à venda</label>
+          <button class="ghost small danger icon" form="del-{{ p.id }}">Excluir</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="savebar"><button class="primary">Salvar alterações</button></div>
+  </form>
+  {% for p in c.products %}
+  <form id="del-{{ p.id }}" method="post" action="{{ url_for('admin.product_delete', product_id=p.id) }}"
+        data-msg="Excluir “{{ p.name }}” do cardápio? Se for só por um tempo (acabou o ingrediente), use a aba Estoque." onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}</form>
+  <form id="photo-{{ p.id }}" method="post" action="{{ url_for('admin.photo_upload', product_id=p.id) }}" enctype="multipart/form-data">{{ csrf() }}<input type="hidden" name="back" value="{{ c.id }}"></form>
+  {% endfor %}
+</section>
+{% endif %}
+
+{# ---------- 3. configurações ---------- #}
+<section class="card">
+  <h2>Configurações da categoria</h2>
+  <form method="post" action="{{ url_for('admin.line_save', category_id=c.id) }}" data-track>
+    {{ csrf() }}
+    <div class="row">
+      <label class="grow">Nome da categoria (aparece no site)<input name="name" value="{{ c.name }}" maxlength="80" required></label>
+      {% if not drink %}<label class="check"><input type="checkbox" name="allows_addons" {{ 'checked' if c.allows_addons }}> o cliente pode pedir adicionais</label>{% endif %}
+    </div>
+    <h3>Tamanhos</h3>
+    <p class="hint">Mudar o nome de um tamanho muda em todos os itens.{% if not drink %} “Sabores” é quantos sabores o cliente pode misturar nesse tamanho (1 = inteira, 2 = meio a meio).{% endif %}</p>
+    {% for label, max_flavors in sizes %}
+    <div class="row">
+      <label class="grow">Tamanho<input name="size-label-{{ loop.index0 }}" value="{{ label }}" maxlength="30" required></label>
+      {% if drink %}<input type="hidden" name="size-max-{{ loop.index0 }}" value="1">
+      {% else %}<label class="grow">Sabores<select name="size-max-{{ loop.index0 }}">{% for n in range(1, 5) %}<option value="{{ n }}" {{ 'selected' if n == max_flavors }}>{{ n }} {{ '(inteira)' if n == 1 else ('(meio a meio)' if n == 2 else 'sabores') }}</option>{% endfor %}</select></label>{% endif %}
+      <label class="check"><input type="checkbox" name="size-del-{{ loop.index0 }}"> remover este tamanho</label>
+    </div>
+    {% endfor %}
+    <div class="row">
+      <label class="grow">Novo tamanho (opcional)<input name="new_size_label" maxlength="30" placeholder="{{ 'Ex.: 600ml' if drink else 'Ex.: Gigante' }}"></label>
+      {% if drink %}<input type="hidden" name="new_size_max" value="1">
+      {% else %}<label class="grow">Sabores<select name="new_size_max">{% for n in range(1, 5) %}<option value="{{ n }}" {{ 'selected' if n == 2 }}>{{ n }} {{ '(inteira)' if n == 1 else ('(meio a meio)' if n == 2 else 'sabores') }}</option>{% endfor %}</select></label>{% endif %}
+    </div>
+    <div class="savebar"><button class="primary">Salvar configurações</button></div>
+  </form>
+</section>
+
+{# ---------- 4. excluir ---------- #}
+<section class="card danger-card">
+  <h2>Excluir esta categoria</h2>
+  <p class="hint">Apaga a categoria e {{ 'o item' if c.products|length == 1 else 'os ' ~ c.products|length ~ ' itens' }} dela. Os pedidos antigos continuam nos relatórios.</p>
+  <form method="post" action="{{ url_for('admin.line_delete', category_id=c.id) }}"
+        data-msg="Excluir a categoria “{{ c.name }}” e os {{ c.products|length }} itens dela? Não dá para desfazer." onsubmit="return confirm(this.dataset.msg)">
+    {{ csrf() }}<button class="ghost danger">Excluir categoria “{{ c.name }}”</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

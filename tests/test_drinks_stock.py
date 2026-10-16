@@ -208,7 +208,9 @@ def test_stock_toggle_needs_csrf_token(csrf_app):
 
 
 def test_empty_drink_line_opens_add_form_with_prices(panel, tenant):
-    panel.post("/snep/admin/cardapio/linha/nova", data={"name": "Refrigerantes", "kind": "bebida", "size_label": "Lata 350ml", "size_max": "2"})
-    html = panel.get("/snep/admin/cardapio").get_data(as_text=True)
-    assert '<details class="add-item" open>' in html
-    assert "Adicionar bebida em Refrigerantes" in html and "Preço Lata 350ml" in html
+    r = panel.post("/snep/admin/cardapio/linha/nova", data={"name": "Refrigerantes", "kind": "bebida", "size_label": "Lata 350ml", "size_max": "2"})
+    line = Category.query.filter_by(tenant_id=tenant.id, name="Refrigerantes").one()
+    assert r.headers["Location"].endswith(f"/snep/admin/cardapio/{line.id}#adicionar")
+    html = panel.get(f"/snep/admin/cardapio/{line.id}").get_data(as_text=True)
+    assert "+ Adicionar bebida" in html and "Preço Lata 350ml" in html
+    assert "ainda está vazia" in html
