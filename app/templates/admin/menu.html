@@ -28,19 +28,19 @@
       {{ csrf() }}
       <div class="row">
         <label class="grow">Nome da linha<input name="name" value="{{ c.name }}" maxlength="80" required></label>
-        <label class="check"><input type="checkbox" name="allows_addons" {{ 'checked' if c.allows_addons }}> aceita adicionais</label>
+        {% if c.kind != 'bebida' %}<label class="check"><input type="checkbox" name="allows_addons" {{ 'checked' if c.allows_addons }}> aceita adicionais</label>{% endif %}
       </div>
       <p class="hint">Tamanhos desta linha. Mudar o nome troca em todos os sabores. “Máx. sabores” é quantos sabores o cliente pode juntar nesse tamanho.</p>
       {% for label, max_flavors in sizes[c.id] %}
       <div class="row">
         <label class="grow">Tamanho<input name="size-label-{{ loop.index0 }}" value="{{ label }}" maxlength="30" required></label>
-        <label class="money">Máx. sabores<input name="size-max-{{ loop.index0 }}" type="number" min="1" max="6" value="{{ max_flavors }}" required></label>
+        {% if c.kind == 'bebida' %}<input type="hidden" name="size-max-{{ loop.index0 }}" value="1">{% else %}<label class="money">Máx. sabores<input name="size-max-{{ loop.index0 }}" type="number" min="1" max="6" value="{{ max_flavors }}" required></label>{% endif %}
         <label class="check"><input type="checkbox" name="size-del-{{ loop.index0 }}"> remover</label>
       </div>
       {% endfor %}
       <div class="row">
         <label class="grow">Novo tamanho (opcional)<input name="new_size_label" maxlength="30" placeholder="Ex.: Gigante"></label>
-        <label class="money">Máx. sabores<input name="new_size_max" type="number" min="1" max="6" value="2"></label>
+        {% if c.kind == 'bebida' %}<input type="hidden" name="new_size_max" value="1">{% else %}<label class="money">Máx. sabores<input name="new_size_max" type="number" min="1" max="6" value="2"></label>{% endif %}
       </div>
       <div class="savebar"><button class="primary">Salvar linha</button></div>
     </form>
@@ -106,18 +106,20 @@
   {% endfor %}
 
   {% if c.kind != 'metro' %}
-  <details>
-    <summary>Adicionar sabor em {{ c.name }}</summary>
+  {% set drink = c.kind == 'bebida' %}
+  <details class="add-item" {{ 'open' if not c.products }}>
+    <summary>{{ 'Adicionar bebida' if drink else 'Adicionar sabor' }} em {{ c.name }}</summary>
+    {% if not c.products %}<p class="hint"><b>Esta linha ainda está vazia.</b> Cadastre {{ 'cada bebida (ex.: Coca-Cola, Guaraná) com o preço de cada tamanho' if drink else 'os sabores com o preço de cada tamanho' }}. Ela só aparece no site depois do primeiro item.</p>{% endif %}
     <form method="post" action="{{ url_for('admin.product_new', category_id=c.id) }}" data-track class="row">
       {{ csrf() }}
-      <label class="grow">Nome<input name="name" maxlength="120" required></label>
-      <label class="grow2">Descrição<input name="desc" maxlength="500"></label>
+      <label class="grow">{{ 'Bebida' if drink else 'Sabor' }}<input name="name" maxlength="120" required placeholder="{{ 'Ex.: Coca-Cola' if drink else 'Ex.: Calabresa' }}"></label>
+      <label class="grow2">Descrição (opcional)<input name="desc" maxlength="500" placeholder="{{ 'Ex.: sabor original' if drink else 'Ingredientes' }}"></label>
       {% for label, max_flavors in sizes[c.id] %}
-      <label class="money">{{ label }}<input name="newprice-{{ loop.index0 }}" inputmode="decimal" placeholder="0,00"></label>
+      <label class="money">Preço {{ label }}<input name="newprice-{{ loop.index0 }}" inputmode="decimal" placeholder="0,00"></label>
       {% endfor %}
       <button class="primary small">Adicionar</button>
     </form>
-    <p class="hint">Deixe em branco o preço do tamanho que este sabor não tem.</p>
+    <p class="hint">Deixe em branco o preço do tamanho que {{ 'esta bebida' if drink else 'este sabor' }} não tem. Para outro tamanho (ex.: 600ml), use “Configurar linha”.</p>
   </details>
   {% endif %}
 </section>
@@ -125,17 +127,17 @@
 
 <section class="card">
   <h2>Criar nova linha</h2>
-  <p class="hint">Ex.: “Refrigerantes” (tipo Bebida, tamanhos “Lata 350ml” e “2 litros”), “Esfihas”, “Pizzas Especiais”. Depois de criar, adicione os itens e, se quiser, mais tamanhos. Em bebida, o “máx. sabores” é ignorado.</p>
+  <p class="hint">A linha é o grupo do cardápio (ex.: “Refrigerantes”, “Esfihas”). Os itens e os preços vêm no passo seguinte: depois de criar, aparece o formulário para adicionar cada item com o preço de cada tamanho.</p>
   <form method="post" action="{{ url_for('admin.line_new') }}"data-track >
     {{ csrf() }}
     <div class="row">
       <label class="grow">Nome da linha<input name="name" maxlength="80" required></label>
-      <label class="grow">Tipo<select name="kind"><option value="pizza">Pizza salgada</option><option value="doce">Pizza doce</option><option value="bebida">Bebida</option></select></label>
-      <label class="check"><input type="checkbox" name="allows_addons"> aceita adicionais</label>
+      <label class="grow">Tipo<select name="kind" data-kind-select><option value="pizza">Pizza salgada</option><option value="doce">Pizza doce</option><option value="bebida">Bebida</option></select></label>
+      <label class="check" data-not-drink><input type="checkbox" name="allows_addons"> aceita adicionais</label>
     </div>
     <div class="row">
-      <label class="grow">Primeiro tamanho<input name="size_label" maxlength="30" required placeholder="Ex.: Inteira"></label>
-      <label class="money">Máx. sabores<input name="size_max" type="number" min="1" max="6" value="2" required></label>
+      <label class="grow">Primeiro tamanho<input name="size_label" maxlength="30" required placeholder="Ex.: Inteira" data-drink-placeholder="Ex.: Lata 350ml"></label>
+      <label class="money" data-not-drink>Máx. sabores<input name="size_max" type="number" min="1" max="6" value="2" required></label>
       <button class="primary small">Criar linha</button>
     </div>
   </form>

@@ -24,6 +24,20 @@
     if (dirty.size) { e.preventDefault(); e.returnValue = ""; }
   });
 
+  /* ---------- criar linha: campos de bebida ---------- */
+  document.querySelectorAll("[data-kind-select]").forEach((select) => {
+    const form = select.form;
+    const size = form.querySelector("[data-drink-placeholder]");
+    const normal = size.placeholder;
+    const apply = () => {
+      const drink = select.value === "bebida";
+      form.querySelectorAll("[data-not-drink]").forEach((el) => { el.hidden = drink; });
+      size.placeholder = drink ? size.dataset.drinkPlaceholder : normal;
+    };
+    select.addEventListener("change", apply);
+    apply();
+  });
+
   /* ---------- busca ---------- */
   // <input id="search" data-items=".seletor">: esconde itens cujo data-name não contém o texto, e seções vazias
   const search = document.getElementById("search");

@@ -205,3 +205,10 @@ def test_stock_toggle_needs_csrf_token(csrf_app):
     assert c.post("/snep/admin/estoque/alternar", json={"type": "product", "id": p.id, "active": False}).status_code == 400
     assert c.post("/snep/admin/estoque/alternar", json={"type": "product", "id": p.id, "active": False},
                   headers={"X-CSRFToken": token}).status_code == 200
+
+
+def test_empty_drink_line_opens_add_form_with_prices(panel, tenant):
+    panel.post("/snep/admin/cardapio/linha/nova", data={"name": "Refrigerantes", "kind": "bebida", "size_label": "Lata 350ml", "size_max": "2"})
+    html = panel.get("/snep/admin/cardapio").get_data(as_text=True)
+    assert '<details class="add-item" open>' in html
+    assert "Adicionar bebida em Refrigerantes" in html and "Preço Lata 350ml" in html
