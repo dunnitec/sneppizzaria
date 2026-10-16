@@ -3,12 +3,16 @@
 {% block help %}
 <ul>
   <li>Todo pedido feito no site aparece aqui como <b>pendente</b>. A lista atualiza sozinha.</li>
-  <li>Quando a mensagem do cliente chegar no WhatsApp, toque em <b>Confirmar</b>. Se ela nunca chegar, toque em <b>Cancelar</b>.</li>
+  <li>Quando a mensagem do cliente chegar no WhatsApp, toque em <b>Confirmar</b>: a etiqueta sai na impressora. Se ela nunca chegar, toque em <b>Cancelar</b>.</li>
+  <li>Pedido para <b>entrega</b>: depois de pronto, use <b>Mandar para entrega</b>. Retirada ou mesa: toque em <b>Entregue ao cliente</b>.</li>
   <li>Toque em <b>Ativar som</b> uma vez para ouvir um aviso quando chegar pedido novo (o celular precisa ficar nesta tela).</li>
 </ul>
 {% endblock %}
 {% block content %}
-<h1>Pedidos</h1>
+<div class="page-head">
+  <h1>Pedidos</h1>
+  <a class="button primary" href="{{ url_for('admin.order_new') }}">+ Novo pedido (balcão, mesa, telefone)</a>
+</div>
 <div id="live" class="live card" data-poll="{{ url_for('admin.orders_poll') }}" data-latest="{{ latest_id }}">
   <button type="button" class="sound ghost small">🔕 Ativar som de novos pedidos</button>
   <span class="live-status" role="status" aria-live="polite">A lista atualiza sozinha a cada 15 segundos.</span>
@@ -16,7 +20,7 @@
 <p class="hint">O pedido entra aqui quando o cliente clica em finalizar. Confirme quando a mensagem chegar no WhatsApp; cancele os que nunca chegaram.</p>
 <div class="filters">
   <a href="{{ url_for('admin.orders') }}" class="{{ 'cur' if not status }}">Todos</a>
-  {% for s in statuses %}<a href="{{ url_for('admin.orders', status=s) }}" class="{{ 'cur' if status == s }}">{{ s|capitalize }}s</a>{% endfor %}
+  {% for key, label in statuses.items() %}<a href="{{ url_for('admin.orders', status=key) }}" class="{{ 'cur' if status == key }}">{{ label }}</a>{% endfor %}
 </div>
 
 <div id="orders-list">
@@ -25,7 +29,10 @@
   <div class="order-head">
     <b>#{{ o.id }}</b>
     <span>{{ (o.created_at|local_time).strftime('%d/%m %H:%M') if o.created_at }}</span>
-    <span class="status">{{ o.status }}</span>
+    <span class="status">{{ statuses[o.status] }}</span>
+    <span class="tag">{{ channel_labels[o.channel] }}{% if o.table_label %} {{ o.table_label }}{% endif %}</span>
+    <span class="tag {{ 'tag-delivery' if o.delivery }}">{{ 'Entrega' if o.delivery else 'Retirada / no local' }}</span>
+    {% if o.dispatch %}<span class="tag">Comanda {{ o.dispatch.number }} · {{ o.dispatch.courier.name }}</span>{% endif %}
     <b class="total">{{ o.total|brl }}</b>
   </div>
   <p><b>{{ o.customer_name }}</b> · {{ o.customer_phone|any_phone }}</p>
@@ -39,13 +46,17 @@
   <form method="post" action="{{ url_for('admin.order_status', order_id=o.id) }}" class="actions">
     {{ csrf() }}
     <input type="hidden" name="filter" value="{{ status or '' }}">
-    {% if o.status != 'confirmado' %}<button name="status" value="confirmado" class="primary small">Confirmar</button>{% endif %}
-    {% if o.status != 'cancelado' %}<button name="status" value="cancelado" class="ghost small">Cancelar</button>{% endif %}
-    {% if o.status != 'pendente' %}<button name="status" value="pendente" class="ghost small">Voltar para pendente</button>{% endif %}
+    {% if o.status == 'pendente' %}<button name="status" value="confirmado" class="primary small">Confirmar{{ ' e imprimir' if tenant.auto_print }}</button>{% endif %}
+    {% if o.status == 'confirmado' and not o.delivery %}<button name="status" value="entregue" class="primary small">Entregue ao cliente</button>{% endif %}
+    {% if o.status == 'confirmado' and o.delivery %}<a class="button primary small" href="{{ url_for('admin.dispatches') }}">Mandar para entrega ›</a>{% endif %}
+    {% if o.status in ('pendente', 'confirmado') %}<button name="status" value="cancelado" class="ghost small">Cancelar</button>{% endif %}
+    {% if o.status in ('cancelado', 'entregue') %}<button name="status" value="confirmado" class="ghost small">Voltar para confirmado</button>{% endif %}
+    <a class="button ghost small" href="{{ url_for('admin.order_label', order_id=o.id) }}" target="_blank" rel="noopener">{{ 'Reimprimir' if o.printed_at else 'Imprimir' }}</a>
   </form>
 </article>
 {% else %}
 <p class="card empty">Nenhum pedido{{ ' ' ~ status if status }} por enquanto.</p>
 {% endfor %}
 </div>
+{% if print_id %}<iframe class="print-frame" src="{{ url_for('admin.order_label', order_id=print_id, auto=1) }}" title="Impressão do pedido" aria-hidden="true"></iframe>{% endif %}
 {% endblock %}

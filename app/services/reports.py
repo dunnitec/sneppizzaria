@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 
-from app.models import Order, OrderItem, OrderItemFlavor
+from app.models import CHANNELS, SOLD_STATUSES, Dispatch, Order, OrderItem, OrderItemFlavor
 from app.services.hours import STORE_TZ, local_time
 
 TOP_FLAVORS = 15
@@ -35,7 +35,7 @@ def _breakdown(orders, key):
 def sales_report(tenant, start, end):
     lo, hi = _utc_bounds(start, end)
     in_period = Order.query.filter(Order.tenant_id == tenant.id, Order.created_at >= lo, Order.created_at < hi).all()
-    confirmed = [o for o in in_period if o.status == "confirmado"]
+    confirmed = [o for o in in_period if o.status in SOLD_STATUSES]
     pending = [o for o in in_period if o.status == "pendente"]
 
     revenue = sum((o.total for o in confirmed), Decimal("0"))
@@ -65,6 +65,13 @@ def sales_report(tenant, start, end):
             flavors[f.product_name] += f.share * qty_by_item[f.order_item_id]
     top = sorted(flavors.items(), key=lambda kv: (-kv[1], kv[0]))[:TOP_FLAVORS]
 
+    couriers = defaultdict(lambda: {"deliveries": 0, "fees": Decimal("0")})
+    for d in Dispatch.query.filter(Dispatch.tenant_id == tenant.id, Dispatch.created_at >= lo, Dispatch.created_at < hi):
+        for o in d.orders:
+            if o.status == "entregue":
+                couriers[d.courier.name]["deliveries"] += 1
+                couriers[d.courier.name]["fees"] += o.delivery_fee or Decimal("0")
+
     return {
         "start": start,
         "end": end,
@@ -79,6 +86,11 @@ def sales_report(tenant, start, end):
         "by_day": [{"date": d, **v} for d, v in by_day.items()],
         "by_hour": [{"hour": h, **v} for h, v in sorted(by_hour.items())],
         "by_payment": _breakdown(confirmed, lambda o: o.payment_method),
+        "by_channel": _breakdown(confirmed, lambda o: CHANNELS.get(o.channel, o.channel)),
+        "by_courier": sorted(({"name": n, "deliveries": v["deliveries"], "fees": v["fees"].quantize(Decimal("0.01"))}
+                              for n, v in couriers.items()), key=lambda r: (-r["deliveries"], r["name"])),
+        "online_share": (float(sum((o.total for o in confirmed if o.channel == "site"), Decimal("0")) / revenue * 100)
+                         if revenue else 0.0),
         "by_neighborhood": _breakdown(confirmed, lambda o: o.neighborhood_name)[:10],
         "top_flavors": [{"name": n, "qty": q} for n, q in top],
         "top_drinks": [{"name": n, "qty": q} for n, q in sorted(drinks.items(), key=lambda kv: (-kv[1], kv[0]))[:10]],

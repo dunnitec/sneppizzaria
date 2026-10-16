@@ -286,3 +286,51 @@ fieldset.where{display:block;background:#fafafa}
 .where-label{font-size:13px;font-weight:700;min-width:84px}
 .border-group .group-name input{font-size:17px;font-weight:700}
 .border-group h4{margin:14px 0 0;font-size:14px}
+
+/* ---------- etapas, origem e impressão ---------- */
+.tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:#eee;color:var(--ink)}
+.tag-delivery{background:#e8f0ff;color:#1d3f8a}
+.order.saiu{border-left-color:#1d3f8a}
+.order.entregue{border-left-color:#999}
+.print-frame{position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none}
+ol.setup{padding-left:20px;font-size:14px}
+ol.setup li{margin:6px 0}
+code{background:#f2f2f2;padding:1px 5px;border-radius:4px}
+
+/* ---------- entregas ---------- */
+.ready-order{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 0;border-top:1px solid #eee;font-size:15px;color:var(--ink);font-weight:400;cursor:pointer}
+.ready-order:first-of-type{border-top:0}
+.ready-order input{width:22px;height:22px;accent-color:var(--red)}
+.ro-main{flex:1 1 240px}
+.ro-side{font-size:13px;color:var(--muted)}
+.dispatch{border-left:5px solid #1d3f8a}
+.d-num{font-size:18px}
+.d-orders{list-style:none;padding:0;margin:8px 0}
+.d-orders li{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;padding:8px 0;border-top:1px solid #eee;font-size:14px}
+.d-orders form{margin:0}
+.money-check{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:10px 0}
+.money-check div{background:#f6f6f6;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column}
+.money-check span{font-size:12px;color:var(--muted)}
+.money-check b{font-size:18px;font-variant-numeric:tabular-nums}
+
+/* ---------- novo pedido (balcão, mesa, telefone) ---------- */
+.cat-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip-btn{background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 14px;font-size:14px;cursor:pointer;color:var(--ink)}
+.chip-btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pos-builder{border:2px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
+.pos-builder h3{margin:0}
+.pos-builder .row{align-items:center;border-top:0;padding:2px 0}
+.pos-builder .where-label{min-width:70px}
+.pos-unit{flex:1;font-size:16px}
+.drink-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #eee}
+.drink-row b{flex:1 1 140px}
+.addons{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.addon-pick{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);font-weight:400}
+.addon-pick input{width:60px;margin:0}
+.cart-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:8px 0;border-top:1px solid #eee}
+.cart-line > span:first-child{flex:1 1 220px}
+.cart-line small{display:block;color:var(--muted);font-size:12px}
+.cart-line .q{display:flex;gap:4px}
+.pos-total div{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}
+.pos-total .big{font-size:20px;border-top:1px solid #ddd;margin-top:4px;padding-top:8px}
+[data-for][hidden]{display:none!important}

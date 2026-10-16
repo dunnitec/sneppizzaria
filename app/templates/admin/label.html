@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Pedido #{{ o.id }}</title>
+<style>
+  /* etiqueta da Zebra: tamanho vem de Loja → Impressora; pedido comprido continua na etiqueta seguinte */
+  @page { size: {{ tenant.label_width_mm or 100 }}mm {{ tenant.label_height_mm or 150 }}mm; margin: 3mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; }
+  .sheet { width: 100%; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #000; padding-bottom: 2mm; }
+  .num { font-size: 22pt; font-weight: 900; }
+  .kind { font-size: 13pt; font-weight: 900; border: 2px solid #000; padding: 0 2mm; }
+  .meta { font-size: 9pt; margin: 1mm 0 2mm; }
+  .who { font-size: 12pt; font-weight: 700; margin: 2mm 0 0; }
+  .addr { font-size: 11pt; margin: 1mm 0; }
+  .items { margin: 2mm 0; padding: 0; list-style: none; border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
+  .items li { padding: 1.5mm 0; border-top: 1px dotted #999; page-break-inside: avoid; }
+  .items li:first-child { border-top: 0; }
+  .items b { font-size: 12pt; }
+  .items small { display: block; font-size: 10pt; }
+  .tot { display: flex; justify-content: space-between; font-size: 10pt; }
+  .tot.big { font-size: 14pt; font-weight: 900; }
+  .pay { margin-top: 2mm; font-size: 12pt; font-weight: 700; border: 2px solid #000; padding: 1.5mm; }
+  .foot { margin-top: 2mm; font-size: 8pt; text-align: center; }
+  @media screen { body { background: #ddd; } .sheet { width: {{ tenant.label_width_mm or 100 }}mm; margin: 10px auto; background: #fff; padding: 3mm; }
+                  .tools { text-align: center; font: 14px Arial; margin: 10px; } }
+  @media print { .tools { display: none; } }
+</style>
+</head>
+<body>
+<div class="tools"><button onclick="window.print()">Imprimir</button></div>
+<div class="sheet">
+  <div class="head">
+    <span class="num">#{{ o.id }}</span>
+    <span class="kind">{{ 'ENTREGA' if o.delivery else channel_labels[o.channel]|upper }}{% if o.table_label %} {{ o.table_label }}{% endif %}</span>
+  </div>
+  <div class="meta">{{ (o.created_at|local_time).strftime('%d/%m %H:%M') if o.created_at }} · {{ channel_labels[o.channel] }}{% if o.dispatch %} · Comanda {{ o.dispatch.number }} · {{ o.dispatch.courier.name }}{% endif %}</div>
+
+  {% if o.customer_name %}<div class="who">{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</div>{% endif %}
+  {% if o.delivery %}
+  <div class="addr">{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}<br><b>{{ o.neighborhood_name }}</b>{% if o.reference %}<br>Ref.: {{ o.reference }}{% endif %}</div>
+  {% endif %}
+
+  <ul class="items">
+    {% for i in o.items %}
+    <li>
+      <b>{{ i.quantity }}x {{ i.product_names }}</b>
+      <small>{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}</small>
+      {% if i.addon_names %}<small>+ {{ i.addon_names }}</small>{% endif %}
+      {% if i.extras %}<small>Acompanha: {{ i.extras }}</small>{% endif %}
+      {% if i.notes %}<small><b>OBS: {{ i.notes }}</b></small>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="tot"><span>Subtotal</span><span>{{ o.subtotal|brl }}</span></div>
+  {% if o.delivery %}<div class="tot"><span>Entrega</span><span>{{ o.delivery_fee|brl }}</span></div>{% endif %}
+  <div class="tot big"><span>TOTAL</span><span>{{ o.total|brl }}</span></div>
+  <div class="pay">{{ o.payment_method or 'Pagamento a combinar' }}{% if o.change_for %} · Troco para {{ o.change_for|brl }} (levar {{ (o.change_for - o.total)|brl }}){% endif %}</div>
+  <div class="foot">{{ tenant.name }}</div>
+</div>
+<script>
+  // ?auto=1: imprime sozinho (usado ao confirmar um pedido) e avisa o painel que já saiu
+  if (new URLSearchParams(location.search).get("auto") === "1") {
+    window.addEventListener("afterprint", () => {
+      fetch("{{ url_for('admin.order_printed', order_id=o.id) }}", { method: "POST", credentials: "same-origin",
+        headers: { "X-CSRFToken": "{{ csrf_token() }}" } });
+    });
+    window.addEventListener("load", () => setTimeout(() => window.print(), 300));
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+{% extends "admin/base.html" %}
+{% block title %}Entregas{% endblock %}
+{% block help %}
+<ol>
+  <li>Os pedidos de entrega <b>confirmados</b> aparecem em “Prontos para sair”.</li>
+  <li>Marque os que o motoboy vai levar, escolha o motoboy e toque em <b>Criar comanda</b>. A comanda sai na impressora com os endereços e o dinheiro a conferir.</li>
+  <li>Quando ele voltar, confira o dinheiro e toque em <b>Voltou — dar baixa</b>. Os pedidos ficam como entregues.</li>
+  <li>Algum não foi entregue? Use <b>Não entregue</b> nele antes de dar baixa: ele volta para a fila.</li>
+</ol>
+{% endblock %}
+{% block content %}
+<h1>Entregas</h1>
+
+<section class="card">
+  <h2>Prontos para sair ({{ ready|length }})</h2>
+  {% if ready %}
+  <form method="post" action="{{ url_for('admin.dispatch_new') }}">
+    {{ csrf() }}
+    {% for o in ready %}
+    <label class="ready-order">
+      <input type="checkbox" name="orders" value="{{ o.id }}">
+      <span class="ro-main"><b>#{{ o.id }}</b> · {{ o.neighborhood_name }} · {{ o.street }}, {{ o.number }}</span>
+      <span class="ro-side">{{ o.total|brl }} · {{ o.payment_method or '—' }}{% if o.change_for %} (troco p/ {{ o.change_for|brl }}){% endif %}</span>
+    </label>
+    {% endfor %}
+    <div class="row">
+      {% set active = couriers|selectattr('active')|list %}
+      {% if active %}
+      <label class="grow">Motoboy<select name="courier_id" required><option value="">Escolha…</option>{% for c in active %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label>
+      <button class="primary">Criar comanda e mandar</button>
+      {% else %}
+      <p class="flash error">Cadastre um motoboy lá embaixo para poder despachar.</p>
+      {% endif %}
+    </div>
+  </form>
+  {% else %}
+  <p class="empty">Nenhum pedido de entrega esperando. Pedidos aparecem aqui depois de confirmados em <a href="{{ url_for('admin.orders') }}">Pedidos</a>.</p>
+  {% endif %}
+</section>
+
+<h2>Na rua ({{ open_dispatches|length }})</h2>
+{% for d, s in open_dispatches %}
+<article class="card dispatch">
+  <div class="order-head">
+    <b class="d-num">Comanda {{ d.number }}</b>
+    <span>{{ d.courier.name }}</span>
+    <span>saiu às {{ (d.created_at|local_time).strftime('%H:%M') }}</span>
+    <a class="button ghost small" href="{{ url_for('admin.dispatch_label', dispatch_id=d.id) }}" target="_blank" rel="noopener">Imprimir comanda</a>
+  </div>
+  <ul class="d-orders">
+    {% for o in d.orders %}
+    <li>
+      <span><b>#{{ o.id }}</b> {{ o.customer_name }} · {{ o.street }}, {{ o.number }} · {{ o.neighborhood_name }} — {{ o.total|brl }} ({{ o.payment_method or '—' }})</span>
+      <form method="post" action="{{ url_for('admin.dispatch_remove_order', dispatch_id=d.id, order_id=o.id) }}"
+            data-msg="O pedido #{{ o.id }} não foi entregue? Ele volta para “Prontos para sair”." onsubmit="return confirm(this.dataset.msg)">
+        {{ csrf() }}<button class="ghost small">Não entregue</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  <div class="money-check">
+    <div><span>Trazer em dinheiro</span><b>{{ s.cash|brl }}</b></div>
+    <div><span>Troco que levou</span><b>{{ s.change|brl }}</b></div>
+    <div><span>Na maquininha</span><b>{{ s.card|brl }}</b></div>
+    <div><span>Pix</span><b>{{ s.pix|brl }}</b></div>
+  </div>
+  <form method="post" action="{{ url_for('admin.dispatch_return', dispatch_id=d.id) }}"
+        data-msg="{{ d.courier.name }} voltou? Os pedidos da comanda {{ d.number }} ficam como entregues." onsubmit="return confirm(this.dataset.msg)">
+    {{ csrf() }}<button class="primary big green">Voltou — dar baixa</button>
+  </form>
+</article>
+{% else %}
+<p class="card empty">Nenhum motoboy na rua agora.</p>
+{% endfor %}
+
+{% if closed %}
+<section class="card">
+  <h2>Últimas comandas baixadas</h2>
+  <table class="list">
+    {% for d, s in closed %}
+    <tr><td>Comanda {{ d.number }} · {{ d.courier.name }}</td><td>{{ (d.created_at|local_time).strftime('%d/%m %H:%M') }} → {{ (d.returned_at|local_time).strftime('%H:%M') }}</td><td class="v">{{ d.orders|length }} ped.</td><td class="v">taxas {{ s.fees|brl }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="hint">Total de entregas e taxas por motoboy no período: veja em <a href="{{ url_for('admin.reports') }}">Relatórios</a>.</p>
+</section>
+{% endif %}
+
+<section class="card" id="motoboys">
+  <h2>Motoboys</h2>
+  {% for c in couriers %}
+  <div class="row {{ 'off' if not c.active }}">
+    <span class="grow name">{{ c.name }}{% if c.phone %} · {{ c.phone }}{% endif %}{% if not c.active %} (fora da lista){% endif %}</span>
+    <form method="post" action="{{ url_for('admin.courier_toggle', courier_id=c.id) }}">{{ csrf() }}<button class="ghost small">{{ 'Tirar da lista' if c.active else 'Voltar para a lista' }}</button></form>
+  </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('admin.courier_new') }}" class="row" data-track>
+    {{ csrf() }}
+    <label class="grow">Nome<input name="name" maxlength="80" required placeholder="Ex.: João"></label>
+    <label class="grow">Telefone (opcional)<input name="phone" maxlength="30" inputmode="tel"></label>
+    <button class="primary small">Cadastrar motoboy</button>
+  </form>
+</section>
+{% if print_dispatch %}<iframe class="print-frame" src="{{ url_for('admin.dispatch_label', dispatch_id=print_dispatch, auto=1) }}" title="Impressão da comanda" aria-hidden="true"></iframe>{% endif %}
+{% endblock %}

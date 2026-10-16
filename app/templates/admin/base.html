@@ -22,6 +22,7 @@
     {% set tabs = [
       ('admin.index', 'Início', ['admin.index']),
       ('admin.orders', 'Pedidos', ['admin.orders']),
+      ('admin.dispatches', 'Entregas', ['admin.dispatches']),
       ('admin.stock', 'Estoque', ['admin.stock']),
       ('admin.menu', 'Cardápio', ['admin.menu', 'admin.category_page', 'admin.category_new', 'admin.photos']),
       ('admin.extras', 'Bordas e adicionais', ['admin.extras']),
@@ -33,6 +34,7 @@
       ('admin.users', 'Conta', ['admin.users', 'admin.password']),
     ] if is_owner else [
       ('admin.orders', 'Pedidos', ['admin.orders']),
+      ('admin.dispatches', 'Entregas', ['admin.dispatches']),
       ('admin.stock', 'Estoque', ['admin.stock']),
       ('admin.password', 'Minha senha', ['admin.password']),
     ] %}

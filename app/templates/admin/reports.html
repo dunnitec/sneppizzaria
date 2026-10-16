@@ -86,6 +86,27 @@
 </section>
 {% endif %}
 
+<section class="card">
+  <h2>De onde vieram as vendas</h2>
+  {% if r.by_channel %}
+  <p class="hint"><b>{{ '%.0f'|format(r.online_share) }}%</b> do faturamento veio do site; o resto foi presencial ou por telefone.</p>
+  <table class="list">
+    {% for row in r.by_channel %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="empty">Sem vendas confirmadas no período.</p>{% endif %}
+</section>
+
+{% if r.by_courier %}
+<section class="card">
+  <h2>Entregas por motoboy</h2>
+  <table class="list">
+    <tr><td></td><td class="v"><b>Entregas</b></td><td class="v"><b>Taxas de entrega</b></td></tr>
+    {% for c in r.by_courier %}<tr><td>{{ c.name }}</td><td class="v">{{ c.deliveries }}</td><td class="v">{{ c.fees|brl }}</td></tr>{% endfor %}
+  </table>
+  <p class="hint">Contam as comandas que saíram no período e já tiveram baixa.</p>
+</section>
+{% endif %}
+
 <div class="two">
   <section class="card">
     <h2>Formas de pagamento</h2>

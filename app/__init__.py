@@ -20,7 +20,7 @@ def create_app(config_class=Config):
     csrf.init_app(app)
 
     from app.cli import create_admin, import_photos, import_static_banners
-    from app.routes import admin_manage  # noqa: F401  (rotas extras do painel, mesmo blueprint)
+    from app.routes import admin_manage, dispatch, pos  # noqa: F401  (rotas extras do painel, mesmo blueprint)
     from app.routes.admin import admin_bp
     from app.routes.orders import orders_bp
     from app.routes.public import public_bp, static_url

@@ -19,6 +19,9 @@ from app.models import (
     AdminUser,
     Border,
     Category,
+    CHANNELS,
+    ORDER_STATUSES,
+    SOLD_STATUSES,
     Customer,
     Neighborhood,
     Order,
@@ -39,12 +42,17 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/<slug>/admin")
 
 MAX_FAILED_LOGINS = 5
 LOCK_TIME = timedelta(minutes=15)
-ORDER_STATUSES = ("pendente", "confirmado", "cancelado")
+# etapas e origens: ver app/models.py (ORDER_STATUSES, CHANNELS)
 STORE_STATUS = {"auto": None, "open": True, "closed": False}
 # o que um usuário "funcionario" pode abrir; o "dono" abre tudo
 STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.orders_poll",
+                   "admin.order_label", "admin.order_printed", "admin.order_new", "admin.dispatches", "admin.dispatch_new",
+                   "admin.dispatch_return", "admin.dispatch_remove_order", "admin.dispatch_label",
                    "admin.order_status", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
+# tamanhos de etiqueta mais comuns em impressoras Zebra (largura × altura, em mm)
+LABEL_SIZES = {"100x150": (100, 150), "100x100": (100, 100), "100x75": (100, 75), "100x50": (100, 50),
+               "80x100": (80, 100), "60x40": (60, 40)}
 # tipos de categoria, com as palavras que o dono vê no painel
 KINDS = {
     "pizza": {"icon": "🍕", "label": "Pizza salgada", "help": "Sabores com preço por tamanho. Aceita meio a meio, borda e adicionais."},
@@ -243,6 +251,8 @@ def orders():
         orders=query.order_by(Order.id.desc()).limit(100).all(),
         status=status if status in ORDER_STATUSES else None,
         statuses=ORDER_STATUSES,
+        channel_labels=CHANNELS,
+        print_id=request.args.get("imprimir", type=int),
     )
 
 
@@ -270,9 +280,28 @@ def order_status(order_id):
     if status not in ORDER_STATUSES:
         abort(400)
     order.status = status
+    if status == "entregue" and not order.delivered_at:
+        order.delivered_at = utcnow()
     db.session.commit()
     current_filter = request.form.get("filter")
-    return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None))
+    # confirmou: manda a etiqueta para a impressora (a página de pedidos imprime sozinha)
+    to_print = order.id if status == "confirmado" and g.tenant.auto_print else None
+    return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None,
+                            imprimir=to_print))
+
+
+@admin_bp.route("/pedidos/<int:order_id>/etiqueta")
+def order_label(order_id):
+    order = Order.query.filter_by(tenant_id=g.tenant.id, id=order_id).first_or_404()
+    return render_template("admin/label.html", o=order, channel_labels=CHANNELS)
+
+
+@admin_bp.route("/pedidos/<int:order_id>/impresso", methods=["POST"])
+def order_printed(order_id):
+    order = Order.query.filter_by(tenant_id=g.tenant.id, id=order_id).first_or_404()
+    order.printed_at = utcnow()
+    db.session.commit()
+    return {"ok": True}
 
 
 # ---------- cardápio ----------
@@ -477,7 +506,7 @@ def customer_rows(tenant_id, q=""):
         for cid, n, total, last in db.session.query(
             Order.customer_id, db.func.count(Order.id), db.func.sum(Order.total), db.func.max(Order.created_at)
         )
-        .filter(Order.tenant_id == tenant_id, Order.status == "confirmado", Order.customer_id.isnot(None))
+        .filter(Order.tenant_id == tenant_id, Order.status.in_(SOLD_STATUSES), Order.customer_id.isnot(None))
         .group_by(Order.customer_id)
     )
     last_any = dict(
@@ -724,6 +753,9 @@ def store():
             if "min_order" in form:
                 text = form["min_order"].strip()
                 tenant.min_order = _price(text, "pedido mínimo") if text else None
+            if form.get("label_size") in LABEL_SIZES:
+                tenant.label_width_mm, tenant.label_height_mm = LABEL_SIZES[form["label_size"]]
+                tenant.auto_print = "auto_print" in form
             tenant.eta = _name(form.get("eta"), "o tempo de entrega", max_length=30)
             tenant.whatsapp = whatsapp
             tenant.is_open_override = STORE_STATUS[form["status"]]
@@ -744,6 +776,7 @@ def store():
     status = next(k for k, v in STORE_STATUS.items() if v is tenant.is_open_override)
     payments = [p for p in (tenant.accepted_payments or "").split(",") if p]
     return render_template(
-        "admin/store.html", days=days, status=status, payment_options=PAYMENT_OPTIONS,
+        "admin/store.html", days=days, status=status, payment_options=PAYMENT_OPTIONS, label_sizes=LABEL_SIZES,
+        label_size=f"{tenant.label_width_mm}x{tenant.label_height_mm}",
         payments=payments, other_payments=", ".join(p for p in payments if p not in PAYMENT_OPTIONS),
     )

@@ -1,0 +1,63 @@
+{% extends "admin/base.html" %}
+{% block title %}Novo pedido{% endblock %}
+{% block help %}
+<ol>
+  <li>Escolha de onde é o pedido: <b>Balcão</b> (a pessoa leva ou espera), <b>Mesa</b> (come na loja) ou <b>Telefone/WhatsApp</b> (pode ser entrega).</li>
+  <li>Toque na categoria, escolha tamanho e sabores, e toque em <b>Adicionar</b>. Repita para cada item.</li>
+  <li>Escolha a forma de pagamento e toque em <b>Lançar pedido</b>. Ele já entra confirmado e a etiqueta sai na impressora.</li>
+</ol>
+{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('admin.orders') }}">‹ Voltar para pedidos</a>
+<h1>Novo pedido</h1>
+
+<form id="pos" autocomplete="off">
+  <section class="card">
+    <h2>1. De onde é o pedido?</h2>
+    <div class="kind-choices">
+      <label class="kind-choice"><input type="radio" name="channel" value="balcao" checked><span class="kind-icon" aria-hidden="true">🏪</span><b>Balcão</b><small>A pessoa está na loja e leva ou espera.</small></label>
+      <label class="kind-choice"><input type="radio" name="channel" value="mesa"><span class="kind-icon" aria-hidden="true">🍽️</span><b>Mesa</b><small>Vai comer aqui.</small></label>
+      <label class="kind-choice"><input type="radio" name="channel" value="telefone"><span class="kind-icon" aria-hidden="true">📞</span><b>Telefone / WhatsApp</b><small>Pedido que chegou direto, sem o site. Pode ser entrega.</small></label>
+    </div>
+    <div class="row">
+      <label class="grow" data-for="mesa">Mesa nº<input name="table_label" maxlength="20" inputmode="numeric"></label>
+      <label class="grow">Nome do cliente <span data-for="balcao mesa">(opcional)</span><input name="customer_name" maxlength="120"></label>
+      <label class="grow">Telefone <span data-for="balcao mesa">(opcional)</span><input name="customer_phone" maxlength="30" inputmode="tel" placeholder="(11) 99999-0000"></label>
+    </div>
+    <div data-for="telefone">
+      <label class="check"><input type="checkbox" name="delivery" id="pos-delivery"> é para <b>entregar</b> no endereço</label>
+      <div id="pos-address" hidden>
+        <div class="row">
+          <label class="grow2">Rua<input name="street" maxlength="200"></label>
+          <label class="money">Número<input name="number" maxlength="20"></label>
+          <label class="grow">Complemento<input name="complement" maxlength="120"></label>
+        </div>
+        <div class="row">
+          <label class="grow">Bairro<select name="neighborhood"><option value="">Escolha…</option>{% for n in data.neighborhoods %}<option value="{{ n.name }}" data-fee="{{ n.fee }}">{{ n.name }} — {{ n.fee|brl }}</option>{% endfor %}<option value="__outro__" data-fee="0">Outro bairro (taxa a combinar)</option></select></label>
+          <label class="grow2">Ponto de referência<input name="reference" maxlength="200"></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. Itens</h2>
+    <div class="cat-chips" id="pos-cats"></div>
+    <div id="pos-builder" class="pos-builder" hidden></div>
+    <div id="pos-cart" class="pos-cart"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. Pagamento</h2>
+    <div class="row">
+      <label class="grow">Forma de pagamento<select name="payment_method" required><option value="">Escolha…</option>{% for p in payments %}<option>{{ p }}</option>{% endfor %}</select></label>
+      <label class="money" id="pos-change" hidden>Troco para<input name="change_for" inputmode="decimal" placeholder="0,00"></label>
+    </div>
+    <div class="pos-total" id="pos-total"></div>
+    <p class="flash error" id="pos-error" role="alert" hidden></p>
+    <div class="savebar"><button class="primary big" id="pos-submit" type="submit">Lançar pedido</button></div>
+  </section>
+</form>
+<script>window.POS_DATA = {{ data|tojson }};</script>
+<script src="{{ static_url('js/pos.js') }}"></script>
+{% endblock %}

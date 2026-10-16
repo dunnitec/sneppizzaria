@@ -8,6 +8,19 @@ from app.extensions import db
 MIN_PASSWORD_LENGTH = 8
 
 
+# etapas do pedido; as três do meio são venda feita e entram nos relatórios
+ORDER_STATUSES = {
+    "pendente": "Pendente",
+    "confirmado": "Confirmado",
+    "saiu": "Saiu para entrega",
+    "entregue": "Entregue",
+    "cancelado": "Cancelado",
+}
+SOLD_STATUSES = ("confirmado", "saiu", "entregue")
+# de onde veio o pedido
+CHANNELS = {"site": "Site", "balcao": "Balcão", "mesa": "Mesa", "telefone": "Telefone/WhatsApp"}
+
+
 def split_options(text):
     """'Guaraná, Guaraná Zero' -> ['Guaraná', 'Guaraná Zero']"""
     return [o.strip() for o in (text or "").split(",") if o.strip()]
@@ -63,6 +76,10 @@ class Tenant(db.Model):
     notices = db.Column(db.Text)  # recados do topo do cardápio, um por linha
     min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
     background_image = db.Column(db.String(255))  # fundo enviado pelo painel (UPLOAD_FOLDER)
+    # impressora de etiquetas (Zebra): tamanho da etiqueta e se imprime sozinho ao confirmar
+    label_width_mm = db.Column(db.Integer, nullable=False, default=100, server_default="100")
+    label_height_mm = db.Column(db.Integer, nullable=False, default=150, server_default="150")
+    auto_print = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
     created_at = db.Column(db.DateTime, default=utcnow)
 
     categories = db.relationship("Category", backref="tenant", lazy=True, order_by="Category.sort_order")
@@ -233,8 +250,14 @@ class Order(db.Model):
     delivery_fee = db.Column(db.Numeric(8, 2), nullable=False, default=0)
     total = db.Column(db.Numeric(8, 2), nullable=False, default=0)
 
-    status = db.Column(db.String(30), default="pendente")  # pendente | confirmado | cancelado
+    status = db.Column(db.String(30), default="pendente")  # ver ORDER_STATUSES
     whatsapp_message = db.Column(db.Text)
+    channel = db.Column(db.String(20), nullable=False, default="site", server_default="site")  # ver CHANNELS
+    delivery = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # True = entregar no endereço
+    table_label = db.Column(db.String(20))  # mesa (pedido de comer na loja)
+    dispatch_id = db.Column(db.Integer, db.ForeignKey("dispatches.id"), index=True)  # comanda de saída do motoboy
+    printed_at = db.Column(db.DateTime)
+    delivered_at = db.Column(db.DateTime)
 
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
@@ -281,3 +304,31 @@ class Banner(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     image = db.Column(db.String(255), nullable=False)  # arquivo em UPLOAD_FOLDER
     sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+
+class Courier(db.Model):
+    """Motoboy."""
+
+    __tablename__ = "couriers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    phone = db.Column(db.String(30))
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+
+
+class Dispatch(db.Model):
+    """Comanda de saída: um motoboy levando um ou mais pedidos. Fecha quando ele volta (baixa)."""
+
+    __tablename__ = "dispatches"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
+    number = db.Column(db.Integer, nullable=False)  # nº da comanda, sequencial por loja
+    courier_id = db.Column(db.Integer, db.ForeignKey("couriers.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)  # saída
+    returned_at = db.Column(db.DateTime)  # volta (baixa)
+
+    courier = db.relationship("Courier")
+    orders = db.relationship("Order", backref="dispatch", lazy=True, order_by="Order.id")

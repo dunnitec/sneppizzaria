@@ -34,6 +34,27 @@
   </section>
 
   <section class="card">
+    <h2>Impressora de etiquetas (Zebra)</h2>
+    <div class="row">
+      <label class="grow">Tamanho da etiqueta (largura × altura)<select name="label_size">
+        {% for key, (w, h) in label_sizes.items() %}<option value="{{ key }}" {{ 'selected' if key == label_size }}>{{ w }} × {{ h }} mm</option>{% endfor %}
+      </select></label>
+      <label class="check"><input type="checkbox" name="auto_print" {{ 'checked' if tenant.auto_print }}> imprimir sozinho ao confirmar o pedido</label>
+    </div>
+    <details>
+      <summary>Como deixar o computador da loja imprimindo direto (sem perguntar)</summary>
+      <ol class="setup">
+        <li>Instale o driver da Zebra no computador (site da Zebra → “ZDesigner driver”) e ligue a impressora no USB.</li>
+        <li>No Windows: <b>Configurações → Impressoras</b>, abra a Zebra → <b>Preferências de impressão</b> e escolha o mesmo tamanho de etiqueta daqui.</li>
+        <li>Marque a Zebra como <b>impressora padrão</b>.</li>
+        <li>Crie um atalho do Google Chrome na área de trabalho, clique com o botão direito → <b>Propriedades</b> e no fim do campo <b>Destino</b> acrescente: <code>--kiosk-printing</code></li>
+        <li>Abra o painel sempre por esse atalho. Ao confirmar um pedido, a etiqueta sai direto na Zebra.</li>
+      </ol>
+      <p class="hint">Sem o passo 4 também funciona: abre a janela de impressão e você só confirma.</p>
+    </details>
+  </section>
+
+  <section class="card">
     <h2>Recados no topo do cardápio</h2>
     <label class="grow2">Um recado por linha (até 10)<textarea name="notices" rows="4">{{ tenant.notices or '' }}</textarea></label>
     <p class="hint">O recado do combo é escrito sozinho a partir das regras do combo.</p>
