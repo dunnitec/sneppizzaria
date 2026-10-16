@@ -115,6 +115,7 @@ def create_order(slug):
                 border_name=line["border_name"] or None,
                 addon_names=line["addon_names"] or None,
                 extras=line["extras"] or None,
+                kind=line["kind"],
                 notes=line["notes"] or None,
                 unit_price=line["unit_price"],
                 quantity=line["quantity"],

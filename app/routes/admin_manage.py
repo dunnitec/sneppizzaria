@@ -6,7 +6,7 @@ Complementa app/routes/admin.py (mesmo blueprint, mesmas regras de login e CSRF)
 import json
 import re
 
-from flask import abort, flash, g, redirect, render_template, request, url_for
+from flask import abort, flash, g, jsonify, redirect, render_template, request, url_for
 
 from app.extensions import db
 from app.models import (
@@ -19,6 +19,7 @@ from app.models import (
     Neighborhood,
     OrderItemFlavor,
     Product,
+    ProductVariant,
 )
 from app.routes.admin import FormError, _category_or_404, _name, _price, _reject, _save, admin_bp
 from app.services.photos import PhotoError, delete_photo, normalize, save_photo
@@ -65,9 +66,9 @@ def line_new():
     form = request.form
     try:
         name = _name(form.get("name"), "o nome da linha", max_length=80)
-        kind = form.get("kind") if form.get("kind") in ("pizza", "doce") else "pizza"
+        kind = form.get("kind") if form.get("kind") in ("pizza", "doce", "bebida") else "pizza"
         label = _name(form.get("size_label"), "o nome do primeiro tamanho", max_length=30)
-        max_flavors = _max_flavors(form.get("size_max"), label)
+        max_flavors = 1 if kind == "bebida" else _max_flavors(form.get("size_max"), label)
         cats = _ordered_categories()
         combos = [c for c in cats if c.kind == "metro"]
         position = combos[0].sort_order if combos else len(cats)  # nova linha entra antes do combo
@@ -104,11 +105,13 @@ def line_save(category_id):
                 removed.append(size["label"])
                 continue
             label = _name(form.get(f"size-label-{i}", size["label"]), "o nome do tamanho", max_length=30)
-            new_sizes.append({"label": label, "max_flavors": _max_flavors(form.get(f"size-max-{i}"), label)})
+            n = 1 if category.kind == "bebida" else _max_flavors(form.get(f"size-max-{i}"), label)
+            new_sizes.append({"label": label, "max_flavors": n})
             renames[size["label"]] = new_sizes[-1]
         if form.get("new_size_label", "").strip():
             label = _name(form["new_size_label"], "o nome do novo tamanho", max_length=30)
-            new_sizes.append({"label": label, "max_flavors": _max_flavors(form.get("new_size_max"), label)})
+            n = 1 if category.kind == "bebida" else _max_flavors(form.get("new_size_max"), label)
+            new_sizes.append({"label": label, "max_flavors": n})
         labels = [s["label"].lower() for s in new_sizes]
         if not new_sizes:
             raise FormError("A linha precisa ter pelo menos um tamanho.")
@@ -377,3 +380,51 @@ def user_delete(user_id):
         db.session.commit()
         flash(f"Usuário “{user.username}” excluído.", "ok")
     return redirect(url_for("admin.users"))
+
+
+# ---------- estoque: liga/desliga rápido, salva na hora ----------
+
+STOCK_TYPES = {"product": Product, "variant": ProductVariant, "border": Border, "addon": Addon}
+
+
+@admin_bp.route("/estoque")
+def stock():
+    categories = Category.query.filter_by(tenant_id=g.tenant.id).order_by(Category.sort_order, Category.id).all()
+    return render_template(
+        "admin/stock.html",
+        categories=[c for c in categories if c.products],
+        borders=Border.query.filter_by(tenant_id=g.tenant.id).order_by(Border.id).all(),
+        addons=Addon.query.filter_by(tenant_id=g.tenant.id).order_by(Addon.id).all(),
+    )
+
+
+def _stock_item(kind, item_id):
+    model = STOCK_TYPES.get(kind)
+    if model is None or not isinstance(item_id, int):
+        abort(400)
+    if model is ProductVariant:
+        item = ProductVariant.query.join(Product).filter(ProductVariant.id == item_id, Product.tenant_id == g.tenant.id).first()
+    else:
+        item = model.query.filter_by(tenant_id=g.tenant.id, id=item_id).first()
+    return item or abort(404)
+
+
+@admin_bp.route("/estoque/alternar", methods=["POST"])
+def stock_toggle():
+    data = request.get_json(silent=True) or {}
+    item = _stock_item(data.get("type"), data.get("id"))
+    item.active = bool(data.get("active"))
+    db.session.commit()
+    return jsonify(ok=True, active=item.active)
+
+
+@admin_bp.route("/estoque/lote", methods=["POST"])
+def stock_bulk():
+    """Liga ou desliga vários sabores de uma vez (ex.: todos que levam calabresa)."""
+    data = request.get_json(silent=True) or {}
+    ids = [i for i in data.get("ids") or [] if isinstance(i, int)][:500]
+    products = Product.query.filter(Product.tenant_id == g.tenant.id, Product.id.in_(ids)).all() if ids else []
+    for p in products:
+        p.active = bool(data.get("active"))
+    db.session.commit()
+    return jsonify(ok=True, changed=len(products))

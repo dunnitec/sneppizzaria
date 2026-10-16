@@ -41,6 +41,9 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
       const p=c.products[0], v=p.variants[0];
       const extras=comboOf(c).extras;
       cat.cards.push({title:p.name,desc:(p.description||"")+(extras.length?` Acompanha: ${extras.join(", ")}.`:""),fixed:v.price,label:v.label,max:v.max_flavors,cat:c,sizes:Array.from({length:v.max_flavors},(_,i)=>i+1)});
+    } else if(c.kind==="bebida"){
+      // bebida: um card por item, um botão por tamanho; vai direto para a cesta
+      c.products.forEach(p=>cat.cards.push({drink:true,p,cat:c,title:p.name}));
     } else {
       // agrupa por tamanho (variant label)
       const labels=[...new Set(c.products.flatMap(p=>p.variants.map(v=>v.label)))];
@@ -57,6 +60,7 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
     sel.insertAdjacentHTML("beforeend",`<option value="${cat.slug}">${esc(cat.name)}</option>`);
     const cards=cat.cards.map((k,ki)=>{
       if(k.notice) return `<div class="card full notice">${k.lines.map(l=>`<p>${esc(l)}</p>`).join("")}</div>`;
+      if(k.drink) return `<div class="card drink" data-name="${esc(k.title)}"><div class="top">${k.p.image?`<img class="th" src="${esc(k.p.image)}" alt="" loading="lazy">`:""}<div><h3>${esc(k.title)}</h3>${k.p.description?`<p class="desc">${esc(k.p.description)}</p>`:""}</div></div><div class="btns">${k.p.variants.map((v,vi)=>`<button onclick="addDrink(${ci},${ki},${vi})">${esc(v.label)} · ${money(v.price)}</button>`).join("")}</div></div>`;
       const btns=k.sizes.map(n=>`<button onclick="startFlow(${ci},${ki},${n})">${n} sabor${n>1?"es":""}</button>`).join("");
       if(k.fixed) return `<div class="card full" data-name="${esc(k.title)}"><div class="top"><div><h3>${esc(k.title)}</h3><p class="desc">${esc(k.desc)}</p><p class="price">${money(k.fixed)}</p></div></div><div class="btns">${btns}</div></div>`;
       return `<div class="card" data-name="${esc(k.title)}"><div class="top"><h3>${esc(k.title)}</h3><span class="from">A partir de <b>${money(k.from)}</b></span></div><div class="btns">${btns}</div></div>`;
@@ -82,6 +86,15 @@ function startFlow(ci,ki,n){
   F={card:k,n,step:0,flavors:[],border:null,addons:{},choice:null,qty:1,notes:""};
   renderStep();
   document.getElementById("ovl").classList.add("on");
+}
+function addDrink(ci,ki,vi){
+  if(CLOSED){toast(CLOSED_MSG);return;}
+  const k=CATS[ci].cards[ki], v=k.p.variants[vi];
+  const same=cart.find(i=>i.sel.category_id===k.cat.id&&i.sel.flavors[0]===k.p.id&&i.variant===v.label);
+  if(same)same.qty++;
+  else cart.push({sel:{category_id:k.cat.id,variant:v.label,flavors:[k.p.id],border_id:null,addons:[],combo_choice:null},
+    title:k.p.name,variant:v.label,border:"",addons:"",extras:"",notes:"",price:v.price,qty:1});
+  renderCart();toast(`${k.p.name} (${v.label}) adicionado à cesta.`);
 }
 function closeModal(){document.getElementById("ovl").classList.remove("on");F=null;}
 function flavorPool(){

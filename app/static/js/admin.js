@@ -48,6 +48,54 @@
     });
   }
 
+  /* ---------- estoque: liga/desliga salva na hora ---------- */
+  const urls = document.getElementById("stock-urls");
+  if (urls) {
+    const token = document.querySelector('meta[name="csrf-token"]').content;
+    const post = (url, body) => fetch(url, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": token },
+      body: JSON.stringify(body),
+    }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    const paint = (input) => {
+      const item = input.closest(".chip") || input.closest(".stock-item");
+      item.classList.toggle("off", !input.checked);
+      const state = item.querySelector(":scope > .state");
+      if (state) state.textContent = input.checked ? "Disponível" : "Esgotado";
+    };
+    document.querySelectorAll("[data-toggle]").forEach((input) => {
+      input.addEventListener("change", async () => {
+        paint(input);
+        try {
+          await post(urls.dataset.toggleUrl, { type: input.dataset.toggle, id: Number(input.dataset.id), active: input.checked });
+        } catch (e) {
+          input.checked = !input.checked;
+          paint(input);
+          alert("Não deu para salvar. Confira a internet e tente de novo (se pedir, entre no painel outra vez).");
+        }
+      });
+    });
+    const bulk = document.querySelector(".bulk");
+    const onlyOff = document.getElementById("only-off");
+    const refreshBulk = () => {
+      bulk.hidden = !(search && search.value.trim());
+      if (onlyOff.checked) document.querySelectorAll(".stock-item").forEach((el) => { if (!el.classList.contains("off")) el.hidden = true; });
+    };
+    search && search.addEventListener("input", refreshBulk);
+    onlyOff.addEventListener("change", () => { search.dispatchEvent(new Event("input")); refreshBulk(); });
+    bulk.querySelectorAll("[data-bulk]").forEach((btn) => btn.addEventListener("click", async () => {
+      const active = btn.dataset.bulk === "1";
+      const rows = [...document.querySelectorAll('.stock-item[data-type="product"]:not([hidden])')];
+      if (!rows.length || !confirm(`${active ? "Ativar" : "Desativar"} ${rows.length} sabor(es) encontrado(s)?`)) return;
+      try {
+        await post(urls.dataset.bulkUrl, { ids: rows.map((r) => Number(r.dataset.id)), active });
+        rows.forEach((r) => { const i = r.querySelector('[data-toggle="product"]'); i.checked = active; paint(i); });
+      } catch (e) {
+        alert("Não deu para salvar. Confira a internet e tente de novo.");
+      }
+    }));
+  }
+
   /* ---------- pedidos ao vivo ---------- */
   const live = document.getElementById("live");
   if (!live) return;

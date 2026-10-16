@@ -43,7 +43,7 @@ ORDER_STATUSES = ("pendente", "confirmado", "cancelado")
 STORE_STATUS = {"auto": None, "open": True, "closed": False}
 # o que um usuário "funcionario" pode abrir; o "dono" abre tudo
 STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.orders_poll",
-                   "admin.order_status", "admin.password"}
+                   "admin.order_status", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
 # gasta o mesmo tempo de uma conferência de senha quando o usuário não existe,
 # para a resposta não revelar quais usuários existem
@@ -248,7 +248,7 @@ def _category_or_404(category_id):
 @admin_bp.route("/cardapio")
 def menu():
     categories = Category.query.filter_by(tenant_id=g.tenant.id).order_by(Category.sort_order, Category.id).all()
-    lines = [c for c in categories if c.kind != "metro"]
+    lines = [c for c in categories if c.kind not in ("metro", "bebida")]  # linhas que podem entrar no combo
     return render_template(
         "admin/menu.html", categories=categories, lines=lines, sizes={c.id: category_sizes(c) for c in categories}
     )
@@ -329,7 +329,7 @@ def combo_save(category_id):
     form = request.form
     try:
         category.name = _name(form.get("name"), "o nome do combo", max_length=80)
-        lines = Category.query.filter(Category.tenant_id == g.tenant.id, Category.kind != "metro")
+        lines = Category.query.filter(Category.tenant_id == g.tenant.id, Category.kind.notin_(("metro", "bebida")))
         valid = {c.slug for c in lines}
         sources = [s for s in form.getlist("sources") if s in valid]
         if not sources:

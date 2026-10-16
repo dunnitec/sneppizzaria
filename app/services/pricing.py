@@ -106,7 +106,7 @@ def price_item(tenant, raw):
             Product.tenant_id == tenant.id,
             Product.active.is_(True),
             Category.slug.in_(settings["sources"]),
-            Category.kind != "metro",
+            Category.kind.notin_(("metro", "bebida")),
         )
         flavors = _flavors(raw, pool)
         label, max_flavors, price = variant.label, variant.max_flavors, _money(variant.price)
@@ -122,9 +122,11 @@ def price_item(tenant, raw):
     else:
         label = str(raw.get("variant") or "")
         flavors = _flavors(raw, Product.query.filter_by(category_id=category.id, active=True))
-        variants = [next((v for v in p.variants if v.label == label), None) for p in flavors]
+        variants = [next((v for v in p.variants if v.label == label and v.active), None) for p in flavors]
         if not all(variants):
             raise OrderError("Tamanho indisponível para o sabor escolhido. Atualize a página.")
+        if category.kind == "bebida" and (len(flavors) != 1 or raw.get("border_id") not in (None, "")):
+            raise OrderError("Bebida inválida. Atualize a página.")
         max_flavors = max(v.max_flavors for v in variants)
         price = max(_money(v.price) for v in variants)
         extras = []
@@ -149,6 +151,7 @@ def price_item(tenant, raw):
         "border_name": f"{re.sub(r'^Borda ', '', border.group_name)} - {border.name}"[:60] if border else "",
         "addon_names": ", ".join(f"{qty}x {addon.name}" for addon, qty in addons)[:255],
         "extras": ", ".join(extras)[:255],
+        "kind": category.kind,
         # combo: cada sabor é 1/n da pizza; meio a meio: 1/n de cada
         "flavors": [(p, Decimal(1) / len(flavors)) for p in flavors],
         "notes": str(raw.get("notes") or "").strip()[:255],

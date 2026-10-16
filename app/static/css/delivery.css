@@ -122,6 +122,9 @@ footer .st.open{color:#7CFC8A}
 .opt.sel{background:#9a0202;color:#fff;border-left:4px solid #c70000}
 .opt input[type=radio]{width:18px;height:18px;accent-color:#c70000}
 .opt .grow{flex:1}
+.card.drink .top{display:flex;gap:10px;align-items:center}
+.card.drink .th{width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none}
+.card.drink .btns{flex-wrap:wrap}
 .ck .privacy{font-size:11px;color:#666;margin:10px 0 0}
 .opt .th{width:72px;height:72px;flex:none;object-fit:cover;border-radius:8px;background:#eee}
 .opt .pr{font-size:12px;white-space:nowrap}

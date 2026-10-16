@@ -77,6 +77,9 @@ def data_from_db(tenant, order_url, assets):
     # o preço é sempre recalculado no servidor (services/pricing.py)
     cats = []
     for c in Category.query.filter_by(tenant_id=tenant.id).order_by(Category.sort_order, Category.id):
+        products = [p for p in c.products if p.active and any(v.active for v in p.variants)]
+        if not products:
+            continue  # linha sem nada à venda não aparece no site
         cats.append(
             {
                 "id": c.id,
@@ -94,10 +97,10 @@ def data_from_db(tenant, order_url, assets):
                         "variants": [
                             {"label": v.label, "price": float(v.price), "max_flavors": v.max_flavors}
                             for v in p.variants
+                            if v.active
                         ],
                     }
-                    for p in c.products
-                    if p.active
+                    for p in products
                 ],
             }
         )

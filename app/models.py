@@ -74,7 +74,7 @@ class Category(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     name = db.Column(db.String(80), nullable=False)  # Pizzas Promocionais, Pizzas Premium, Pizzas Doces
     slug = db.Column(db.String(80), nullable=False)
-    kind = db.Column(db.String(20), default="pizza")  # pizza | doce | metro
+    kind = db.Column(db.String(20), default="pizza")  # pizza | doce | metro (combo) | bebida
     allows_addons = db.Column(db.Boolean, default=False, nullable=False)  # linha aceita adicionais por ingrediente
     sort_order = db.Column(db.Integer, default=0)
 
@@ -136,6 +136,7 @@ class ProductVariant(db.Model):
     label = db.Column(db.String(30), nullable=False)  # "Grande (8 pedaços)", "Broto", "Inteira"
     max_flavors = db.Column(db.Integer, default=1)  # quantos sabores podem ser combinados nessa variante
     price = db.Column(db.Numeric(8, 2), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())  # tamanho em estoque
 
 
 class Addon(db.Model):
@@ -239,6 +240,7 @@ class OrderItem(db.Model):
     addon_names = db.Column(db.String(255))
     extras = db.Column(db.String(255))  # o que acompanha um combo (brindes e escolha do cliente)
     notes = db.Column(db.String(255))
+    kind = db.Column(db.String(20))  # tipo da linha na hora da venda: pizza | doce | metro | bebida
 
     unit_price = db.Column(db.Numeric(8, 2), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)

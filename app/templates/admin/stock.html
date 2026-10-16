@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+{% block title %}Estoque{% endblock %}
+{% block content %}
+<h1>Estoque</h1>
+<p class="hint">Acabou algo? Desligue aqui e o item some do site na hora (não precisa salvar). Ligue de novo quando voltar.</p>
+
+<div class="card search-bar stock-tools">
+  <label class="grow">Buscar por nome ou ingrediente<input id="search" type="search" autocomplete="off" placeholder="Ex.: calabresa, coca, catupiry"
+         data-items=".stock-item" data-sections="section.cat-card"></label>
+  <label class="check"><input type="checkbox" id="only-off"> só os esgotados</label>
+  <span id="search-count" class="hint" aria-live="polite"></span>
+  <div class="bulk" hidden>
+    <button type="button" class="ghost small danger" data-bulk="0">Desativar todos os encontrados</button>
+    <button type="button" class="ghost small" data-bulk="1">Ativar todos os encontrados</button>
+  </div>
+</div>
+
+{% for c in categories %}
+<section class="card cat-card">
+  <h2>{{ c.name }}</h2>
+  {% for p in c.products %}
+  <div class="stock-item {{ 'off' if not p.active }}" data-name="{{ p.name }} {{ p.description or '' }}" data-type="product" data-id="{{ p.id }}">
+    <label class="switch">
+      <input type="checkbox" data-toggle="product" data-id="{{ p.id }}" {{ 'checked' if p.active }}>
+      <span class="knob" aria-hidden="true"></span>
+      <span class="name">{{ p.name }}</span>
+    </label>
+    <span class="state">{{ 'Disponível' if p.active else 'Esgotado' }}</span>
+    {% if p.variants|length > 1 %}
+    <div class="sizes">
+      {% for v in p.variants %}
+      <label class="chip {{ 'off' if not v.active }}"><input type="checkbox" data-toggle="variant" data-id="{{ v.id }}" {{ 'checked' if v.active }}> {{ v.label }}</label>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+
+<section class="card cat-card">
+  <h2>Bordas</h2>
+  {% for b in borders %}
+  <div class="stock-item {{ 'off' if not b.active }}" data-name="borda {{ b.group_name }} {{ b.name }}">
+    <label class="switch"><input type="checkbox" data-toggle="border" data-id="{{ b.id }}" {{ 'checked' if b.active }}><span class="knob" aria-hidden="true"></span><span class="name">{{ b.group_name }} — {{ b.name }}</span></label>
+    <span class="state">{{ 'Disponível' if b.active else 'Esgotado' }}</span>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="card cat-card">
+  <h2>Adicionais</h2>
+  {% for a in addons %}
+  <div class="stock-item {{ 'off' if not a.active }}" data-name="adicional {{ a.name }}">
+    <label class="switch"><input type="checkbox" data-toggle="addon" data-id="{{ a.id }}" {{ 'checked' if a.active }}><span class="knob" aria-hidden="true"></span><span class="name">{{ a.name }}</span></label>
+    <span class="state">{{ 'Disponível' if a.active else 'Esgotado' }}</span>
+  </div>
+  {% endfor %}
+</section>
+<div id="stock-urls" data-toggle-url="{{ url_for('admin.stock_toggle') }}" data-bulk-url="{{ url_for('admin.stock_bulk') }}" hidden></div>
+{% endblock %}

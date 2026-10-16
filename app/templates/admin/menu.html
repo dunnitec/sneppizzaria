@@ -125,12 +125,12 @@
 
 <section class="card">
   <h2>Criar nova linha</h2>
-  <p class="hint">Ex.: “Esfihas”, “Calzones”, “Pizzas Especiais”. Depois de criar, adicione os sabores e, se quiser, mais tamanhos.</p>
+  <p class="hint">Ex.: “Refrigerantes” (tipo Bebida, tamanhos “Lata 350ml” e “2 litros”), “Esfihas”, “Pizzas Especiais”. Depois de criar, adicione os itens e, se quiser, mais tamanhos. Em bebida, o “máx. sabores” é ignorado.</p>
   <form method="post" action="{{ url_for('admin.line_new') }}"data-track >
     {{ csrf() }}
     <div class="row">
       <label class="grow">Nome da linha<input name="name" maxlength="80" required></label>
-      <label class="grow">Tipo<select name="kind"><option value="pizza">Salgada</option><option value="doce">Doce</option></select></label>
+      <label class="grow">Tipo<select name="kind"><option value="pizza">Pizza salgada</option><option value="doce">Pizza doce</option><option value="bebida">Bebida</option></select></label>
       <label class="check"><input type="checkbox" name="allows_addons"> aceita adicionais</label>
     </div>
     <div class="row">

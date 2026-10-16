@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>{% block title %}Painel{% endblock %} · {{ tenant.name }}</title>
 <link rel="stylesheet" href="{{ static_url('css/admin.css') }}">
 </head>
@@ -18,7 +19,7 @@
   </div>
   {% if admin %}
   <nav class="wrap tabs">
-    {% set tabs = [('admin.orders', 'Pedidos'), ('admin.reports', 'Relatórios'), ('admin.customers', 'Clientes'), ('admin.menu', 'Cardápio'), ('admin.photos', 'Fotos'), ('admin.extras', 'Bordas e adicionais'), ('admin.delivery', 'Entrega'), ('admin.store', 'Loja'), ('admin.visual', 'Visual'), ('admin.users', 'Usuários'), ('admin.password', 'Senha')] if is_owner else [('admin.orders', 'Pedidos'), ('admin.password', 'Senha')] %}
+    {% set tabs = [('admin.orders', 'Pedidos'), ('admin.stock', 'Estoque'), ('admin.reports', 'Relatórios'), ('admin.customers', 'Clientes'), ('admin.menu', 'Cardápio'), ('admin.photos', 'Fotos'), ('admin.extras', 'Bordas e adicionais'), ('admin.delivery', 'Entrega'), ('admin.store', 'Loja'), ('admin.visual', 'Visual'), ('admin.users', 'Usuários'), ('admin.password', 'Senha')] if is_owner else [('admin.orders', 'Pedidos'), ('admin.stock', 'Estoque'), ('admin.password', 'Senha')] %}
     {% for endpoint, label in tabs %}
     <a href="{{ url_for(endpoint) }}" class="{{ 'cur' if request.endpoint == endpoint }}">{{ label }}{% if endpoint == 'admin.orders' %} <span class="badge" {{ 'hidden' if not pending_count }}>{{ pending_count }}</span>{% endif %}</a>
     {% endfor %}

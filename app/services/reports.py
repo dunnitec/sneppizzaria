@@ -53,9 +53,14 @@ def sales_report(tenant, start, end):
         by_hour[when.hour]["orders"] += 1
         by_hour[when.hour]["revenue"] += o.total
 
+    pizzas = [i for i in items if i.kind != "bebida"]
+    drinks = defaultdict(int)
+    for i in items:
+        if i.kind == "bebida":
+            drinks[f"{i.product_names} {i.variant_label}".strip()] += i.quantity
     flavors = defaultdict(Decimal)
-    if items:
-        qty_by_item = {i.id: i.quantity for i in items}
+    if pizzas:
+        qty_by_item = {i.id: i.quantity for i in pizzas}
         for f in OrderItemFlavor.query.filter(OrderItemFlavor.order_item_id.in_(list(qty_by_item))):
             flavors[f.product_name] += f.share * qty_by_item[f.order_item_id]
     top = sorted(flavors.items(), key=lambda kv: (-kv[1], kv[0]))[:TOP_FLAVORS]
@@ -65,7 +70,7 @@ def sales_report(tenant, start, end):
         "end": end,
         "revenue": revenue,
         "orders": len(confirmed),
-        "pizzas": sum(i.quantity for i in items),
+        "pizzas": sum(i.quantity for i in pizzas),
         "avg_ticket": (revenue / len(confirmed)).quantize(Decimal("0.01")) if confirmed else Decimal("0"),
         "delivery_fees": sum((o.delivery_fee or Decimal("0") for o in confirmed), Decimal("0")),
         "pending_orders": len(pending),
@@ -76,6 +81,7 @@ def sales_report(tenant, start, end):
         "by_payment": _breakdown(confirmed, lambda o: o.payment_method),
         "by_neighborhood": _breakdown(confirmed, lambda o: o.neighborhood_name)[:10],
         "top_flavors": [{"name": n, "qty": q} for n, q in top],
+        "top_drinks": [{"name": n, "qty": q} for n, q in sorted(drinks.items(), key=lambda kv: (-kv[1], kv[0]))[:10]],
     }
 
 
