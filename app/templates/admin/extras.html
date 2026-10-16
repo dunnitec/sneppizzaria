@@ -2,6 +2,7 @@
 {% block title %}Bordas e adicionais{% endblock %}
 {% block help %}
 <ul>
+  <li>Em <b>Onde aparece</b>, desmarque os tamanhos ou categorias em que um tipo de borda não deve ser oferecido (ex.: Vulcão fora do Broto).</li>
   <li><b>Bordas</b>: o cliente escolhe uma ao montar a pizza. <b>Adicionais</b>: ingredientes extras pagos.</li>
   <li>Mude preços ou nomes e toque em <b>Salvar</b> no fim da página. Para criar, use os quadros no fim.</li>
   <li>Desmarcar “à venda” esconde do site sem apagar.</li>
@@ -11,18 +12,33 @@
 <h1>Bordas e adicionais</h1>
 <form method="post" id="extras" data-track>
   {{ csrf() }}
-  <section class="card">
-    <h2>Bordas recheadas</h2>
-    {% for b in borders %}
+  <h2>Bordas recheadas</h2>
+  {% for grp in groups %}
+  {% set gi = loop.index0 %}
+  <section class="card border-group">
+    <label class="grow group-name">Tipo de borda<input name="grp-name-{{ gi }}" value="{{ grp.name }}" maxlength="40" required></label>
+    <input type="hidden" name="grp-ids-{{ gi }}" value="{{ grp.borders|map(attribute='id')|join(',') }}">
+    <fieldset class="where">
+      <legend>Onde aparece</legend>
+      <div class="where-row"><span class="where-label">Tamanhos:</span>
+        {% for s in sizes %}<label class="check"><input type="checkbox" name="grp-size-{{ gi }}" value="{{ s }}" {{ 'checked' if s not in grp.rules.no_sizes }}> {{ s }}</label>{% endfor %}
+      </div>
+      <div class="where-row"><span class="where-label">Categorias:</span>
+        {% for c in lines %}<label class="check"><input type="checkbox" name="grp-cat-{{ gi }}" value="{{ c.slug }}" {{ 'checked' if c.slug not in grp.rules.no_categories }}> {{ c.name }}</label>{% endfor %}
+      </div>
+      <p class="hint">Desmarque onde esta borda não deve ser oferecida. Ex.: tire “Broto” para não ter {{ grp.name }} em pizza broto.</p>
+    </fieldset>
+    <h4>Recheios</h4>
+    {% for b in grp.borders %}
     <div class="row {{ 'off' if not b.active }}">
-      <label class="check"><input type="checkbox" name="border-active-{{ b.id }}" {{ 'checked' if b.active }}> à venda</label>
-      <label class="grow">Tipo<input name="border-group-{{ b.id }}" value="{{ b.group_name }}" maxlength="40" required></label>
       <label class="grow">Recheio<input name="border-name-{{ b.id }}" value="{{ b.name }}" maxlength="60" required></label>
       <label class="money">Preço<input name="border-price-{{ b.id }}" value="{{ b.price|money_input }}" inputmode="decimal" required></label>
+      <label class="check"><input type="checkbox" name="border-active-{{ b.id }}" {{ 'checked' if b.active }}> à venda</label>
       <button class="ghost small icon" form="del-border-{{ b.id }}">Excluir</button>
     </div>
     {% endfor %}
   </section>
+  {% endfor %}
   <section class="card">
     <h2>Adicionais</h2>
     <p class="hint">Aparecem só nas categorias em que você marcou “o cliente pode pedir adicionais” (Cardápio → abrir a categoria → Configurações).</p>

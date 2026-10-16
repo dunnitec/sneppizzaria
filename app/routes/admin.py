@@ -579,10 +579,12 @@ def extras():
             for border in borders:
                 if f"border-price-{border.id}" in form:
                     if f"border-name-{border.id}" in form:
-                        border.group_name = _name(form.get(f"border-group-{border.id}"), "o tipo da borda", max_length=40)
+                        if f"border-group-{border.id}" in form:
+                            border.group_name = _name(form[f"border-group-{border.id}"], "o tipo da borda", max_length=40)
                         border.name = _name(form[f"border-name-{border.id}"], "o recheio da borda", max_length=60)
                     border.price = _price(form[f"border-price-{border.id}"], f"borda {border.name}")
                     border.active = f"border-active-{border.id}" in form
+            _save_border_groups(form, borders)
             for addon in addons:
                 if f"addon-whole-{addon.id}" in form:
                     if f"addon-name-{addon.id}" in form:
@@ -594,7 +596,50 @@ def extras():
         except FormError as e:
             _reject(e)
         return redirect(url_for("admin.extras"))
-    return render_template("admin/extras.html", borders=borders, addons=addons)
+    sizes, lines = pizza_sizes_and_lines()
+    groups = {}
+    for b in borders:
+        groups.setdefault(b.group_name, []).append(b)
+    return render_template(
+        "admin/extras.html", borders=borders, addons=addons, sizes=sizes, lines=lines,
+        groups=[{"name": name, "borders": bs, "rules": bs[0].rules()} for name, bs in groups.items()],
+    )
+
+
+def pizza_sizes_and_lines():
+    """Tamanhos (sem repetir) e categorias de pizza, onde borda faz sentido; bebida e combo ficam de fora."""
+    lines = Category.query.filter(Category.tenant_id == g.tenant.id, Category.kind.in_(("pizza", "doce"))).order_by(
+        Category.sort_order, Category.id).all()
+    sizes = []
+    for c in lines:
+        for s in c.sizes():
+            if s["label"] not in sizes:
+                sizes.append(s["label"])
+    return sizes, lines
+
+
+def _save_border_groups(form, borders):
+    """Caixinhas “Onde aparece” de cada tipo de borda: grp-ids-N, grp-size-N, grp-cat-N."""
+    sizes, lines = pizza_sizes_and_lines()
+    by_id = {b.id: b for b in borders}
+    for i in range(100):
+        if f"grp-ids-{i}" not in form:
+            continue
+        group = [by_id[int(x)] for x in form[f"grp-ids-{i}"].split(",") if x.isdigit() and int(x) in by_id]
+        if not group:
+            continue
+        on_sizes, on_lines = form.getlist(f"grp-size-{i}"), form.getlist(f"grp-cat-{i}")
+        if not on_sizes or not on_lines:
+            raise FormError(f"{group[0].group_name}: marque pelo menos um tamanho e uma categoria em “Onde aparece”. "
+                            "Para tirar a borda do site, desmarque “à venda”.")
+        if f"grp-name-{i}" in form:  # o nome do tipo aparece uma vez só, no topo do quadro
+            group_name = _name(form[f"grp-name-{i}"], "o tipo da borda", max_length=40)
+            for b in group:
+                b.group_name = group_name
+        rules = json.dumps({"no_sizes": [s for s in sizes if s not in on_sizes],
+                            "no_categories": [c.slug for c in lines if c.slug not in on_lines]}, ensure_ascii=False)
+        for b in group:
+            b.rules_json = rules
 
 
 # ---------- entrega ----------

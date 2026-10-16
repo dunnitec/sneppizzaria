@@ -137,6 +137,8 @@ def price_item(tenant, raw):
         raise OrderError(f"Este tamanho aceita no máximo {max_flavors} sabor(es).")
 
     border = _border(tenant, raw)
+    if border and not border.allowed_for(category.slug, label):
+        raise OrderError(f"A borda {border.group_name} não está disponível para {label}. Escolha outra borda.")
     if border:
         price += _money(border.price)
 

@@ -278,3 +278,11 @@ a.tile.attention{border:2px solid #e0a800;background:#fffaf0}
 .steps .step-text{flex:1 1 220px}
 .shortcuts{display:flex;flex-wrap:wrap;gap:8px}
 a.pill{text-decoration:none;color:#fff}
+
+/* ---------- onde aparece cada borda ---------- */
+.border-group h3{margin:0 0 4px;font-size:17px}
+fieldset.where{display:block;background:#fafafa}
+.where-row{display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px;margin:4px 0}
+.where-label{font-size:13px;font-weight:700;min-width:84px}
+.border-group .group-name input{font-size:17px;font-weight:700}
+.border-group h4{margin:14px 0 0;font-size:14px}

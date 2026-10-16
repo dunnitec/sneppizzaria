@@ -165,6 +165,17 @@ class Border(db.Model):
     name = db.Column(db.String(60), nullable=False)  # Catupiry, Cheddar, Mussarela com Bacon...
     price = db.Column(db.Numeric(8, 2), nullable=False)
     active = db.Column(db.Boolean, default=True)
+    # onde a borda NÃO aparece: {"no_sizes": ["Broto"], "no_categories": ["premium"]}; vazio = em todas.
+    # Guardar o que fica de fora faz um tamanho ou categoria criados depois já virem liberados.
+    rules_json = db.Column(db.Text)
+
+    def rules(self):
+        data = json.loads(self.rules_json) if self.rules_json else {}
+        return {"no_sizes": data.get("no_sizes", []), "no_categories": data.get("no_categories", [])}
+
+    def allowed_for(self, category_slug, size_label):
+        rules = self.rules()
+        return size_label not in rules["no_sizes"] and category_slug not in rules["no_categories"]
 
 
 class Neighborhood(db.Model):

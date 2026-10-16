@@ -124,7 +124,7 @@ def data_from_db(tenant, order_url, assets):
             for a in Addon.query.filter_by(tenant_id=tenant.id, active=True).order_by(Addon.id)
         ],
         "borders": [
-            {"id": b.id, "group": b.group_name, "name": b.name, "price": float(b.price)}
+            {"id": b.id, "group": b.group_name, "name": b.name, "price": float(b.price), **b.rules()}
             for b in Border.query.filter_by(tenant_id=tenant.id, active=True).order_by(Border.id)
         ],
         "neighborhoods": [

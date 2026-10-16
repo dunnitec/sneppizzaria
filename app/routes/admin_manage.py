@@ -211,7 +211,9 @@ def border_new():
     try:
         group = _name(form.get("group"), "o tipo da borda", max_length=40)
         name = _name(form.get("name"), "o recheio da borda", max_length=60)
-        db.session.add(Border(tenant_id=g.tenant.id, group_name=group, name=name, price=_price(form.get("price"), f"borda {name}")))
+        same_type = Border.query.filter_by(tenant_id=g.tenant.id, group_name=group).first()
+        db.session.add(Border(tenant_id=g.tenant.id, group_name=group, name=name, price=_price(form.get("price"), f"borda {name}"),
+                              rules_json=same_type.rules_json if same_type else None))  # segue “Onde aparece” do tipo
         _save(f"Borda “{group} — {name}” criada.")
     except FormError as e:
         _reject(e)

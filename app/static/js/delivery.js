@@ -104,6 +104,8 @@ function flavorPool(){
 }
 function isPremium(){return !!F.card.cat.allows_addons;}
 function borderLabel(b){return b.group.replace(/^Borda /,"")+" - "+b.name;}
+// bordas que valem para a pizza escolhida (o dono define em Bordas e adicionais → Onde aparece)
+function borderOptions(){const k=F.card;return DATA.borders.map((b,i)=>({b,i})).filter(({b})=>!(b.no_sizes||[]).includes(k.label)&&!(b.no_categories||[]).includes(k.cat.slug));}
 // combo (kind "metro"): preço fixo, sabores das linhas escolhidas no painel, brindes e uma pergunta opcional ao cliente
 function comboOf(c){const x=c.combo||{};return {sources:x.sources||[],extras:x.extras||[],choice_label:x.choice_label||"",choice_options:x.choice_options||[]};}
 function lineName(slug){const c=DATA.categories.find(c=>c.slug===slug);return c?c.name.replace(/^Pizzas? /i,""):slug;}
@@ -116,7 +118,7 @@ function isCombo(){return F.card.cat.kind==="metro";}
 function comboExtras(){if(!isCombo())return "";const c=comboOf(F.card.cat),x=[...c.extras];if(c.choice_options.length&&F.choice)x.push(`${c.choice_label||"Escolha"}: ${F.choice}`);return x.join(", ");}
 function steps(){const s=[];for(let i=0;i<F.n;i++)s.push({type:"flavor",i});
   if(isCombo()){if(comboOf(F.card.cat).choice_options.length)s.push({type:"choice"});}
-  else{s.push({type:"border"});if(isPremium())s.push({type:"addons"});}
+  else{if(borderOptions().length)s.push({type:"border"});if(isPremium())s.push({type:"addons"});}
   s.push({type:"confirm"});return s;}
 function ordinal(i){return `${i+1}º`;}
 function unitPrice(){
@@ -144,7 +146,7 @@ function renderStep(){
     t="Bordas Recheadas"; sub="Escolha 1 opção para a pizza.";
     const groups=[...new Set(DATA.borders.map(b=>b.group))];
     body=`<div class="opt" onclick="F.border=null;renderStep()"><input type="radio" ${F.border==null?"checked":""}><div class="grow n" style="font-weight:400">Sem borda</div></div>`+
-      DATA.borders.map((b,i)=>`<div class="opt" onclick="F.border=${i};renderStep()"><input type="radio" ${F.border===i?"checked":""}><div class="grow" style="font-weight:400">${esc(b.group)} — ${esc(b.name)}</div><span class="pr">${money(b.price)}</span></div>`).join("");
+      borderOptions().map(({b,i})=>`<div class="opt" onclick="F.border=${i};renderStep()"><input type="radio" ${F.border===i?"checked":""}><div class="grow" style="font-weight:400">${esc(b.group)} — ${esc(b.name)}</div><span class="pr">${money(b.price)}</span></div>`).join("");
   } else if(st.type==="addons"){
     t="Adicionais"; sub=`Escolha entre 0 e 5 opções para a pizza.`;
     const whole=/inteira/i.test(F.card.label);
