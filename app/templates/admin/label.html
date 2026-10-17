@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <title>Pedido #{{ o.id }}</title>
 <style>
-  /* etiqueta da Zebra: tamanho vem de Loja → Impressora; pedido comprido continua na etiqueta seguinte */
-  @page { size: {{ tenant.label_width_mm or 100 }}mm {{ tenant.label_height_mm or 150 }}mm; margin: 3mm; }
+  /* papel vem de Loja → Impressora. Bobina de cupom (altura 0): sem altura fixa, a impressora corta no fim;
+     etiqueta: tamanho fixo, pedido comprido continua na etiqueta seguinte */
+  {% if tenant.label_height_mm %}@page { size: {{ tenant.label_width_mm }}mm {{ tenant.label_height_mm }}mm; margin: 3mm; }
+  {% else %}@page { margin: 0; }
+  @media print { .sheet { width: {{ (tenant.label_width_mm or 80) - 8 }}mm; padding: 0 1mm; } }{% endif %}
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; }
   .sheet { width: 100%; }
@@ -24,7 +27,7 @@
   .tot.big { font-size: 14pt; font-weight: 900; }
   .pay { margin-top: 2mm; font-size: 12pt; font-weight: 700; border: 2px solid #000; padding: 1.5mm; }
   .foot { margin-top: 2mm; font-size: 8pt; text-align: center; }
-  @media screen { body { background: #ddd; } .sheet { width: {{ tenant.label_width_mm or 100 }}mm; margin: 10px auto; background: #fff; padding: 3mm; }
+  @media screen { body { background: #ddd; } .sheet { width: {{ (tenant.label_width_mm - 8) if not tenant.label_height_mm else tenant.label_width_mm }}mm; margin: 10px auto; background: #fff; padding: 3mm; }
                   .tools { text-align: center; font: 14px Arial; margin: 10px; } }
   @media print { .tools { display: none; } }
 </style>

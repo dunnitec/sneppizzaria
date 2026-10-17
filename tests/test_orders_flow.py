@@ -128,3 +128,23 @@ def test_printer_settings_in_store_page(panel, tenant):
     panel.post("/snep/admin/loja", data=store_form(tenant, label_size="100x150"))
     db.session.expire_all()
     assert tenant.auto_print is False
+
+
+# ---------- impressora de cupom (bobina contínua, ex.: Bematech MP-4200 HS) ----------
+
+def test_receipt_roll_80mm_has_no_fixed_page_height(panel, tenant, client, open_store):
+    from tests.test_admin import store_form
+
+    panel.post("/snep/admin/loja", data=store_form(tenant, label_size="80x0", auto_print="on", status="open"))
+    db.session.expire_all()
+    assert (tenant.label_width_mm, tenant.label_height_mm) == (80, 0)
+    o = site_order(client, withdraw=False)
+    html = panel.get(f"/snep/admin/pedidos/{o.id}/etiqueta").get_data(as_text=True)
+    assert "size: 80mm" not in html and "margin: 0" in html
+    assert "width: 72mm" in html  # área útil da bobina de 80 mm
+    assert "Rua A, 10" in html
+
+
+def test_store_page_offers_receipt_rolls(panel):
+    html = panel.get("/snep/admin/loja").get_data(as_text=True)
+    assert "Bobina 80 mm (cupom)" in html and "MP-4200" in html

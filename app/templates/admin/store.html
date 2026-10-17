@@ -34,23 +34,23 @@
   </section>
 
   <section class="card">
-    <h2>Impressora de etiquetas (Zebra)</h2>
+    <h2>Impressora</h2>
     <div class="row">
-      <label class="grow">Tamanho da etiqueta (largura × altura)<select name="label_size">
-        {% for key, (w, h) in label_sizes.items() %}<option value="{{ key }}" {{ 'selected' if key == label_size }}>{{ w }} × {{ h }} mm</option>{% endfor %}
+      <label class="grow">Papel da impressora<select name="label_size">
+        {% for key, name in label_sizes.items() %}<option value="{{ key }}" {{ 'selected' if key == label_size }}>{{ name }}</option>{% endfor %}
       </select></label>
       <label class="check"><input type="checkbox" name="auto_print" {{ 'checked' if tenant.auto_print }}> imprimir sozinho ao confirmar o pedido</label>
     </div>
     <details>
       <summary>Como deixar o computador da loja imprimindo direto (sem perguntar)</summary>
       <ol class="setup">
-        <li>Instale o driver da Zebra no computador (site da Zebra → “ZDesigner driver”) e ligue a impressora no USB.</li>
-        <li>No Windows: <b>Configurações → Impressoras</b>, abra a Zebra → <b>Preferências de impressão</b> e escolha o mesmo tamanho de etiqueta daqui.</li>
-        <li>Marque a Zebra como <b>impressora padrão</b>.</li>
+        <li>Instale o driver da impressora no computador. Para a <b>Bematech MP-4200 HS</b>: site da Elgin/Bematech → Suporte → Drivers → “MP-4200 HS” (Windows). Ligue a impressora no USB.</li>
+        <li>No Windows: <b>Configurações → Impressoras</b>, abra a MP-4200 → <b>Preferências de impressão</b>: papel <b>80 mm</b> (rolo) e <b>corte automático</b> (guilhotina) no fim do documento.</li>
+        <li>Marque a MP-4200 como <b>impressora padrão</b>.</li>
         <li>Crie um atalho do Google Chrome na área de trabalho, clique com o botão direito → <b>Propriedades</b> e no fim do campo <b>Destino</b> acrescente: <code>--kiosk-printing</code></li>
-        <li>Abra o painel sempre por esse atalho. Ao confirmar um pedido, a etiqueta sai direto na Zebra.</li>
+        <li>Abra o painel sempre por esse atalho. Ao confirmar um pedido, o cupom sai direto.</li>
       </ol>
-      <p class="hint">Sem o passo 4 também funciona: abre a janela de impressão e você só confirma.</p>
+      <p class="hint">Sem o passo 4 também funciona: abre a janela de impressão e você só confirma. Na janela, deixe “Margens: nenhuma” e “Cabeçalhos e rodapés” desmarcado.</p>
     </details>
   </section>
 

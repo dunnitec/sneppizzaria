@@ -35,7 +35,7 @@ def test_seeded_combo_matches_the_banner(tenant):
     assert c.name == "Combo Pizza Trem"
     assert json.loads(c.combo_sources) == ["premium"]
     variant = c.products[0].variants[0]
-    assert (variant.price, variant.max_flavors) == (Decimal("169.90"), 4)
+    assert (variant.price, variant.max_flavors) == (Decimal("169.99"), 4)
     assert c.combo_extras.splitlines() == ["1 Kuat 2L", "Borda Caracol de Catupiry", "1 Broto Brigadeiro"]
 
 
@@ -44,7 +44,7 @@ def test_seeded_combo_matches_the_banner(tenant):
 def test_combo_price_is_fixed_and_lists_the_extras(tenant):
     flavors = premium_flavors(4)
     line = price_item(tenant, combo_item(flavors))
-    assert line["unit_price"] == Decimal("169.90")
+    assert line["unit_price"] == Decimal("169.99")
     assert line["product_names"] == "Combo Pizza Trem: " + " + ".join(p.name for p in flavors)
     assert line["extras"] == "1 Kuat 2L, Borda Caracol de Catupiry, 1 Broto Brigadeiro"
 
@@ -59,7 +59,7 @@ def test_combo_follows_lines_chosen_by_owner(tenant):
     combo().combo_sources = json.dumps(["promocionais", "premium"])
     db.session.commit()
     promo = cat("promocionais").products[0]
-    assert price_item(tenant, combo_item([promo]))["unit_price"] == Decimal("169.90")
+    assert price_item(tenant, combo_item([promo]))["unit_price"] == Decimal("169.99")
 
 
 def test_combo_does_not_take_a_paid_border(tenant):

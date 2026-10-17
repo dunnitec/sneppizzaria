@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <title>Comanda {{ d.number }}</title>
 <style>
-  @page { size: {{ tenant.label_width_mm or 100 }}mm {{ tenant.label_height_mm or 150 }}mm; margin: 3mm; }
+  /* papel vem de Loja → Impressora. Bobina de cupom (altura 0): sem altura fixa, a impressora corta no fim;
+     etiqueta: tamanho fixo, pedido comprido continua na etiqueta seguinte */
+  {% if tenant.label_height_mm %}@page { size: {{ tenant.label_width_mm }}mm {{ tenant.label_height_mm }}mm; margin: 3mm; }
+  {% else %}@page { margin: 0; }
+  @media print { .sheet { width: {{ (tenant.label_width_mm or 80) - 8 }}mm; padding: 0 1mm; } }{% endif %}
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; }
   .head { border-bottom: 2px solid #000; padding-bottom: 2mm; }
@@ -16,7 +20,7 @@
   .money { border: 2px solid #000; padding: 2mm; margin-top: 2mm; }
   .money div { display: flex; justify-content: space-between; }
   .money .big { font-size: 13pt; font-weight: 900; }
-  @media screen { body { background: #ddd; } .sheet { width: {{ tenant.label_width_mm or 100 }}mm; margin: 10px auto; background: #fff; padding: 3mm; }
+  @media screen { body { background: #ddd; } .sheet { width: {{ (tenant.label_width_mm - 8) if not tenant.label_height_mm else tenant.label_width_mm }}mm; margin: 10px auto; background: #fff; padding: 3mm; }
                   .tools { text-align: center; font: 14px Arial; margin: 10px; } }
   @media print { .tools { display: none; } }
 </style>

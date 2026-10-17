@@ -50,9 +50,10 @@ STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders",
                    "admin.dispatch_return", "admin.dispatch_remove_order", "admin.dispatch_label",
                    "admin.order_status", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
-# tamanhos de etiqueta mais comuns em impressoras Zebra (largura × altura, em mm)
-LABEL_SIZES = {"100x150": (100, 150), "100x100": (100, 100), "100x75": (100, 75), "100x50": (100, 50),
-               "80x100": (80, 100), "60x40": (60, 40)}
+# papel da impressora (largura × altura, em mm). Altura 0 = bobina contínua de cupom, que corta no fim do pedido.
+LABEL_SIZES = {"80x0": (80, 0), "58x0": (58, 0), "100x150": (100, 150), "100x100": (100, 100), "100x50": (100, 50)}
+LABEL_NAMES = {"80x0": "Bobina 80 mm (cupom) — ex.: Bematech MP-4200 HS", "58x0": "Bobina 58 mm (cupom pequeno)",
+               "100x150": "Etiqueta 100 × 150 mm", "100x100": "Etiqueta 100 × 100 mm", "100x50": "Etiqueta 100 × 50 mm"}
 # tipos de categoria, com as palavras que o dono vê no painel
 KINDS = {
     "pizza": {"icon": "🍕", "label": "Pizza salgada", "help": "Sabores com preço por tamanho. Aceita meio a meio, borda e adicionais."},
@@ -284,7 +285,7 @@ def order_status(order_id):
         order.delivered_at = utcnow()
     db.session.commit()
     current_filter = request.form.get("filter")
-    # confirmou: manda a etiqueta para a impressora (a página de pedidos imprime sozinha)
+    # confirmou: manda o cupom para a impressora (a página de pedidos imprime sozinha)
     to_print = order.id if status == "confirmado" and g.tenant.auto_print else None
     return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None,
                             imprimir=to_print))
@@ -776,7 +777,7 @@ def store():
     status = next(k for k, v in STORE_STATUS.items() if v is tenant.is_open_override)
     payments = [p for p in (tenant.accepted_payments or "").split(",") if p]
     return render_template(
-        "admin/store.html", days=days, status=status, payment_options=PAYMENT_OPTIONS, label_sizes=LABEL_SIZES,
+        "admin/store.html", days=days, status=status, payment_options=PAYMENT_OPTIONS, label_sizes=LABEL_NAMES,
         label_size=f"{tenant.label_width_mm}x{tenant.label_height_mm}",
         payments=payments, other_payments=", ".join(p for p in payments if p not in PAYMENT_OPTIONS),
     )
