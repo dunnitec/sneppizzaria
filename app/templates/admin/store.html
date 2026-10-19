@@ -17,6 +17,7 @@
       <label class="grow">Nome<input name="name" value="{{ tenant.name }}" maxlength="120" required></label>
       <label class="grow">Instagram<input name="instagram" value="{{ tenant.instagram or '' }}" maxlength="120" placeholder="sneppizzariaitu"></label>
     </div>
+    <div class="row"><label class="grow2">Frase embaixo do nome, no topo do site<input name="slogan" value="{{ tenant.slogan or '' }}" maxlength="120" placeholder="Ex.: A melhor pizzaria de Itu"></label></div>
     <div class="row"><label class="grow2">Endereço (aparece no site e na retirada)<input name="address" value="{{ tenant.address or '' }}" maxlength="255"></label></div>
   </section>
 

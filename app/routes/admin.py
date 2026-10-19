@@ -19,6 +19,8 @@ from app.models import (
     AdminUser,
     Border,
     Category,
+    CATEGORY_ACCENTS,
+    CATEGORY_ICONS,
     CHANNELS,
     ORDER_STATUSES,
     SOLD_STATUSES,
@@ -316,6 +318,15 @@ def _category_or_404(category_id):
     return Category.query.filter_by(tenant_id=g.tenant.id, id=category_id).first_or_404()
 
 
+def save_category_look(category, form):
+    """Subtítulo, ícone e cor do título da categoria no site (valor desconhecido volta ao padrão)."""
+    if "icon" not in form:
+        return
+    category.subtitle = " ".join(form.get("subtitle", "").split())[:80] or None
+    category.icon = form["icon"] if form["icon"] in CATEGORY_ICONS else "fatia"
+    category.accent = form.get("accent") if form.get("accent") in CATEGORY_ACCENTS else "vermelho"
+
+
 def _category_url(category_id, anchor=None):
     return redirect(url_for("admin.category_page", category_id=category_id, _anchor=anchor))
 
@@ -337,7 +348,8 @@ def category_page(category_id):
     combo_lines = Category.query.filter(
         Category.tenant_id == g.tenant.id, Category.kind.notin_(("metro", "bebida"))
     ).order_by(Category.sort_order).all()
-    return render_template("admin/category.html", c=category, sizes=category_sizes(category), combo_lines=combo_lines)
+    return render_template("admin/category.html", c=category, sizes=category_sizes(category), combo_lines=combo_lines,
+                           icons=CATEGORY_ICONS, accents=CATEGORY_ACCENTS)
 
 
 @admin_bp.route("/cardapio/<int:category_id>", methods=["POST"])
@@ -415,6 +427,7 @@ def combo_save(category_id):
     form = request.form
     try:
         category.name = _name(form.get("name"), "o nome do combo", max_length=80)
+        save_category_look(category, form)
         lines = Category.query.filter(Category.tenant_id == g.tenant.id, Category.kind.notin_(("metro", "bebida")))
         valid = {c.slug for c in lines}
         sources = [s for s in form.getlist("sources") if s in valid]
@@ -772,6 +785,8 @@ def store():
                 tenant.name = _name(form.get("name"), "o nome da loja")
                 tenant.address = form.get("address", "").strip()[:255]
                 tenant.instagram = form.get("instagram", "").strip().lstrip("@")[:120]
+            if "slogan" in form:
+                tenant.slogan = " ".join(form["slogan"].split())[:120] or None
             if "other_payments" in form:
                 chosen = [p for p in PAYMENT_OPTIONS if p in form.getlist("payments")]
                 chosen += [p.strip()[:30] for p in form["other_payments"].split(",") if p.strip()]

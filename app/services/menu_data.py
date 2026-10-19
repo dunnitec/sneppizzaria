@@ -87,6 +87,10 @@ def data_from_db(tenant, order_url, assets):
                 "slug": c.slug,
                 "kind": c.kind,
                 "allows_addons": c.allows_addons,
+                "subtitle": c.subtitle or "",
+                "icon": c.icon or "fatia",
+                "accent": c.accent or "vermelho",
+                "banner": photo_url(c.banner_image),
                 **({"combo": c.combo_settings()} if c.kind == "metro" else {}),
                 "products": [
                     {
@@ -108,6 +112,8 @@ def data_from_db(tenant, order_url, assets):
         "tenant": {
             "slug": tenant.slug,
             "name": tenant.name,
+            "slogan": tenant.slogan or "",
+            "hero": photo_url(tenant.hero_image),
             "address": tenant.address,
             "instagram": tenant.instagram,
             "whatsapp": tenant.whatsapp,

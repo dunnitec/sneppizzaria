@@ -10,6 +10,17 @@
 <h1>Aparência do site</h1>
 
 <section class="card">
+  <h2>Foto do topo do site</h2>
+  <p class="hint">Fica atrás do nome da pizzaria, no alto do site. Uma foto larga e escura funciona melhor (ex.: pizza com queijo puxando).</p>
+  {% if tenant.hero_image %}<img class="bg-preview" src="{{ url_for('public.uploaded_file', name=tenant.hero_image) }}" alt="Foto do topo atual">{% endif %}
+  <div class="row">
+    <form method="post" action="{{ url_for('admin.hero_upload') }}" enctype="multipart/form-data">{{ csrf() }}<label class="file">{{ 'Trocar foto do topo' if tenant.hero_image else 'Pôr foto do topo' }}<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label></form>
+    {% if tenant.hero_image %}<form method="post" action="{{ url_for('admin.hero_remove') }}">{{ csrf() }}<button class="ghost small">Tirar foto do topo</button></form>{% endif %}
+  </div>
+  <p class="hint">A frase embaixo do nome (ex.: “A melhor pizzaria de Itu”) fica na aba <a href="{{ url_for('admin.store') }}">Loja</a>.</p>
+</section>
+
+<section class="card">
   <h2>Banners do carrossel</h2>
   <p class="hint">Aparecem no topo do site, na ordem abaixo. Tamanho ideal: 1600 × 550 pixels (bem mais largo que alto).</p>
   {% if not banners %}<p class="flash ok">O site está mostrando os banners padrão. Ao enviar o primeiro banner aqui, o carrossel passa a usar só os desta lista.</p>{% endif %}

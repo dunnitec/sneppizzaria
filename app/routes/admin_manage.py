@@ -21,7 +21,8 @@ from app.models import (
     Product,
     ProductVariant,
 )
-from app.routes.admin import FormError, _category_or_404, _category_url, _name, _price, _reject, _save, admin_bp
+from app.routes.admin import (FormError, _category_or_404, _category_url, _name, _price, _reject, _save, admin_bp,
+                              save_category_look)
 from app.services.photos import PhotoError, delete_photo, normalize, save_photo
 
 MAX_SIZE_FLAVORS = 6
@@ -116,6 +117,7 @@ def line_save(category_id):
     form = request.form
     try:
         category.name = _name(form.get("name"), "o nome da categoria", max_length=80)
+        save_category_look(category, form)
         category.allows_addons = "allows_addons" in form
         old_sizes = category.sizes()
         new_sizes, renames, removed = [], {}, []
@@ -450,3 +452,53 @@ def stock_bulk():
         p.active = bool(data.get("active"))
     db.session.commit()
     return jsonify(ok=True, changed=len(products))
+
+
+# ---------- visual novo: foto do título da categoria e foto do topo ----------
+
+@admin_bp.route("/cardapio/<int:category_id>/imagem", methods=["POST"])
+def category_banner_upload(category_id):
+    category = _category_or_404(category_id)
+    try:
+        name = _uploaded_image()
+    except PhotoError as e:
+        flash(str(e), "error")
+        return _back(category.id)
+    old, category.banner_image = category.banner_image, name
+    db.session.commit()
+    delete_photo(old)
+    flash(f"Foto do título de “{category.name}” trocada.", "ok")
+    return _back(category.id)
+
+
+@admin_bp.route("/cardapio/<int:category_id>/imagem/remover", methods=["POST"])
+def category_banner_remove(category_id):
+    category = _category_or_404(category_id)
+    old, category.banner_image = category.banner_image, None
+    db.session.commit()
+    delete_photo(old)
+    flash(f"Foto do título de “{category.name}” removida.", "ok")
+    return _back(category.id)
+
+
+@admin_bp.route("/visual/topo", methods=["POST"])
+def hero_upload():
+    try:
+        name = _uploaded_image()
+    except PhotoError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.visual"))
+    old, g.tenant.hero_image = g.tenant.hero_image, name
+    db.session.commit()
+    delete_photo(old)
+    flash("Foto do topo do site trocada.", "ok")
+    return redirect(url_for("admin.visual"))
+
+
+@admin_bp.route("/visual/topo/remover", methods=["POST"])
+def hero_remove():
+    old, g.tenant.hero_image = g.tenant.hero_image, None
+    db.session.commit()
+    delete_photo(old)
+    flash("Foto do topo removida.", "ok")
+    return redirect(url_for("admin.visual"))

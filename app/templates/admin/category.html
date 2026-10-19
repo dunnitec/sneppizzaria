@@ -39,12 +39,29 @@
   </form>
 </section>
 <section class="card">
+  <h2>Como aparece no site</h2>
+  <p class="hint">O título da categoria no cardápio: ícone, cor, uma frase curta e uma foto à direita.</p>
+  <div class="cat-look">
+    {% if c.banner_image %}<img src="{{ url_for('public.uploaded_file', name=c.banner_image) }}" alt="Foto atual do título">{% else %}<span class="no-photo">sem foto</span>{% endif %}
+    <form method="post" action="{{ url_for('admin.category_banner_upload', category_id=c.id) }}" enctype="multipart/form-data">
+      {{ csrf() }}<label class="file small">{{ 'Trocar foto do título' if c.banner_image else 'Pôr foto do título' }}<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label>
+    </form>
+    {% if c.banner_image %}<form method="post" action="{{ url_for('admin.category_banner_remove', category_id=c.id) }}">{{ csrf() }}<button class="ghost small">Tirar foto</button></form>{% endif %}
+  </div>
+  <p class="hint">Use uma foto larga de pizza (ex.: 800 × 300). As fotos atuais foram recortadas do modelo que o dono mandou; troque pelas originais quando tiver.</p>
+</section>
+<section class="card">
   <h2>Regras do combo</h2>
   <form method="post" action="{{ url_for('admin.combo_save', category_id=c.id) }}" data-track class="combo">
     {{ csrf() }}
     <div class="row">
       <label class="grow">Nome da categoria do combo<input name="name" value="{{ c.name }}" maxlength="80" required></label>
       <label class="money">Nº de sabores<input name="max_flavors" type="number" min="1" max="6" value="{{ flavors }}" required></label>
+    </div>
+    <div class="row">
+      <label class="grow2">Frase abaixo do título (opcional)<input name="subtitle" value="{{ c.subtitle or '' }}" maxlength="80" placeholder="Ex.: Sabor e qualidade com preço especial"></label>
+      <label class="grow">Ícone<select name="icon">{% for key, label in icons.items() %}<option value="{{ key }}" {{ 'selected' if key == c.icon }}>{{ label }}</option>{% endfor %}</select></label>
+      <label class="grow">Cor do título<select name="accent">{% for key, label in accents.items() %}<option value="{{ key }}" {{ 'selected' if key == c.accent }}>{{ label }}</option>{% endfor %}</select></label>
     </div>
     <fieldset>
       <legend>O cliente escolhe os sabores destas categorias</legend>
@@ -125,6 +142,18 @@
 </section>
 {% endif %}
 
+<section class="card">
+  <h2>Como aparece no site</h2>
+  <p class="hint">O título da categoria no cardápio: ícone, cor, uma frase curta e uma foto à direita.</p>
+  <div class="cat-look">
+    {% if c.banner_image %}<img src="{{ url_for('public.uploaded_file', name=c.banner_image) }}" alt="Foto atual do título">{% else %}<span class="no-photo">sem foto</span>{% endif %}
+    <form method="post" action="{{ url_for('admin.category_banner_upload', category_id=c.id) }}" enctype="multipart/form-data">
+      {{ csrf() }}<label class="file small">{{ 'Trocar foto do título' if c.banner_image else 'Pôr foto do título' }}<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label>
+    </form>
+    {% if c.banner_image %}<form method="post" action="{{ url_for('admin.category_banner_remove', category_id=c.id) }}">{{ csrf() }}<button class="ghost small">Tirar foto</button></form>{% endif %}
+  </div>
+  <p class="hint">Use uma foto larga de pizza (ex.: 800 × 300). As fotos atuais foram recortadas do modelo que o dono mandou; troque pelas originais quando tiver.</p>
+</section>
 {# ---------- 3. configurações ---------- #}
 <section class="card">
   <h2>Configurações da categoria</h2>
@@ -133,6 +162,11 @@
     <div class="row">
       <label class="grow">Nome da categoria (aparece no site)<input name="name" value="{{ c.name }}" maxlength="80" required></label>
       {% if not drink %}<label class="check"><input type="checkbox" name="allows_addons" {{ 'checked' if c.allows_addons }}> o cliente pode pedir adicionais</label>{% endif %}
+    </div>
+    <div class="row">
+      <label class="grow2">Frase abaixo do título (opcional)<input name="subtitle" value="{{ c.subtitle or '' }}" maxlength="80" placeholder="Ex.: Sabor e qualidade com preço especial"></label>
+      <label class="grow">Ícone<select name="icon">{% for key, label in icons.items() %}<option value="{{ key }}" {{ 'selected' if key == c.icon }}>{{ label }}</option>{% endfor %}</select></label>
+      <label class="grow">Cor do título<select name="accent">{% for key, label in accents.items() %}<option value="{{ key }}" {{ 'selected' if key == c.accent }}>{{ label }}</option>{% endfor %}</select></label>
     </div>
     <h3>Tamanhos</h3>
     <p class="hint">Mudar o nome de um tamanho muda em todos os itens.{% if not drink %} “Sabores” é quantos sabores o cliente pode misturar nesse tamanho (1 = inteira, 2 = meio a meio).{% endif %}</p>

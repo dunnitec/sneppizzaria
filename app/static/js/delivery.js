@@ -29,6 +29,23 @@ const CLOSED_MSG="Estamos fechados no momento. Confira nossos horários de atend
   const f=document.getElementById("ft-st"); f.textContent=open?"◉ Aberto!":"◉ Fechado!"; f.classList.toggle("open",open);
 })();
 
+/* ---------- ícones dos títulos (painel → categoria → Como aparece no site) ---------- */
+const ICONS={
+  fatia:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M6 10c13-6 27-6 36 0L24 44z"/><path d="M9 16c10-4 20-4 30 0"/><circle cx="20" cy="24" r="2.6" fill="currentColor"/><circle cx="28" cy="21" r="2.2" fill="currentColor"/><circle cx="24" cy="32" r="2.2" fill="currentColor"/></svg>',
+  coroa:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M6 16l9 9 9-14 9 14 9-9-4 22H10z"/><path d="M10 42h28"/><circle cx="6" cy="14" r="2.5" fill="currentColor"/><circle cx="24" cy="9" r="2.5" fill="currentColor"/><circle cx="42" cy="14" r="2.5" fill="currentColor"/></svg>',
+  trem:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><rect x="11" y="5" width="26" height="30" rx="7"/><path d="M11 21h26M18 11h12"/><circle cx="18" cy="28" r="2" fill="currentColor"/><circle cx="30" cy="28" r="2" fill="currentColor"/><path d="M16 35l-6 8M32 35l6 8M14 40h20"/></svg>',
+  copo:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M12 14h24l-3 30H15z"/><path d="M24 14l4-10h6"/><path d="M14 24h20"/></svg>',
+  estrela:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M24 5l5.9 12 13.1 1.9-9.5 9.3 2.3 13.1L24 35.1l-11.8 6.2 2.3-13.1L5 18.9l13.1-1.9z"/></svg>',
+  fogo:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M24 44c-9 0-15-6-15-14 0-9 8-13 9-22 6 4 9 9 9 14 2-2 3-5 3-8 6 4 9 10 9 16 0 8-6 14-15 14z"/><path d="M24 44c-4 0-6-3-6-6 0-4 4-6 5-10 3 3 7 6 7 10 0 3-2 6-6 6z"/></svg>',
+  coracao:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M24 42S6 31 6 18a9 9 0 0 1 18-4 9 9 0 0 1 18 4c0 13-18 24-18 24z"/></svg>'
+};
+function catHead(cat){
+  const c=cat.raw||{}, w=cat.name.trim().split(/\s+/), top=w.length>1?w[0]:"", big=w.length>1?w.slice(1).join(" "):w[0];
+  return `<div class="cat-head acc-${esc(c.accent||"vermelho")}"${c.banner?` style="--photo:url('${esc(c.banner)}')"`:""}>
+    <span class="cat-ico" aria-hidden="true">${ICONS[c.icon]||ICONS.fatia}</span>
+    <div><h2 class="cat-title">${top?`<span class="top">${esc(top)}</span>`:""}<span class="big">${esc(big)}</span></h2>${c.subtitle?`<p class="cat-sub">${esc(c.subtitle)}</p>`:""}</div></div>`;
+}
+
 /* ---------- menu ---------- */
 const CATS=[];  // {name, slug, kind, cards:[...]}
 (function build(){
@@ -36,7 +53,7 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
   DATA.categories.filter(c=>c.kind==="metro"&&c.products.length).forEach(c=>notes.push(comboNote(c)));
   if(notes.length)CATS.push({name:"Recados",slug:"recados",kind:"notice",cards:[{notice:true,lines:notes}]});
   DATA.categories.forEach(c=>{
-    const cat={name:c.name,slug:c.slug,kind:c.kind,cards:[]};
+    const cat={name:c.name,slug:c.slug,kind:c.kind,raw:c,cards:[]};
     if(c.kind==="metro"){
       const p=c.products[0], v=p.variants[0];
       const extras=comboOf(c).extras;
@@ -59,18 +76,20 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
   CATS.forEach((cat,ci)=>{
     sel.insertAdjacentHTML("beforeend",`<option value="${cat.slug}">${esc(cat.name)}</option>`);
     const cards=cat.cards.map((k,ki)=>{
-      if(k.notice) return `<div class="card full notice">${k.lines.map(l=>`<p>${esc(l)}</p>`).join("")}</div>`;
-      if(k.drink) return `<div class="card drink" data-name="${esc(k.title)}"><div class="top">${k.p.image?`<img class="th" src="${esc(k.p.image)}" alt="" loading="lazy">`:""}<div><h3>${esc(k.title)}</h3>${k.p.description?`<p class="desc">${esc(k.p.description)}</p>`:""}</div></div><div class="btns">${k.p.variants.map((v,vi)=>`<button onclick="addDrink(${ci},${ki},${vi})">${esc(v.label)} · ${money(v.price)}</button>`).join("")}</div></div>`;
-      const btns=k.sizes.map(n=>`<button onclick="startFlow(${ci},${ki},${n})">${n} sabor${n>1?"es":""}</button>`).join("");
+      if(k.notice) return "";
+      if(k.drink) return `<div class="card drink" data-name="${esc(k.title)}"><div class="top">${k.p.image?`<img class="th" src="${esc(k.p.image)}" alt="" loading="lazy">`:""}<div><h3>${esc(k.title)}</h3>${k.p.description?`<p class="desc">${esc(k.p.description)}</p>`:""}</div></div><div class="btns">${k.p.variants.map((v,vi)=>`<button onclick="addDrink(${ci},${ki},${vi})">${esc(v.label)}<small>${money(v.price)}</small></button>`).join("")}</div></div>`;
+      const btns=k.sizes.map((n,i)=>`<button class="${i===k.sizes.length-1?"main-btn":""}" onclick="startFlow(${ci},${ki},${n})">${n} sabor${n>1?"es":""}</button>`).join("");
       if(k.fixed) return `<div class="card full" data-name="${esc(k.title)}"><div class="top"><div><h3>${esc(k.title)}</h3><p class="desc">${esc(k.desc)}</p><p class="price">${money(k.fixed)}</p></div></div><div class="btns">${btns}</div></div>`;
       return `<div class="card" data-name="${esc(k.title)}"><div class="top"><h3>${esc(k.title)}</h3><span class="from">A partir de <b>${money(k.from)}</b></span></div><div class="btns">${btns}</div></div>`;
     }).join("");
-    box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}"><h2>${esc(cat.name)}</h2><div class="grid">${cards}</div></section>`);
+    if(cat.kind==="notice"){box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}"><div class="notice"><span class="notice-ico" aria-hidden="true">!</span><div><h2>Recados</h2>${cat.cards[0].lines.map(l=>`<p>${esc(l)}</p>`).join("")}</div></div></section>`);return;}
+    box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}">${catHead(cat)}<div class="grid">${cards}</div></section>`);
   });
 })();
 function jumpCat(slug){document.querySelectorAll(".cat").forEach(s=>s.style.display=(!slug||slug==="all"||s.dataset.slug===slug)?"":"none");if(slug&&slug!=="all")document.getElementById("cat-"+slug).scrollIntoView({behavior:"smooth"});}
 function filterMenu(){
-  const q=document.getElementById("q").value.trim().toLowerCase();
+  const qi=document.getElementById("q"); if(!qi)return;
+  const q=qi.value.trim().toLowerCase();
   document.querySelectorAll(".cat").forEach(s=>{
     const cat=CATS.find(c=>c.slug===s.dataset.slug);
     if(!q){s.style.display="";return;}
@@ -188,7 +207,8 @@ function subtotal(){return cart.reduce((s,i)=>s+i.price*i.qty,0);}
 function renderCart(){
   const c=document.getElementById("cart");
   document.getElementById("mbar-total").textContent=money(subtotal());
-  if(!cart.length){c.innerHTML=`<div class="empty"><span class="ic">🛒</span>Sua cesta ainda está vazia</div>`;return;}
+  const cnt=document.getElementById("mbar-count"); if(cnt)cnt.textContent=cart.reduce((s,i)=>s+i.qty,0);
+  if(!cart.length){c.innerHTML=`<div class="empty"><span class="ic" aria-hidden="true">🛒</span>Sua cesta ainda está vazia. Escolha uma pizza ao lado.</div>`;return;}
   const wd=document.getElementById("withdraw").checked;
   c.innerHTML=`<div class="hd"><span>🛒 Sua cesta</span><span>${cart.reduce((s,i)=>s+i.qty,0)} item(ns)</span></div>`+
     cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.extras?" · Acompanha: "+esc(i.extras):""}${i.notes?" · Obs: "+esc(i.notes):""}</small><span class="lt">${money(i.price*i.qty)}</span></div>

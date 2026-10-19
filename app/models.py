@@ -17,6 +17,10 @@ ORDER_STATUSES = {
     "cancelado": "Cancelado",
 }
 SOLD_STATUSES = ("confirmado", "saiu", "entregue")
+# aparência do título de cada categoria no site
+CATEGORY_ICONS = {"fatia": "Fatia de pizza", "coroa": "Coroa", "trem": "Trem", "copo": "Copo", "estrela": "Estrela",
+                  "fogo": "Fogo", "coracao": "Coração"}
+CATEGORY_ACCENTS = {"vermelho": "Vermelho", "dourado": "Dourado", "rosa": "Rosa", "laranja": "Laranja", "verde": "Verde"}
 # de onde veio o pedido
 CHANNELS = {"site": "Site", "balcao": "Balcão", "mesa": "Mesa", "telefone": "Telefone/WhatsApp"}
 
@@ -78,6 +82,8 @@ class Tenant(db.Model):
     notices = db.Column(db.Text)  # recados do topo do cardápio, um por linha
     min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
     background_image = db.Column(db.String(255))  # fundo enviado pelo painel (UPLOAD_FOLDER)
+    hero_image = db.Column(db.String(255))  # foto do topo do site, atrás da marca (UPLOAD_FOLDER)
+    slogan = db.Column(db.String(120))  # frase abaixo da marca, ex.: “A melhor pizzaria de Itu”
     # impressora de etiquetas (Zebra): tamanho da etiqueta e se imprime sozinho ao confirmar
     label_width_mm = db.Column(db.Integer, nullable=False, default=100, server_default="100")
     label_height_mm = db.Column(db.Integer, nullable=False, default=150, server_default="150")
@@ -106,6 +112,11 @@ class Category(db.Model):
     combo_choice_options = db.Column(db.String(255))  # respostas separadas por vírgula; vazio = sem pergunta
     # tamanhos da linha: [{"label": "Broto", "max_flavors": 1}, ...]; os preços ficam em ProductVariant
     sizes_json = db.Column(db.Text)
+    # como o título da categoria aparece no site (ver CATEGORY_ICONS e CATEGORY_ACCENTS)
+    subtitle = db.Column(db.String(80))
+    icon = db.Column(db.String(20), nullable=False, default="fatia", server_default="fatia")
+    accent = db.Column(db.String(20), nullable=False, default="vermelho", server_default="vermelho")
+    banner_image = db.Column(db.String(255))  # foto à direita do título (UPLOAD_FOLDER)
 
     def sizes(self):
         if self.sizes_json:
