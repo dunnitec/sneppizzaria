@@ -254,6 +254,25 @@ footer .st.open{color:var(--ok)}
   .cat-sub{max-width:62%}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- topo no celular: só a foto e a frase (a marca já está no banner) ---------- */
+@media (max-width:700px){
+  .hero{min-height:0}
+  .hero::before{width:100%;bottom:auto;height:38vw;background-position:center;-webkit-mask-image:none;mask-image:none}
+  .hero::after{top:auto;height:calc(38vw + 2px);bottom:auto;top:0;background:linear-gradient(180deg,rgba(0,0,0,0) 62%,#050505 100%)}
+  .hero-in{display:flex;flex-direction:column;justify-content:flex-end;min-height:calc(38vw + 40px);padding:0 0 12px}
+  .brand{width:100%;align-items:stretch}
+  .brand-hat,.brand-name,.brand-sub{display:none}
+  .brand-slogan{display:flex;align-items:center;margin:0;white-space:nowrap;font:800 12px var(--display);letter-spacing:4px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+  .brand-slogan::before,.brand-slogan::after{content:"";flex:1;height:3px;background:var(--red);min-width:16px;margin:0 14px 0 8px}
+  .brand-slogan::after{margin:0 8px 0 14px}
+  .brand-slogan b{margin-left:.5em;color:var(--red);font-weight:800}
+  .hero-wa{position:absolute;top:10px;right:0;width:40px;height:40px;padding:0;justify-content:center;border-radius:50%;
+    background:rgba(20,120,50,.55);border:2px solid #25d366}
+  .hero-wa svg{width:21px;height:21px;color:#fff}
+  .hero-wa span{display:none}
+}
+@media (max-width:360px){.brand-slogan{font-size:10.5px;letter-spacing:3px}}
 </style>
 </head>
 <body>
