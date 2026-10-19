@@ -10,23 +10,27 @@
   {% else %}@page { margin: 0; }
   @media print { .sheet { width: {{ (tenant.label_width_mm or 80) - 8 }}mm; padding: 0 1mm; } }{% endif %}
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 13pt; color: #000; background: #fff; }
   .sheet { width: 100%; }
   .head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #000; padding-bottom: 2mm; }
-  .num { font-size: 22pt; font-weight: 900; }
-  .kind { font-size: 13pt; font-weight: 900; border: 2px solid #000; padding: 0 2mm; }
-  .meta { font-size: 9pt; margin: 1mm 0 2mm; }
-  .who { font-size: 12pt; font-weight: 700; margin: 2mm 0 0; }
-  .addr { font-size: 11pt; margin: 1mm 0; }
+  .num { font-size: 30pt; font-weight: 900; }
+  .kind { font-size: 16pt; font-weight: 900; border: 2px solid #000; padding: 0 2mm; }
+  .meta { font-size: 11pt; margin: 1mm 0 2mm; }
+  .eta { font-size: 16pt; font-weight: 900; border: 2px solid #000; text-align: center; padding: 1mm; margin: 2mm 0; }
+  .who { font-size: 15pt; font-weight: 700; margin: 2mm 0 0; }
+  .addr { font-size: 14pt; margin: 1mm 0; }
   .items { margin: 2mm 0; padding: 0; list-style: none; border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
   .items li { padding: 1.5mm 0; border-top: 1px dotted #999; page-break-inside: avoid; }
   .items li:first-child { border-top: 0; }
-  .items b { font-size: 12pt; }
-  .items small { display: block; font-size: 10pt; }
-  .tot { display: flex; justify-content: space-between; font-size: 10pt; }
-  .tot.big { font-size: 14pt; font-weight: 900; }
-  .pay { margin-top: 2mm; font-size: 12pt; font-weight: 700; border: 2px solid #000; padding: 1.5mm; }
-  .foot { margin-top: 2mm; font-size: 8pt; text-align: center; }
+  .items .pz { display: flex; gap: 1.5mm; font-size: 16pt; font-weight: 900; line-height: 1.25; }
+  .items .qty { flex: none; }
+  .items .names { flex: 1; min-width: 0; }
+  .items .type { font-size: 11pt; font-weight: 900; border: 2px solid #000; border-radius: 2mm; padding: 0 1.5mm; }
+  .items small { display: block; font-size: 13pt; }
+  .tot { display: flex; justify-content: space-between; font-size: 13pt; }
+  .tot.big { font-size: 18pt; font-weight: 900; }
+  .pay { margin-top: 2mm; font-size: 15pt; font-weight: 700; border: 2px solid #000; padding: 1.5mm; }
+  .foot { margin-top: 2mm; font-size: 10pt; text-align: center; }
   @media screen { body { background: #ddd; } .sheet { width: {{ (tenant.label_width_mm - 8) if not tenant.label_height_mm else tenant.label_width_mm }}mm; margin: 10px auto; background: #fff; padding: 3mm; }
                   .tools { text-align: center; font: 14px Arial; margin: 10px; } }
   @media print { .tools { display: none; } }
@@ -41,6 +45,7 @@
   </div>
   <div class="meta">{{ (o.created_at|local_time).strftime('%d/%m %H:%M') if o.created_at }} · {{ channel_labels[o.channel] }}{% if o.dispatch %} · Comanda {{ o.dispatch.number }} · {{ o.dispatch.courier.name }}{% endif %}</div>
 
+  {% if o.eta_at %}<div class="eta">PREVISÃO {{ (o.eta_at|local_time).strftime('%H:%M') }}</div>{% endif %}
   {% if o.customer_name %}<div class="who">{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</div>{% endif %}
   {% if o.delivery %}
   <div class="addr">{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}<br><b>{{ o.neighborhood_name }}</b>{% if o.reference %}<br>Ref.: {{ o.reference }}{% endif %}</div>
@@ -48,9 +53,11 @@
 
   <ul class="items">
     {% for i in o.items %}
+    {% set v = i|item_view %}
     <li>
-      <b>{{ i.quantity }}x {{ i.product_names }}</b>
-      <small>{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}</small>
+      <div class="pz"><span class="qty">{{ i.quantity }}x</span>
+        <div class="names"><div>{{ v.head }}</div>{% for extra in v.lines %}<div>{{ extra }}</div>{% endfor %}</div></div>
+      <small>{% if v.tag %}<span class="type">{{ v.tag|upper }}</span> {% endif %}{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}</small>
       {% if i.addon_names %}<small>+ {{ i.addon_names }}</small>{% endif %}
       {% if i.extras %}<small>Acompanha: {{ i.extras }}</small>{% endif %}
       {% if i.notes %}<small><b>OBS: {{ i.notes }}</b></small>{% endif %}

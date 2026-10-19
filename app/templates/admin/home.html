@@ -22,6 +22,19 @@
   </form>
 </section>
 
+<section class="card times">
+  <h2>Tempo agora</h2>
+  <p class="hint">O cliente vê a previsão quando faz o pedido (ex.: pediu 20:00 com 50 min → chega 20:50). Numa noite cheia, aumente aqui.</p>
+  {% for which, label, value in [('entrega', 'Entrega', tenant.eta_minutes), ('retirada', 'Retirada no balcão', tenant.pickup_minutes)] %}
+  <div class="time-row">
+    <span class="time-label">{{ label }}</span>
+    <form method="post" action="{{ url_for('admin.store_time') }}">{{ csrf() }}<input type="hidden" name="which" value="{{ which }}"><button name="delta" value="-5" class="ghost" aria-label="Diminuir 5 minutos">−5</button></form>
+    <b class="time-value">{{ value }} min</b>
+    <form method="post" action="{{ url_for('admin.store_time') }}">{{ csrf() }}<input type="hidden" name="which" value="{{ which }}"><button name="delta" value="5" class="ghost" aria-label="Aumentar 5 minutos">+5</button></form>
+  </div>
+  {% endfor %}
+</section>
+
 <div class="home-grid">
   <a class="card tile {{ 'attention' if pending_count }}" href="{{ url_for('admin.orders', status='pendente') }}">
     <span class="tile-num">{{ pending_count }}</span>

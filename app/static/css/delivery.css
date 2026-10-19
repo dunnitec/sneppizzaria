@@ -122,6 +122,8 @@ footer .st.open{color:#7CFC8A}
 .opt.sel{background:#9a0202;color:#fff;border-left:4px solid #c70000}
 .opt input[type=radio]{width:18px;height:18px;accent-color:#c70000}
 .opt .grow{flex:1}
+.eta-box{font-size:18px;background:#e8f7ec;border:1px solid #9bd3ad;border-radius:8px;padding:10px;margin:10px 0}
+.eta-box b{font-size:22px}
 .card.drink .top{display:flex;gap:10px;align-items:center}
 .card.drink .th{width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none}
 .card.drink .btns{flex-wrap:wrap}

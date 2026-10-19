@@ -82,7 +82,8 @@
   <section class="card">
     <h2>Atendimento</h2>
     <div class="row">
-      <label class="grow">Tempo de entrega mostrado no site<input name="eta" value="{{ tenant.eta or '' }}" maxlength="30" required></label>
+      <label class="money">Tempo de entrega (min)<input name="eta_minutes" type="number" min="5" max="180" value="{{ tenant.eta_minutes }}" required></label>
+      <label class="money">Tempo p/ retirada (min)<input name="pickup_minutes" type="number" min="5" max="180" value="{{ tenant.pickup_minutes }}" required></label>
       <label class="grow">WhatsApp que recebe os pedidos (55 + DDD + número)<input name="whatsapp" value="{{ tenant.whatsapp or '' }}" inputmode="numeric" required></label>
     </div>
   </section>

@@ -711,6 +711,36 @@ def delivery_new():
 
 # ---------- loja ----------
 
+MIN_TIME, MAX_TIME = 5, 180
+
+
+def _minutes_field(text, what):
+    try:
+        value = int(str(text).strip())
+    except (TypeError, ValueError):
+        value = 0
+    if not MIN_TIME <= value <= MAX_TIME:
+        raise FormError(f"{what}: use um número de minutos entre {MIN_TIME} e {MAX_TIME}.")
+    return value
+
+
+@admin_bp.route("/loja/tempo", methods=["POST"])
+def store_time():
+    """Botões −5 / +5 do Início: ajusta o tempo de entrega ou de retirada na hora."""
+    field = {"entrega": "eta_minutes", "retirada": "pickup_minutes"}.get(request.form.get("which"))
+    try:
+        delta = int(request.form.get("delta", "0"))
+    except ValueError:
+        delta = 0
+    if not field or abs(delta) > 60:
+        abort(400)
+    value = min(MAX_TIME, max(MIN_TIME, getattr(g.tenant, field) + delta))
+    setattr(g.tenant, field, value)
+    db.session.commit()
+    flash(f"Tempo de {request.form['which']} agora: {value} min. Vale para os próximos pedidos.", "ok")
+    return redirect(url_for("admin.index"))
+
+
 def _minutes(text):
     match = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", str(text or ""))
     return int(match[1]) * 60 + int(match[2]) if match else None
@@ -757,7 +787,9 @@ def store():
             if form.get("label_size") in LABEL_SIZES:
                 tenant.label_width_mm, tenant.label_height_mm = LABEL_SIZES[form["label_size"]]
                 tenant.auto_print = "auto_print" in form
-            tenant.eta = _name(form.get("eta"), "o tempo de entrega", max_length=30)
+            if "eta_minutes" in form:
+                tenant.eta_minutes = _minutes_field(form["eta_minutes"], "Tempo de entrega")
+                tenant.pickup_minutes = _minutes_field(form.get("pickup_minutes"), "Tempo para retirada")
             tenant.whatsapp = whatsapp
             tenant.is_open_override = STORE_STATUS[form["status"]]
             tenant.hours_json = json.dumps(hours)

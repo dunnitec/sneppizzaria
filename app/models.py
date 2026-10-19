@@ -72,7 +72,9 @@ class Tenant(db.Model):
     banner_url = db.Column(db.String(255))
     accepted_payments = db.Column(db.String(255), default="Dinheiro,Pix,Débito,Crédito")
     hours_json = db.Column(db.Text)  # {"0":[1080,1310],"1":null,...} minutos, 0=domingo
-    eta = db.Column(db.String(30), default="40-50 min")  # tempo de entrega exibido
+    eta = db.Column(db.String(30), default="40-50 min")  # (antigo) texto livre; o site usa eta_minutes
+    eta_minutes = db.Column(db.Integer, nullable=False, default=50, server_default="50")  # tempo de entrega
+    pickup_minutes = db.Column(db.Integer, nullable=False, default=25, server_default="25")  # pronto para retirar
     notices = db.Column(db.Text)  # recados do topo do cardápio, um por linha
     min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
     background_image = db.Column(db.String(255))  # fundo enviado pelo painel (UPLOAD_FOLDER)
@@ -258,6 +260,7 @@ class Order(db.Model):
     dispatch_id = db.Column(db.Integer, db.ForeignKey("dispatches.id"), index=True)  # comanda de saída do motoboy
     printed_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime)
+    eta_at = db.Column(db.DateTime)  # previsão de chegada (entrega) ou de ficar pronto (retirada), em UTC
 
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
@@ -277,6 +280,9 @@ class OrderItem(db.Model):
     extras = db.Column(db.String(255))  # o que acompanha um combo (brindes e escolha do cliente)
     notes = db.Column(db.String(255))
     kind = db.Column(db.String(20))  # tipo da linha na hora da venda: pizza | doce | metro | bebida
+    category_name = db.Column(db.String(80))  # categoria na hora da venda (o cupom mostra “Premium”, “Doces”...)
+
+    flavor_rows = db.relationship("OrderItemFlavor", lazy=True, order_by="OrderItemFlavor.id")
 
     unit_price = db.Column(db.Numeric(8, 2), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)

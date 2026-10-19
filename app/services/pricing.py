@@ -154,6 +154,7 @@ def price_item(tenant, raw):
         "addon_names": ", ".join(f"{qty}x {addon.name}" for addon, qty in addons)[:255],
         "extras": ", ".join(extras)[:255],
         "kind": category.kind,
+        "category_name": category.name,
         # combo: cada sabor é 1/n da pizza; meio a meio: 1/n de cada
         "flavors": [(p, Decimal(1) / len(flavors)) for p in flavors],
         "notes": str(raw.get("notes") or "").strip()[:255],

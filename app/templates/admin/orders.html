@@ -32,6 +32,7 @@
     <span class="status">{{ statuses[o.status] }}</span>
     <span class="tag">{{ channel_labels[o.channel] }}{% if o.table_label %} {{ o.table_label }}{% endif %}</span>
     <span class="tag {{ 'tag-delivery' if o.delivery }}">{{ 'Entrega' if o.delivery else 'Retirada / no local' }}</span>
+    {% if o.eta_at and o.status in ('pendente', 'confirmado', 'saiu') %}<span class="tag tag-eta">Previsão {{ (o.eta_at|local_time).strftime('%H:%M') }}</span>{% endif %}
     {% if o.dispatch %}<span class="tag">Comanda {{ o.dispatch.number }} · {{ o.dispatch.courier.name }}</span>{% endif %}
     <b class="total">{{ o.total|brl }}</b>
   </div>
@@ -39,7 +40,9 @@
   <p class="addr">{% if o.street %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %} · {% endif %}{{ o.neighborhood_name }}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</p>
   <ul>
     {% for i in o.items %}
-    <li>{{ i.quantity }}x {{ i.product_names }} ({{ i.variant_label }}){% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.notes %} · Obs.: {{ i.notes }}{% endif %} — {{ i.line_total|brl }}</li>
+    {% set v = i|item_view %}
+    <li><b>{{ i.quantity }}x {{ v.head }}</b>{% if v.tag %} <span class="tag">{{ v.tag }}</span>{% endif %}{% for extra in v.lines %}<br><b class="more-flavor">{{ extra }}</b>{% endfor %}
+      <br><small>{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.extras %} · Acompanha: {{ i.extras }}{% endif %}{% if i.notes %} · Obs.: {{ i.notes }}{% endif %} — {{ i.line_total|brl }}</small></li>
     {% endfor %}
   </ul>
   <p class="addr">Pagamento: {{ o.payment_method or '—' }}{% if o.change_for %} · troco para {{ o.change_for|brl }}{% endif %} · Entrega: {{ o.delivery_fee|brl }}</p>

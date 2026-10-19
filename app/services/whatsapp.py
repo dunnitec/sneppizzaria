@@ -1,5 +1,7 @@
 from urllib.parse import quote
 
+from app.services.order_display import flavor_view
+
 
 def brl(v):
     return f"R$ {float(v):.2f}".replace(".", ",")
@@ -9,7 +11,12 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
     lines = [f"*Novo pedido - {tenant.name}*", f"Pedido #{order_id}", ""]
 
     for item in cart:
-        lines.append(f"▪ {item['quantity']}x {item['product_names']} ({item['variant_label']})")
+        view = flavor_view(item.get("kind"), item.get("category_name"), [p.name for p, _ in item.get("flavors", [])],
+                           item["product_names"])
+        size = f"{view['tag']} {item['variant_label']}" if view["tag"] else item["variant_label"]
+        lines.append(f"▪ {item['quantity']}x {view['head']} — {size}" if view["tag"] else
+                     f"▪ {item['quantity']}x {view['head']} ({size})")
+        lines += [f"   {extra}" for extra in view["lines"]]
         if item.get("border_name"):
             lines.append(f"   Borda: {item['border_name']}")
         if item.get("extras"):
@@ -49,6 +56,9 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
     lines.append(f"*Pagamento:* {order['payment_method']}")
     if order.get("change_for"):
         lines.append(f"Troco para: {brl(float(order['change_for']))}")
+    if order.get("eta"):  # previsão, como no iFood: entrega chega às HH:MM; retirada fica pronta às HH:MM
+        lines += ["", f"*Previsão de entrega: {order['eta']}*" if not order.get("withdraw")
+                  else f"*Pronto para retirar às {order['eta']}*"]
 
     return "\n".join(lines)
 

@@ -27,6 +27,7 @@ def create_app(config_class=Config):
     from app.services.customers import format_phone, phone_key
     from app.services.hours import local_time
     from app.services.money import brl, money_input
+    from app.services.order_display import item_view
 
     app.register_blueprint(public_bp)
     app.register_blueprint(orders_bp)
@@ -37,7 +38,7 @@ def create_app(config_class=Config):
     app.cli.add_command(create_admin)
     app.cli.add_command(import_photos)
     app.cli.add_command(import_static_banners)
-    app.jinja_env.filters.update(phone=format_phone, any_phone=lambda raw: format_phone(phone_key(raw)) or raw, brl=brl, money_input=money_input, local_time=local_time)
+    app.jinja_env.filters.update(item_view=item_view, phone=format_phone, any_phone=lambda raw: format_phone(phone_key(raw)) or raw, brl=brl, money_input=money_input, local_time=local_time)
     app.jinja_env.globals.update(static_url=static_url)
 
     return app

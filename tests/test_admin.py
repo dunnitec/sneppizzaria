@@ -268,7 +268,7 @@ def test_duplicate_neighborhood_is_refused(panel, tenant):
 # ---------- loja ----------
 
 def store_form(tenant, **over):
-    form = {"eta": tenant.eta, "whatsapp": tenant.whatsapp, "status": "auto"}
+    form = {"eta_minutes": tenant.eta_minutes, "pickup_minutes": tenant.pickup_minutes, "whatsapp": tenant.whatsapp, "status": "auto"}
     for day, span in json.loads(tenant.hours_json).items():
         if span:
             form[f"open-{day}"] = f"{span[0] // 60:02d}:{span[0] % 60:02d}"
@@ -294,9 +294,9 @@ def test_back_to_automatic_schedule(panel, tenant):
 
 
 def test_change_opening_hours_and_eta(panel, tenant):
-    panel.post("/snep/admin/loja", data=store_form(tenant, eta="30-40 min", **{"open-2": "17:30", "close-2": "23:00"}))
+    panel.post("/snep/admin/loja", data=store_form(tenant, eta_minutes="40", **{"open-2": "17:30", "close-2": "23:00"}))
     db.session.expire_all()
-    assert tenant.eta == "30-40 min"
+    assert tenant.eta_minutes == 40
     assert json.loads(tenant.hours_json)["2"] == [17 * 60 + 30, 23 * 60]
     assert json.loads(tenant.hours_json)["1"] is None  # segunda continua fechado
 

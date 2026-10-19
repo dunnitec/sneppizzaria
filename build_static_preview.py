@@ -55,7 +55,10 @@ window.__staticFinish = function(payload){
   L.push("",`*Cliente:* ${payload.customer_name}`,`*Telefone:* ${payload.customer_phone}`);
   if(!payload.withdraw){L.push(`*Endereço:* ${payload.street}, ${payload.number} - ${payload.neighborhood||"(outro bairro)"}`);if(payload.complement)L.push(`Complemento: ${payload.complement}`);if(payload.reference)L.push(`Referência: ${payload.reference}`);}
   L.push(`*Pagamento:* ${payload.payment_method}`);if(payload.payment_method==="Dinheiro"&&payload.change_for)L.push(`Troco para: ${money(parseFloat(payload.change_for))}`);
-  return {ok:true,wa_link:"https://wa.me/"+DATA.tenant.whatsapp+"?text="+encodeURIComponent(L.join("\n"))};
+  const mins=payload.withdraw?(DATA.tenant.pickup_minutes||25):(DATA.tenant.eta_minutes||50), at=new Date(Date.now()+mins*60000);
+  const eta=String(at.getHours()).padStart(2,"0")+":"+String(at.getMinutes()).padStart(2,"0");
+  L.push("",payload.withdraw?`*Pronto para retirar às ${eta}*`:`*Previsão de entrega: ${eta}*`);
+  return {ok:true,eta,eta_label:payload.withdraw?"Pronto para retirar":"Previsão de entrega",wa_link:"https://wa.me/"+DATA.tenant.whatsapp+"?text="+encodeURIComponent(L.join("\n"))};
 };
 const __fetch=window.fetch;
 window.fetch=function(url,opt){ if(url==="__static__") return Promise.resolve({json:()=>Promise.resolve(window.__staticFinish(JSON.parse(opt.body)))}); return __fetch.apply(this,arguments); };

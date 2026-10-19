@@ -9,13 +9,14 @@ por canal ficam todas neste arquivo:
 - telefone: lançado por quem atende; nome e telefone obrigatórios; pode ser entrega; entra "confirmado".
 """
 
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from app.extensions import db
-from app.models import CHANNELS, Order, OrderItem, OrderItemFlavor
+from app.models import CHANNELS, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
-from app.services.hours import is_open
+from app.services.hours import is_open, local_time
 from app.services.money import brl
 from app.services.pricing import OrderError, price_item
 from app.services.whatsapp import build_order_message
@@ -78,6 +79,11 @@ def place_order(tenant, p, channel="site"):
     delivery_fee = fee if found else None
     total = subtotal + (delivery_fee or Decimal("0"))
 
+    # previsão: entrega usa o tempo de entrega; retirada, balcão e mesa usam o tempo de retirada
+    now = utcnow()
+    minutes = tenant.eta_minutes if not withdraw else tenant.pickup_minutes
+    eta_at = now + timedelta(minutes=minutes or 0)
+
     default_name = {"balcao": "Balcão", "mesa": f"Mesa {table}"}.get(channel, "")
     info = {
         "customer_name": name or default_name,
@@ -91,6 +97,7 @@ def place_order(tenant, p, channel="site"):
         "payment_method": _text(p, "payment_method", 30),
         "change_for": _change_for(p.get("change_for")),
         "withdraw": withdraw,
+        "eta": local_time(eta_at).strftime("%H:%M"),
     }
 
     customer = upsert_customer(tenant, key, info) if key else None
@@ -114,6 +121,8 @@ def place_order(tenant, p, channel="site"):
         delivery=not withdraw,
         table_label=table or None,
         status="pendente" if from_site else "confirmado",
+        created_at=now,
+        eta_at=eta_at,
     )
     db.session.add(order)
     db.session.flush()  # gera o número do pedido usado na mensagem
@@ -126,6 +135,7 @@ def place_order(tenant, p, channel="site"):
             addon_names=line["addon_names"] or None,
             extras=line["extras"] or None,
             kind=line["kind"],
+            category_name=line["category_name"],
             notes=line["notes"] or None,
             unit_price=line["unit_price"],
             quantity=line["quantity"],
