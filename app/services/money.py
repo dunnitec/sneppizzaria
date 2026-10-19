@@ -25,8 +25,8 @@ def parse_money(text):
 
 
 def brl(value):
-    """65.5 -> 'R$ 65,50'"""
-    return "R$ " + money_input(value)
+    """65.5 -> 'R$ 65,50'; 17275.4 -> 'R$ 17.275,40'"""
+    return "R$ " + f"{Decimal(str(value or 0)):,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
 
 
 def money_input(value):

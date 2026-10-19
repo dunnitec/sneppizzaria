@@ -57,7 +57,7 @@
     {% set max_q = r.top_flavors[0].qty %}
     <table class="rank">
       {% for f in r.top_flavors %}
-      <tr><td class="n">{{ loop.index }}</td><td>{{ f.name }}<div class="hbar" style="width:{{ (f.qty / max_q * 100)|round(1) }}%"></div></td><td class="v">{{ '%g'|format(f.qty|float) }}</td></tr>
+      <tr><td class="n">{{ loop.index }}</td><td>{{ f.name }}<div class="hbar" style="width:{{ (f.qty / max_q * 100)|round(1) }}%"></div></td><td class="v">{{ ('%.1f'|format(f.qty|float)).replace('.0', '').replace('.', ',') }}</td></tr>
       {% endfor %}
     </table>
     <p class="hint">Em pizzas. Meio a meio conta meia para cada sabor.</p>
