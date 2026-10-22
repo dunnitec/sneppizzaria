@@ -25,6 +25,8 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
             lines.append(f"   Adicionais: {item['addon_names']}")
         if item.get("notes"):
             lines.append(f"   Obs: {item['notes']}")
+        if item.get("promo_name"):
+            lines.append(f"   Promoção: {item['promo_name']}")
         lines.append(f"   {brl(item['line_total'])}")
 
     lines += [

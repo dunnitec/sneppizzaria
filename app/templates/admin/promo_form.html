@@ -1,0 +1,146 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Editar promoção' if promo else 'Nova promoção' }}{% endblock %}
+{% block help %}
+<ul>
+  <li>Preencha de cima para baixo. Embaixo do desconto aparece um exemplo de como o preço vai ficar.</li>
+  <li><b>Preço fixo</b> vale para um tamanho só (ex.: Grande). Para todos os tamanhos, use porcentagem.</li>
+  <li>Meio a meio continua cobrando o sabor mais caro, já com o desconto de cada sabor.</li>
+  <li>Bordas e adicionais não entram no desconto.</li>
+</ul>
+{% endblock %}
+{% macro val(field, default='') %}{{ posted.get(field, '') if posted else default }}{% endmacro %}
+{% set p = promo %}
+{% set cur_cat = (posted.get('category_id')|int if posted else (p.category_id if p else (cats[0].id if cats else 0))) %}
+{% set cur_ids = (posted.getlist('products-' ~ cur_cat)|map('int')|list if posted else (p.product_id_list() if p else [])) %}
+{% set which = (posted.get('which-' ~ cur_cat) if posted else ('some' if cur_ids else 'all')) %}
+{% set kind = (posted.get('discount_type') if posted else (p.discount_type if p else 'percent')) %}
+{% set cur_days = (posted.getlist('days')|map('int')|list if posted else (p.weekday_list() if p and p.weekday_list() else [0,1,2,3,4,5,6])) %}
+{% block content %}
+<a href="{{ url_for('admin.promos') }}">‹ Voltar para promoções</a>
+<h1>{{ 'Editar promoção' if promo else 'Nova promoção' }}</h1>
+{% if not cats %}<p class="flash error">Cadastre o cardápio antes de criar promoções.</p>{% else %}
+<form method="post" enctype="multipart/form-data" id="promo-form" data-track>
+  {{ csrf() }}
+  <section class="card">
+    <h2>1. O que entra na promoção</h2>
+    <div class="row">
+      <label class="grow2">Nome da promoção<input name="name" maxlength="60" required value="{{ val('name', p.name if p else '') }}" placeholder="Ex.: Terça da Calabresa"></label>
+      <label class="grow">Categoria<select name="category_id" id="promo-cat">
+        {% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if c.id == cur_cat }}>{{ c.name }}</option>{% endfor %}
+      </select></label>
+    </div>
+    {% for c in cats %}
+    <div class="promo-target" data-cat="{{ c.id }}" {{ 'hidden' if c.id != cur_cat }}>
+      {% if c.kind == 'metro' %}
+      <p class="hint">É um combo: o desconto vale para o preço do combo.</p>
+      {% else %}
+      <div class="row">
+        {% set w = which if c.id == cur_cat else 'all' %}
+        <label class="radio"><input type="radio" name="which-{{ c.id }}" value="all" {{ 'checked' if w != 'some' }}> Todos os sabores de {{ c.name }}</label>
+        <label class="radio"><input type="radio" name="which-{{ c.id }}" value="some" {{ 'checked' if w == 'some' }}> Só alguns sabores</label>
+        {% if sizes[c.id]|length > 1 %}
+        <label class="grow">Tamanho<select name="size-{{ c.id }}">
+          <option value="">Todos os tamanhos</option>
+          {% set cur_size = val('size-' ~ c.id, p.size_label if p and p.category_id == c.id else '') %}
+          {% for s in sizes[c.id] %}<option {{ 'selected' if s == cur_size }}>{{ s }}</option>{% endfor %}
+        </select></label>
+        {% endif %}
+      </div>
+      <div class="promo-flavors" {{ 'hidden' if which != 'some' }}>
+        {% for prod in c.products|sort(attribute='name') %}
+        <label class="chip"><input type="checkbox" name="products-{{ c.id }}" value="{{ prod.id }}" {{ 'checked' if c.id == cur_cat and prod.id in cur_ids }}> {{ prod.name }}</label>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>2. Desconto</h2>
+    <div class="kind-choices">
+      <label class="kind-choice"><input type="radio" name="discount_type" value="percent" {{ 'checked' if kind != 'price' }}><span class="kind-icon" aria-hidden="true">%</span><b>Porcentagem</b><small>Ex.: 15% de desconto. Vale para qualquer tamanho.</small></label>
+      <label class="kind-choice"><input type="radio" name="discount_type" value="price" {{ 'checked' if kind == 'price' }}><span class="kind-icon" aria-hidden="true">R$</span><b>Preço fixo</b><small>Ex.: Calabresa Grande por R$ 34,90. Escolha o tamanho acima.</small></label>
+    </div>
+    <div class="row">
+      <label class="money" data-kind="percent" {{ 'hidden' if kind == 'price' }}>Desconto (%)<input name="percent" inputmode="decimal" placeholder="15" value="{{ val('percent', ('%g'|format(p.value|float)) if p and p.discount_type == 'percent' else '') }}"></label>
+      <label class="money" data-kind="price" {{ 'hidden' if kind != 'price' }}>Preço promocional<input name="price" inputmode="decimal" placeholder="34,90" value="{{ val('price', (p.value|money_input) if p and p.discount_type == 'price' else '') }}"></label>
+    </div>
+    <div class="promo-preview" id="promo-preview" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. Quando vale</h2>
+    <fieldset class="where"><legend>Dias da semana</legend>
+      <div class="where-row">{% for d, name in days %}<label class="check"><input type="checkbox" name="days" value="{{ d }}" {{ 'checked' if d in cur_days }}> {{ name|capitalize }}</label>{% endfor %}</div>
+    </fieldset>
+    <div class="row">
+      <label class="grow">Começa em (opcional)<input type="date" name="starts_on" value="{{ val('starts_on', p.starts_on.isoformat() if p and p.starts_on else '') }}"></label>
+      <label class="grow">Termina em (opcional)<input type="date" name="ends_on" value="{{ val('ends_on', p.ends_on.isoformat() if p and p.ends_on else '') }}"></label>
+    </div>
+    <p class="hint">Sem datas, a promoção vale sempre nos dias marcados, até você pausar.</p>
+  </section>
+
+  <section class="card">
+    <h2>4. Como aparece no site</h2>
+    <label>Frase do aviso (opcional)<input name="message" maxlength="200" value="{{ val('message', p.message if p and p.message else '') }}" placeholder="Ex.: Toda terça, a Calabresa Grande sai mais barata!"></label>
+    <label class="check"><input type="checkbox" name="show_popup" {{ 'checked' if (posted.get('show_popup') if posted else (p.show_popup if p else true)) }}> Mostrar um aviso quando o cliente entrar no site</label>
+    <p class="hint">O selo “Promoção” no cardápio e o preço antigo riscado aparecem sempre.</p>
+    <div class="row">
+      {% if p and p.image %}<img class="promo-img" src="{{ url_for('public.uploaded_file', name=p.image) }}" alt="Imagem atual do aviso">
+      <label class="check"><input type="checkbox" name="remove_photo"> Tirar a imagem</label>{% endif %}
+      <label class="grow">Imagem do aviso (opcional)<input type="file" name="photo" accept="image/*"></label>
+    </div>
+    <label class="check"><input type="checkbox" name="active" {{ 'checked' if (posted.get('active') if posted else (p.active if p else true)) }}> Promoção ligada</label>
+  </section>
+  <div class="savebar"><button class="primary big">Salvar promoção</button></div>
+</form>
+<script type="application/json" id="promo-data">{{ cats_json|safe }}</script>
+<script>
+(function () {
+  const form = document.getElementById("promo-form"), cat = document.getElementById("promo-cat");
+  const data = JSON.parse(document.getElementById("promo-data").textContent);
+  const money = (v) => "R$ " + v.toFixed(2).replace(".", ",");
+  const num = (s) => parseFloat(String(s || "").replace(/\./g, "").replace(",", ".").replace("%", ""));
+  function current() { return form.querySelector(`.promo-target[data-cat="${cat.value}"]`); }
+  function sync() {
+    form.querySelectorAll(".promo-target").forEach((el) => {
+      const on = el.dataset.cat === cat.value;
+      el.hidden = !on;
+      el.querySelectorAll("input,select").forEach((i) => { i.disabled = !on; });
+    });
+    const t = current(), some = t.querySelector('input[type="radio"]:checked');
+    const fl = t.querySelector(".promo-flavors");
+    if (fl) fl.hidden = !(some && some.value === "some");
+    const kind = form.querySelector('input[name="discount_type"]:checked').value;
+    form.querySelectorAll("[data-kind]").forEach((el) => { el.hidden = el.dataset.kind !== kind; });
+    preview(kind);
+  }
+  function preview(kind) {
+    const box = document.getElementById("promo-preview"), c = data[cat.value], t = current();
+    const sizeSel = t.querySelector("select"), size = sizeSel ? sizeSel.value : "";
+    const some = (t.querySelector('input[type="radio"]:checked') || {}).value === "some";
+    const ids = [...t.querySelectorAll(".promo-flavors input:checked")].map((i) => Number(i.value));
+    const val = num(form.querySelector(kind === "percent" ? '[name="percent"]' : '[name="price"]').value);
+    if (!val) { box.innerHTML = '<p class="hint">Digite o desconto para ver como o preço vai ficar.</p>'; return; }
+    const rows = [];
+    c.products.forEach((p) => {
+      if (some && !ids.includes(p.id)) return;
+      p.variants.forEach((v) => {
+        if (size && v.label !== size) return;
+        const neu = kind === "percent" ? Math.round(v.price * (100 - val)) / 100 : val;
+        rows.push({ label: c.kind === "metro" ? p.name : `${p.name} ${v.label}`, from: v.price, to: neu });
+      });
+    });
+    if (!rows.length) { box.innerHTML = '<p class="hint">Marque os sabores para ver o exemplo.</p>'; return; }
+    const good = rows.filter((r) => r.to < r.from && r.to > 0), bad = rows.filter((r) => !(r.to < r.from && r.to > 0));
+    box.innerHTML = (good.length ? "<p><b>Como vai ficar no site:</b></p><ul>" + good.slice(0, 4).map((r) => `<li>${r.label}: <s>${money(r.from)}</s> <b>${money(r.to)}</b></li>`).join("") + (good.length > 4 ? `<li>e mais ${good.length - 4}</li>` : "") + "</ul>" : "")
+      + (bad.length ? `<p class="flash error">Não vale para ${bad.slice(0, 4).map((r) => r.label).join(", ")}${bad.length > 4 ? "…" : ""}: o preço normal já é menor ou igual.</p>` : "");
+  }
+  form.addEventListener("change", sync);
+  form.addEventListener("input", sync);
+  sync();
+})();
+</script>
+{% endif %}
+{% endblock %}

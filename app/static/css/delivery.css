@@ -262,3 +262,34 @@ footer .st.open{color:var(--ok)}
   .hero-wa span{display:none}
 }
 @media (max-width:360px){.brand-slogan{font-size:10.5px;letter-spacing:3px}}
+
+/* ---------- promoções (painel → Promoções) ---------- */
+.card{position:relative}
+.card.has-promo{border-color:rgba(255,184,0,.55);box-shadow:0 0 0 1px rgba(255,184,0,.18) inset}
+.promo-tag{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(180deg,#ffd54a,#f2a900);color:#3a2300;font:900 12px/1 var(--display);letter-spacing:.5px;text-transform:uppercase;padding:6px 10px;border-radius:99px;font-style:normal;white-space:nowrap}
+.card > .promo-tag{position:absolute;top:-11px;left:16px;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.was{color:var(--muted);font-weight:600;font-size:.82em;margin-right:6px;text-decoration-thickness:2px}
+.card.has-promo .from{flex-direction:column;align-items:flex-end;gap:2px}
+.card.has-promo .from .was{margin:0 0 0 4px}
+.card.drink .btns button.has-promo{position:relative;border-color:#f2a900}
+.card.drink .btns button .promo-tag{position:absolute;top:-10px;right:-6px;font-size:10px;padding:4px 7px}
+.card.drink .btns button small .was{color:#aaa;font-size:12px}
+.opt .p .was{color:var(--muted)}
+.opt .p .promo-tag{font-size:10px;padding:3px 7px;vertical-align:1px}
+.cat-promo{position:absolute;top:10px;right:10px;z-index:2;background:linear-gradient(180deg,#ffd54a,#f2a900);color:#3a2300;font:900 11px/1 var(--display);letter-spacing:1px;text-transform:uppercase;padding:6px 10px;border-radius:99px;box-shadow:0 4px 12px rgba(0,0,0,.45)}
+.promo-fab{position:fixed;right:18px;bottom:24px;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;border:3px solid #fff;
+  background:radial-gradient(circle at 35% 30%,#ffe27a,#f2a900 60%,#c97f00);color:#3a2300;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.55);animation:promo-pulse 2.4s ease-in-out infinite}
+.promo-fab span{font-size:22px;line-height:1}
+.promo-fab b{font:900 12px/1.1 var(--display);letter-spacing:.5px}
+.promo-fab i{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;border-radius:99px;background:var(--red);color:#fff;font:900 12px/22px var(--display);font-style:normal;text-align:center;border:2px solid #fff}
+@keyframes promo-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@media (prefers-reduced-motion:reduce){.promo-fab{animation:none}}
+.md .body.promos{display:flex;flex-direction:column;gap:14px;padding:14px 16px}
+.promo-card{border:1px solid rgba(255,184,0,.45);border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#241a08,#161618 60%)}
+.promo-card img{display:block;width:100%;max-height:220px;object-fit:cover}
+.promo-body{padding:14px 16px 16px}
+.promo-body h3{margin:10px 0 6px;font:900 20px var(--display)}
+.promo-body p{margin:0 0 8px;color:#e5e5e5;line-height:1.45}
+.promo-body .promo-rule{color:#ffd77a;font-weight:700;font-size:14px}
+.promo-body .btn-red{margin-top:6px;width:100%}
+@media (max-width:900px){.promo-fab{bottom:calc(98px + env(safe-area-inset-bottom));right:10px;width:58px;height:58px;border-width:2px}.promo-fab span{font-size:18px}.promo-fab b{font-size:10px}}

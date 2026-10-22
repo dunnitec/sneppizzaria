@@ -42,7 +42,7 @@
     {% for i in o.items %}
     {% set v = i|item_view %}
     <li><b>{{ i.quantity }}x {{ v.head }}</b>{% if v.tag %} <span class="tag">{{ v.tag }}</span>{% endif %}{% for extra in v.lines %}<br><b class="more-flavor">{{ extra }}</b>{% endfor %}
-      <br><small>{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.extras %} · Acompanha: {{ i.extras }}{% endif %}{% if i.notes %} · Obs.: {{ i.notes }}{% endif %} — {{ i.line_total|brl }}</small></li>
+      <br><small>{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.extras %} · Acompanha: {{ i.extras }}{% endif %}{% if i.notes %} · Obs.: {{ i.notes }}{% endif %} — {{ i.line_total|brl }}{% if i.promo_name %} <span class="tag promo">Promoção: {{ i.promo_name }}</span>{% endif %}</small></li>
     {% endfor %}
   </ul>
   <p class="addr">Pagamento: {{ o.payment_method or '—' }}{% if o.change_for %} · troco para {{ o.change_for|brl }}{% endif %} · Entrega: {{ o.delivery_fee|brl }}</p>

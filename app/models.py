@@ -290,6 +290,7 @@ class OrderItem(db.Model):
     addon_names = db.Column(db.String(255))
     extras = db.Column(db.String(255))  # o que acompanha um combo (brindes e escolha do cliente)
     notes = db.Column(db.String(255))
+    promo_name = db.Column(db.String(120))  # promoção que baixou o preço, se houve
     kind = db.Column(db.String(20))  # tipo da linha na hora da venda: pizza | doce | metro | bebida
     category_name = db.Column(db.String(80))  # categoria na hora da venda (o cupom mostra “Premium”, “Doces”...)
 
@@ -321,6 +322,42 @@ class Banner(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     image = db.Column(db.String(255), nullable=False)  # arquivo em UPLOAD_FOLDER
     sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+
+class Promotion(db.Model):
+    """Desconto que o dono liga pelo painel (regras em app/services/promotions.py).
+
+    Vale para uma categoria inteira ou só alguns sabores dela, num tamanho ou em
+    todos, com dias da semana e período opcionais. O preço com desconto é
+    calculado no servidor, como os demais preços.
+    """
+
+    __tablename__ = "promotions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id", name="fk_promotions_tenant_id"), nullable=False)
+    name = db.Column(db.String(60), nullable=False)  # ex.: "Terça da Calabresa"
+    message = db.Column(db.String(200))  # frase do aviso que abre no site
+    category_id = db.Column(db.Integer, db.ForeignKey("categories.id", name="fk_promotions_category_id"), nullable=False)
+    product_ids = db.Column(db.Text)  # JSON com os sabores escolhidos; vazio = todos da categoria
+    size_label = db.Column(db.String(60))  # tamanho; vazio = todos
+    discount_type = db.Column(db.String(10), nullable=False, default="percent")  # percent | price
+    value = db.Column(db.Numeric(10, 2), nullable=False)  # % de desconto ou o preço promocional
+    weekdays = db.Column(db.String(20))  # "2,4" (0 = domingo); vazio = todos os dias
+    starts_on = db.Column(db.Date)
+    ends_on = db.Column(db.Date)
+    active = db.Column(db.Boolean, nullable=False, default=True)  # False = pausada pelo dono
+    show_popup = db.Column(db.Boolean, nullable=False, default=True)
+    image = db.Column(db.String(255))  # imagem opcional do aviso (UPLOAD_FOLDER)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    category = db.relationship("Category")
+
+    def product_id_list(self):
+        return json.loads(self.product_ids) if self.product_ids else []
+
+    def weekday_list(self):
+        return [int(d) for d in (self.weekdays or "").split(",") if d.strip().isdigit()]
 
 
 class Courier(db.Model):

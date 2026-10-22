@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block title %}Promoções{% endblock %}
+{% block help %}
+<ul>
+  <li>Uma promoção baixa o preço de uma <b>categoria inteira</b> ou só de <b>alguns sabores</b>, em um tamanho ou em todos.</li>
+  <li>O desconto pode ser em <b>porcentagem</b> (ex.: 15% off) ou um <b>preço fixo</b> (ex.: Calabresa Grande por R$ 34,90).</li>
+  <li>Escolha os <b>dias da semana</b> e, se quiser, a data de início e de fim. Fora desses dias o site volta ao preço normal sozinho.</li>
+  <li>No site, o cliente vê o selo de promoção no cardápio, o preço antigo riscado e um aviso quando entra no site.</li>
+  <li><b>Pausar</b> tira a promoção do site na hora, sem apagar. Toque de novo para ligar.</li>
+</ul>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Promoções</h1>
+  <a class="button primary" href="{{ url_for('admin.promo_edit') }}">+ Nova promoção</a>
+</div>
+
+{% if not rows %}
+<section class="card empty-promos">
+  <p class="big-status">Nenhuma promoção ainda</p>
+  <p class="hint">Exemplos do que dá para fazer: “Terça da Calabresa: Calabresa Grande por R$ 34,90 às terças”, “15% off nas pizzas doces no fim de semana”, “Combo com 10% de desconto até domingo”.</p>
+  <a class="button primary" href="{{ url_for('admin.promo_edit') }}">Criar a primeira promoção</a>
+</section>
+{% endif %}
+
+{% for r in rows %}
+{% set p = r.p %}
+<section class="card promo st-{{ r.code }}">
+  <div class="promo-head">
+    <div>
+      <h2>{{ p.name }}</h2>
+      <p class="promo-text">{{ r.text }}</p>
+    </div>
+    <span class="promo-status">{{ r.status }}</span>
+  </div>
+  {% if r.sample %}
+  <ul class="promo-prices">
+    {% for s in r.sample %}<li>{{ s.label }}: <s>{{ s.regular|brl }}</s> <b>{{ s.price|brl }}</b></li>{% endfor %}
+    {% if r.total > r.sample|length %}<li class="hint">e mais {{ r.total - r.sample|length }} item(ns)</li>{% endif %}
+  </ul>
+  {% else %}
+  <p class="flash error">Esta promoção não baixa o preço de nenhum item: o preço promocional precisa ser menor que o normal.</p>
+  {% endif %}
+  {% if r.skipped %}<p class="hint">Não vale para: {{ r.skipped[:6]|join(', ') }}{% if r.skipped|length > 6 %}…{% endif %} (o preço normal já é menor).</p>{% endif %}
+  <p class="hint">{% if p.show_popup %}Aparece no aviso ao entrar no site.{% else %}Só o selo no cardápio (sem aviso ao entrar).{% endif %}</p>
+  <div class="promo-actions">
+    <a class="button ghost small" href="{{ url_for('admin.promo_edit', promo_id=p.id) }}">Editar</a>
+    <form method="post" action="{{ url_for('admin.promo_toggle', promo_id=p.id) }}">{{ csrf() }}<button class="ghost small">{{ 'Pausar' if p.active else 'Ligar de novo' }}</button></form>
+    <form method="post" action="{{ url_for('admin.promo_delete', promo_id=p.id) }}" data-msg="Excluir a promoção “{{ p.name }}”?" onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}<button class="ghost small danger">Excluir</button></form>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

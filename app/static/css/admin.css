@@ -347,3 +347,27 @@ code{background:#f2f2f2;padding:1px 5px;border-radius:4px}
 .cat-look{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .cat-look img,.cat-look .no-photo{width:220px;height:82px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#f6f6f6;color:var(--muted);font-size:12px}
 .cat-look form{margin:0}
+
+/* ---------- promoções ---------- */
+.promo{border-left:5px solid #bbb}
+.promo.st-no_ar{border-left-color:#2fb344}
+.promo.st-agendada,.promo.st-hoje_nao{border-left-color:#f5a623}
+.promo.st-pausada,.promo.st-encerrada{opacity:.75}
+.promo-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.promo-head h2{margin:0 0 4px}
+.promo-text{margin:0;color:var(--ink)}
+.promo-status{flex:none;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px;background:#eee;color:var(--ink)}
+.st-no_ar .promo-status{background:#e6f5ea;color:#1d7a35}
+.st-agendada .promo-status,.st-hoje_nao .promo-status{background:#fff3dc;color:#8a5a00}
+.promo-prices{margin:10px 0;padding-left:18px}
+.promo-prices s,.promo-preview s{color:var(--muted)}
+.promo-prices b,.promo-preview b{color:var(--red)}
+.promo-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.promo-actions form{margin:0}
+.promo-flavors{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 10px}
+.promo-preview{margin-top:10px;padding:10px 12px;border-radius:8px;background:#fafafa;border:1px dashed var(--line)}
+.promo-preview ul{margin:4px 0 0;padding-left:18px}
+.promo-img{width:160px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.tag.promo{background:#fff0e0;color:#a64b00}
+.tile.promo-on{border-color:#2fb344;background:#f3fbf5}
+.empty-promos{text-align:center}

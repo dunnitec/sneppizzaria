@@ -38,6 +38,7 @@ from app.services.menu_data import WEEKDAYS
 from app.services.customers import erase_customer
 from app.services.money import brl, parse_money
 from app.services.photos import PhotoError, delete_photo, save_photo
+from app.services.promotions import running_count
 from app.services.reports import month_calendar, sales_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/<slug>/admin")
@@ -202,7 +203,7 @@ def index():
     ]
     return render_template(
         "admin/home.html", today=today, report=sales_report(g.tenant, today, today), sold_out=sold_out,
-        steps=steps, status_line=status_text(g.tenant),
+        steps=steps, status_line=status_text(g.tenant), promos_running=running_count(g.tenant),
     )
 
 

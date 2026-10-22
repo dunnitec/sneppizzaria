@@ -20,10 +20,12 @@ from app.models import (
     OrderItemFlavor,
     Product,
     ProductVariant,
+    Promotion,
 )
 from app.routes.admin import (FormError, _category_or_404, _category_url, _name, _price, _reject, _save, admin_bp,
                               save_category_look)
 from app.services.photos import PhotoError, delete_photo, normalize, save_photo
+from app.services.promotions import forget_product
 
 MAX_SIZE_FLAVORS = 6
 BANNER_SIDE = 1600
@@ -174,6 +176,9 @@ def line_delete(category_id):
     if category.kind == "metro":
         abort(400)
     name, slug = category.name, category.slug
+    for promo in Promotion.query.filter_by(tenant_id=g.tenant.id, category_id=category.id):
+        delete_photo(promo.image)
+        db.session.delete(promo)
     for product in list(category.products):
         _delete_product(product)
     for combo in Category.query.filter_by(tenant_id=g.tenant.id, kind="metro"):
@@ -190,6 +195,7 @@ def line_delete(category_id):
 
 def _delete_product(product):
     OrderItemFlavor.query.filter_by(product_id=product.id).update({"product_id": None})
+    forget_product(product.tenant_id, product.id)
     image = product.image
     db.session.delete(product)
     delete_photo(image)

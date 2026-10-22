@@ -137,6 +137,7 @@ def place_order(tenant, p, channel="site"):
             kind=line["kind"],
             category_name=line["category_name"],
             notes=line["notes"] or None,
+            promo_name=line["promo_name"] or None,
             unit_price=line["unit_price"],
             quantity=line["quantity"],
             line_total=line["line_total"],

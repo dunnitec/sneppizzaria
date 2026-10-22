@@ -72,6 +72,18 @@ def data_from_db(tenant, order_url, assets):
     from app.models import Addon, Border, Category, Neighborhood
     from app.services.hours import is_open
     from app.services.photos import photo_url
+    from app.services.promotions import badge, best_price, describe, running
+
+    promos = running(tenant)
+    used = set()  # promoções que baixaram o preço de algum item à venda
+
+    def variant_data(c, p, v):
+        price, promo = best_price(promos, c.id, p.id, v.label, v.price)
+        d = {"label": v.label, "price": float(price), "max_flavors": v.max_flavors}
+        if promo:  # o site mostra o preço antigo riscado e o selo
+            d.update(regular=float(v.price), promo=badge(promo), promo_id=promo.id)
+            used.add(promo.id)
+        return d
 
     # os ids vão para o navegador para que o pedido diga o que foi escolhido;
     # o preço é sempre recalculado no servidor (services/pricing.py)
@@ -98,11 +110,7 @@ def data_from_db(tenant, order_url, assets):
                         "name": p.name,
                         "image": photo_url(p.image),
                         "description": p.description or "",
-                        "variants": [
-                            {"label": v.label, "price": float(v.price), "max_flavors": v.max_flavors}
-                            for v in p.variants
-                            if v.active
-                        ],
+                        "variants": [variant_data(c, p, v) for v in p.variants if v.active],
                     }
                     for p in products
                 ],
@@ -127,6 +135,13 @@ def data_from_db(tenant, order_url, assets):
         "notices": [line.strip() for line in (tenant.notices or "").splitlines() if line.strip()],
         "min_order": float(tenant.min_order or 0),
         "categories": cats,
+        # promoções no ar: viram selo no cardápio e o aviso que abre ao entrar no site
+        "promotions": [
+            {"id": p.id, "name": p.name, "message": p.message or "", "text": describe(p), "badge": badge(p),
+             "category": p.category.slug, "image": photo_url(p.image), "popup": p.show_popup}
+            for p in promos
+            if p.id in used
+        ],
         "addons": [
             {"id": a.id, "name": a.name, "price_whole": float(a.price_whole), "price_half": float(a.price_half)}
             for a in Addon.query.filter_by(tenant_id=tenant.id, active=True).order_by(Addon.id)

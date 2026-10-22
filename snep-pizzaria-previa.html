@@ -273,6 +273,37 @@ footer .st.open{color:var(--ok)}
   .hero-wa span{display:none}
 }
 @media (max-width:360px){.brand-slogan{font-size:10.5px;letter-spacing:3px}}
+
+/* ---------- promoções (painel → Promoções) ---------- */
+.card{position:relative}
+.card.has-promo{border-color:rgba(255,184,0,.55);box-shadow:0 0 0 1px rgba(255,184,0,.18) inset}
+.promo-tag{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(180deg,#ffd54a,#f2a900);color:#3a2300;font:900 12px/1 var(--display);letter-spacing:.5px;text-transform:uppercase;padding:6px 10px;border-radius:99px;font-style:normal;white-space:nowrap}
+.card > .promo-tag{position:absolute;top:-11px;left:16px;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.was{color:var(--muted);font-weight:600;font-size:.82em;margin-right:6px;text-decoration-thickness:2px}
+.card.has-promo .from{flex-direction:column;align-items:flex-end;gap:2px}
+.card.has-promo .from .was{margin:0 0 0 4px}
+.card.drink .btns button.has-promo{position:relative;border-color:#f2a900}
+.card.drink .btns button .promo-tag{position:absolute;top:-10px;right:-6px;font-size:10px;padding:4px 7px}
+.card.drink .btns button small .was{color:#aaa;font-size:12px}
+.opt .p .was{color:var(--muted)}
+.opt .p .promo-tag{font-size:10px;padding:3px 7px;vertical-align:1px}
+.cat-promo{position:absolute;top:10px;right:10px;z-index:2;background:linear-gradient(180deg,#ffd54a,#f2a900);color:#3a2300;font:900 11px/1 var(--display);letter-spacing:1px;text-transform:uppercase;padding:6px 10px;border-radius:99px;box-shadow:0 4px 12px rgba(0,0,0,.45)}
+.promo-fab{position:fixed;right:18px;bottom:24px;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;border:3px solid #fff;
+  background:radial-gradient(circle at 35% 30%,#ffe27a,#f2a900 60%,#c97f00);color:#3a2300;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.55);animation:promo-pulse 2.4s ease-in-out infinite}
+.promo-fab span{font-size:22px;line-height:1}
+.promo-fab b{font:900 12px/1.1 var(--display);letter-spacing:.5px}
+.promo-fab i{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;border-radius:99px;background:var(--red);color:#fff;font:900 12px/22px var(--display);font-style:normal;text-align:center;border:2px solid #fff}
+@keyframes promo-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@media (prefers-reduced-motion:reduce){.promo-fab{animation:none}}
+.md .body.promos{display:flex;flex-direction:column;gap:14px;padding:14px 16px}
+.promo-card{border:1px solid rgba(255,184,0,.45);border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#241a08,#161618 60%)}
+.promo-card img{display:block;width:100%;max-height:220px;object-fit:cover}
+.promo-body{padding:14px 16px 16px}
+.promo-body h3{margin:10px 0 6px;font:900 20px var(--display)}
+.promo-body p{margin:0 0 8px;color:#e5e5e5;line-height:1.45}
+.promo-body .promo-rule{color:#ffd77a;font-weight:700;font-size:14px}
+.promo-body .btn-red{margin-top:6px;width:100%}
+@media (max-width:900px){.promo-fab{bottom:calc(98px + env(safe-area-inset-bottom));right:10px;width:58px;height:58px;border-width:2px}.promo-fab span{font-size:18px}.promo-fab b{font-size:10px}}
 </style>
 </head>
 <body>
@@ -381,11 +412,15 @@ const ICONS={
   fogo:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M24 44c-9 0-15-6-15-14 0-9 8-13 9-22 6 4 9 9 9 14 2-2 3-5 3-8 6 4 9 10 9 16 0 8-6 14-15 14z"/><path d="M24 44c-4 0-6-3-6-6 0-4 4-6 5-10 3 3 7 6 7 10 0 3-2 6-6 6z"/></svg>',
   coracao:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M24 42S6 31 6 18a9 9 0 0 1 18-4 9 9 0 0 1 18 4c0 13-18 24-18 24z"/></svg>'
 };
+/* ---------- promoções (painel → Promoções); o preço com desconto já vem calculado do servidor ---------- */
+const PROMOS=DATA.promotions||[];
+function catPromo(c){for(const p of c.products||[])for(const v of p.variants)if(v.promo)return v.promo;return "";}
+function was(v){return v&&v.regular?`<s class="was">${money(v.regular)}</s>`:"";}
 function catHead(cat){
   const c=cat.raw||{}, w=cat.name.trim().split(/\s+/), top=w.length>1?w[0]:"", big=w.length>1?w.slice(1).join(" "):w[0];
   return `<div class="cat-head acc-${esc(c.accent||"vermelho")}"${c.banner?` style="--photo:url('${esc(c.banner)}')"`:""}>
     <span class="cat-ico" aria-hidden="true">${ICONS[c.icon]||ICONS.fatia}</span>
-    <div><h2 class="cat-title">${top?`<span class="top">${esc(top)}</span>`:""}<span class="big">${esc(big)}</span></h2>${c.subtitle?`<p class="cat-sub">${esc(c.subtitle)}</p>`:""}</div></div>`;
+    <div><h2 class="cat-title">${top?`<span class="top">${esc(top)}</span>`:""}<span class="big">${esc(big)}</span></h2>${c.subtitle?`<p class="cat-sub">${esc(c.subtitle)}</p>`:""}</div>${catPromo(c)?`<span class="cat-promo">Promoção</span>`:""}</div>`;
 }
 
 /* ---------- menu ---------- */
@@ -399,7 +434,7 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
     if(c.kind==="metro"){
       const p=c.products[0], v=p.variants[0];
       const extras=comboOf(c).extras;
-      cat.cards.push({title:p.name,desc:(p.description||"")+(extras.length?` Acompanha: ${extras.join(", ")}.`:""),fixed:v.price,label:v.label,max:v.max_flavors,cat:c,sizes:Array.from({length:v.max_flavors},(_,i)=>i+1)});
+      cat.cards.push({title:p.name,desc:(p.description||"")+(extras.length?` Acompanha: ${extras.join(", ")}.`:""),fixed:v.price,was:v.regular||0,promo:v.promo||"",label:v.label,max:v.max_flavors,cat:c,sizes:Array.from({length:v.max_flavors},(_,i)=>i+1)});
     } else if(c.kind==="bebida"){
       // bebida: um card por item, um botão por tamanho; vai direto para a cesta
       c.products.forEach(p=>cat.cards.push({drink:true,p,cat:c,title:p.name}));
@@ -407,9 +442,10 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
       // agrupa por tamanho (variant label)
       const labels=[...new Set(c.products.flatMap(p=>p.variants.map(v=>v.label)))];
       labels.forEach(lb=>{
-        const prices=c.products.map(p=>(p.variants.find(v=>v.label===lb)||{}).price).filter(x=>x!=null);
+        const vs=c.products.map(p=>p.variants.find(v=>v.label===lb)).filter(Boolean), prices=vs.map(v=>v.price);
+        const promo=(vs.find(v=>v.promo)||{}).promo||"", regMin=Math.min(...vs.map(v=>v.regular||v.price));
         const maxF=Math.max(...c.products.map(p=>(p.variants.find(v=>v.label===lb)||{}).max_flavors||1));
-        cat.cards.push({title:lb,from:Math.min(...prices),label:lb,max:maxF,cat:c,sizes:Array.from({length:maxF},(_,i)=>i+1)});
+        cat.cards.push({title:lb,from:Math.min(...prices),was:regMin>Math.min(...prices)?regMin:0,promo,label:lb,max:maxF,cat:c,sizes:Array.from({length:maxF},(_,i)=>i+1)});
       });
     }
     CATS.push(cat);
@@ -419,15 +455,18 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
     sel.insertAdjacentHTML("beforeend",`<option value="${cat.slug}">${esc(cat.name)}</option>`);
     const cards=cat.cards.map((k,ki)=>{
       if(k.notice) return "";
-      if(k.drink) return `<div class="card drink" data-name="${esc(k.title)}"><div class="top">${k.p.image?`<img class="th" src="${esc(k.p.image)}" alt="" loading="lazy">`:""}<div><h3>${esc(k.title)}</h3>${k.p.description?`<p class="desc">${esc(k.p.description)}</p>`:""}</div></div><div class="btns">${k.p.variants.map((v,vi)=>`<button onclick="addDrink(${ci},${ki},${vi})">${esc(v.label)}<small>${money(v.price)}</small></button>`).join("")}</div></div>`;
+      if(k.drink) return `<div class="card drink" data-name="${esc(k.title)}"><div class="top">${k.p.image?`<img class="th" src="${esc(k.p.image)}" alt="" loading="lazy">`:""}<div><h3>${esc(k.title)}</h3>${k.p.description?`<p class="desc">${esc(k.p.description)}</p>`:""}</div></div><div class="btns">${k.p.variants.map((v,vi)=>`<button class="${v.promo?"has-promo":""}" onclick="addDrink(${ci},${ki},${vi})">${esc(v.label)}<small>${was(v)}${money(v.price)}</small>${v.promo?`<i class="promo-tag">${esc(v.promo)}</i>`:""}</button>`).join("")}</div></div>`;
       const btns=k.sizes.map((n,i)=>`<button class="${i===k.sizes.length-1?"main-btn":""}" onclick="startFlow(${ci},${ki},${n})">${n} sabor${n>1?"es":""}</button>`).join("");
-      if(k.fixed) return `<div class="card full" data-name="${esc(k.title)}"><div class="top"><div><h3>${esc(k.title)}</h3><p class="desc">${esc(k.desc)}</p><p class="price">${money(k.fixed)}</p></div></div><div class="btns">${btns}</div></div>`;
-      return `<div class="card" data-name="${esc(k.title)}"><div class="top"><h3>${esc(k.title)}</h3><span class="from">A partir de <b>${money(k.from)}</b></span></div><div class="btns">${btns}</div></div>`;
+      const tag=k.promo?`<span class="promo-tag">🏷 ${esc(k.promo)}</span>`:"";
+      if(k.fixed) return `<div class="card full ${k.promo?"has-promo":""}" data-name="${esc(k.title)}">${tag}<div class="top"><div><h3>${esc(k.title)}</h3><p class="desc">${esc(k.desc)}</p><p class="price">${k.was?`<s class="was">${money(k.was)}</s> `:""}${money(k.fixed)}</p></div></div><div class="btns">${btns}</div></div>`;
+      return `<div class="card ${k.promo?"has-promo":""}" data-name="${esc(k.title)}">${tag}<div class="top"><h3>${esc(k.title)}</h3><span class="from">${k.was?`<span>A partir de <s class="was">${money(k.was)}</s></span>`:"A partir de "}<b>${money(k.from)}</b></span></div><div class="btns">${btns}</div></div>`;
     }).join("");
     if(cat.kind==="notice"){box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}"><div class="notice"><span class="notice-ico" aria-hidden="true">!</span><div><h2>Recados</h2>${cat.cards[0].lines.map(l=>`<p>${esc(l)}</p>`).join("")}</div></div></section>`);return;}
     box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}">${catHead(cat)}<div class="grid">${cards}</div></section>`);
   });
 })();
+// vai até a categoria sem esconder as outras (usado pelo aviso de promoções)
+function goCat(slug){const sel=document.getElementById("catsel");if(sel)sel.value="";jumpCat("");const el=document.getElementById("cat-"+slug);if(el)el.scrollIntoView({behavior:"smooth"});}
 function jumpCat(slug){document.querySelectorAll(".cat").forEach(s=>s.style.display=(!slug||slug==="all"||s.dataset.slug===slug)?"":"none");if(slug&&slug!=="all")document.getElementById("cat-"+slug).scrollIntoView({behavior:"smooth"});}
 function filterMenu(){
   const qi=document.getElementById("q"); if(!qi)return;
@@ -461,7 +500,7 @@ function closeModal(){document.getElementById("ovl").classList.remove("on");F=nu
 function flavorPool(){
   const k=F.card;
   if(k.cat.kind==="metro"){const src=comboOf(k.cat).sources;return DATA.categories.filter(c=>c.kind!=="metro"&&src.includes(c.slug)).flatMap(c=>c.products.map(p=>({...p,price:k.fixed,fixed:true})));}
-  return k.cat.products.map(p=>{const v=p.variants.find(v=>v.label===k.label);return v?{...p,price:v.price}:null;}).filter(Boolean);
+  return k.cat.products.map(p=>{const v=p.variants.find(v=>v.label===k.label);return v?{...p,price:v.price,regular:v.regular,promo:v.promo}:null;}).filter(Boolean);
 }
 function isPremium(){return !!F.card.cat.allows_addons;}
 function borderLabel(b){return b.group.replace(/^Borda /,"")+" - "+b.name;}
@@ -497,7 +536,7 @@ function renderStep(){
   if(st.type==="flavor"){
     t=`Escolha o ${ordinal(st.i)} sabor.`;
     const cur=F.flavors[st.i];
-    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${money(p.price)}</div>`}</div></div>`).join("")+`</div>`;
+    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
   } else if(st.type==="choice"){
     const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
@@ -629,6 +668,21 @@ function finish(ev){
   return false;
 }
 renderCart();
+function openPromos(){
+  const md=document.getElementById("md");
+  md.innerHTML=`<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>🏷 Promoções de hoje</h2></div><div class="body promos">`+
+    PROMOS.map(p=>`<div class="promo-card">${p.image?`<img src="${esc(p.image)}" alt="">`:""}<div class="promo-body"><span class="promo-tag">${esc(p.badge)}</span><h3>${esc(p.name)}</h3>${p.message?`<p>${esc(p.message)}</p>`:""}<p class="promo-rule">${esc(p.text)}</p>
+      <button class="btn-red" onclick="closeModal();goCat('${esc(p.category)}')">Ver no cardápio</button></div></div>`).join("")+
+    `</div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
+  document.getElementById("ovl").classList.add("on");
+}
+(function promoInit(){
+  if(!PROMOS.length)return;
+  document.body.insertAdjacentHTML("beforeend",`<button type="button" class="promo-fab" onclick="openPromos()" aria-label="Ver promoções"><span aria-hidden="true">🏷</span><b>PROMO</b>${PROMOS.length>1?`<i>${PROMOS.length}</i>`:""}</button>`);
+  const key="promos_vistas_"+DATA.tenant.slug, ids=PROMOS.filter(p=>p.popup).map(p=>p.id).join(",");
+  let seen=""; try{seen=sessionStorage.getItem(key)||"";}catch(e){}
+  if(ids&&seen!==ids){setTimeout(()=>{if(!document.getElementById("ovl").classList.contains("on"))openPromos();},900);try{sessionStorage.setItem(key,ids);}catch(e){}}
+})();
 
 window.__staticFinish = function(payload){
   const money=v=>"R$ "+v.toFixed(2).replace(".",",");

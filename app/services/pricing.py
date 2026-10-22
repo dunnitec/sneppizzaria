@@ -7,12 +7,15 @@ a página não muda o valor que chega para a loja.
 Regras: meio a meio cobra o sabor mais caro; o combo (kind="metro") tem preço
 fixo, sabores só das linhas que o dono escolheu e não leva borda paga;
 adicionais só nas categorias com allows_addons, no máximo MAX_ADDONS por pizza.
+Promoções no ar (services/promotions.py) baixam o preço do sabor/tamanho antes
+dessas regras; borda e adicionais não entram no desconto.
 """
 
 import re
 from decimal import Decimal
 
 from app.models import Addon, Border, Category, Product
+from app.services.promotions import best_price, running
 
 MAX_ADDONS = 5
 MAX_QUANTITY = 50
@@ -95,6 +98,8 @@ def price_item(tenant, raw):
     ).first()
     if not category:
         raise OrderError("Item inválido. Atualize a página.")
+    promos = running(tenant)
+    applied = []  # nomes das promoções que baixaram o preço deste item
 
     if category.kind == "metro":
         combo = next((p for p in category.products if p.active and p.variants), None)
@@ -109,7 +114,10 @@ def price_item(tenant, raw):
             Category.kind.notin_(("metro", "bebida")),
         )
         flavors = _flavors(raw, pool)
-        label, max_flavors, price = variant.label, variant.max_flavors, _money(variant.price)
+        label, max_flavors = variant.label, variant.max_flavors
+        price, promo = best_price(promos, category.id, combo.id, label, variant.price)
+        if promo:
+            applied.append(promo.name)
         title = f"{category.name}: " + " + ".join(p.name for p in flavors)
         if raw.get("border_id") not in (None, ""):
             raise OrderError("O combo não aceita borda adicional.")
@@ -128,7 +136,11 @@ def price_item(tenant, raw):
         if category.kind == "bebida" and (len(flavors) != 1 or raw.get("border_id") not in (None, "")):
             raise OrderError("Bebida inválida. Atualize a página.")
         max_flavors = max(v.max_flavors for v in variants)
-        price = max(_money(v.price) for v in variants)
+        # meio a meio cobra o sabor mais caro, já com o desconto de cada sabor
+        prices = [best_price(promos, category.id, p.id, label, v.price) for p, v in zip(flavors, variants)]
+        price = max(pr for pr, _ in prices)
+        if price < max(_money(v.price) for v in variants):
+            applied += [promo.name for _, promo in prices if promo]
         extras = []
         n = len(flavors)
         title = flavors[0].name if n == 1 else " + ".join(f"1/{n} {p.name}" for p in flavors)
@@ -153,6 +165,7 @@ def price_item(tenant, raw):
         "border_name": f"{re.sub(r'^Borda ', '', border.group_name)} - {border.name}"[:60] if border else "",
         "addon_names": ", ".join(f"{qty}x {addon.name}" for addon, qty in addons)[:255],
         "extras": ", ".join(extras)[:255],
+        "promo_name": " + ".join(dict.fromkeys(applied))[:120],
         "kind": category.kind,
         "category_name": category.name,
         # combo: cada sabor é 1/n da pizza; meio a meio: 1/n de cada

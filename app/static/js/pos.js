@@ -35,7 +35,7 @@
       return D.categories.filter((c) => c.kind !== "metro" && c.kind !== "bebida" && src.includes(c.slug))
         .flatMap((c) => c.products.map((p) => ({ id: p.id, name: p.name, price: null })));
     }
-    return B.cat.products.map((p) => { const v = p.variants.find((x) => x.label === B.size); return v ? { id: p.id, name: p.name, price: v.price } : null; }).filter(Boolean);
+    return B.cat.products.map((p) => { const v = p.variants.find((x) => x.label === B.size); return v ? { id: p.id, name: p.name, price: v.price, promo: v.promo } : null; }).filter(Boolean);
   }
   const borderOptions = () => D.borders.filter((b) => !(b.no_sizes || []).includes(B.size) && !(b.no_categories || []).includes(B.cat.slug));
   function unitPrice() {
@@ -69,7 +69,7 @@
   function renderDrinks() {
     builder.hidden = false;
     builder.innerHTML = `<h3>${esc(B.cat.name)}</h3><p class="hint">Toque no tamanho para adicionar.</p>` + B.cat.products.map((p) =>
-      `<div class="drink-row"><b>${esc(p.name)}</b>${p.variants.map((v) => `<button type="button" class="ghost small" data-drink="${p.id}" data-size="${esc(v.label)}">${esc(v.label)} · ${money(v.price)}</button>`).join("")}</div>`).join("");
+      `<div class="drink-row"><b>${esc(p.name)}</b>${p.variants.map((v) => `<button type="button" class="ghost small" data-drink="${p.id}" data-size="${esc(v.label)}">${esc(v.label)} · ${money(v.price)}${v.promo ? " 🏷" : ""}</button>`).join("")}</div>`).join("");
   }
   builder.addEventListener("click", (e) => {
     const d = e.target.closest("[data-drink]");
@@ -90,7 +90,7 @@
     if (!combo) html += `<div class="row"><span class="where-label">Tamanho</span>${sizesOf(B.cat).map((s) => `<button type="button" class="chip-btn ${s === B.size ? "on" : ""}" data-size-pick="${esc(s)}">${esc(s)}</button>`).join("")}</div>`;
     html += `<div class="row"><span class="where-label">Sabores</span>${Array.from({ length: max }, (_, i) => `<button type="button" class="chip-btn ${i + 1 === B.n ? "on" : ""}" data-n="${i + 1}">${i + 1}</button>`).join("")}</div>`;
     for (let i = 0; i < B.n; i++) {
-      html += `<label class="grow">${B.n > 1 ? `${i + 1}º sabor` : "Sabor"}<select data-flavor="${i}"><option value="">Escolha…</option>${pool.map((f) => `<option value="${f.id}" ${B.flavors[i] && B.flavors[i].id === f.id ? "selected" : ""}>${esc(f.name)}${f.price != null ? ` — ${money(f.price)}` : ""}</option>`).join("")}</select></label>`;
+      html += `<label class="grow">${B.n > 1 ? `${i + 1}º sabor` : "Sabor"}<select data-flavor="${i}"><option value="">Escolha…</option>${pool.map((f) => `<option value="${f.id}" ${B.flavors[i] && B.flavors[i].id === f.id ? "selected" : ""}>${esc(f.name)}${f.price != null ? ` — ${money(f.price)}` : ""}${f.promo ? " 🏷 promoção" : ""}</option>`).join("")}</select></label>`;
     }
     const borders = combo ? [] : borderOptions();
     if (borders.length) html += `<label class="grow">Borda<select data-border><option value="">Sem borda</option>${borders.map((b) => `<option value="${b.id}" ${B.border === b.id ? "selected" : ""}>${esc(b.group)} — ${esc(b.name)} (+${money(b.price)})</option>`).join("")}</select></label>`;
