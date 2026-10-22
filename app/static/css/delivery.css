@@ -293,3 +293,13 @@ footer .st.open{color:var(--ok)}
 .promo-body .promo-rule{color:#ffd77a;font-weight:700;font-size:14px}
 .promo-body .btn-red{margin-top:6px;width:100%}
 @media (max-width:900px){.promo-fab{bottom:calc(98px + env(safe-area-inset-bottom));right:10px;width:58px;height:58px;border-width:2px}.promo-fab span{font-size:18px}.promo-fab b{font-size:10px}}
+
+/* ---------- Pix com QR Code no pedido feito ---------- */
+.pix-note{margin:6px 0 0;padding:8px 10px;border-radius:10px;background:rgba(50,188,173,.12);border:1px solid rgba(50,188,173,.45);color:#bff1ea;font-size:13px}
+.pix-box{margin:14px 0;padding:16px;border-radius:14px;background:#0f1d1c;border:1px solid rgba(50,188,173,.55);text-align:center}
+.pix-box h4{margin:0;font:900 18px var(--display);color:#5fe0d0}
+.pix-box p{margin:6px 0;color:#dfe;font-size:14px}
+.pix-amount{font:900 26px var(--display)!important;color:#fff!important}
+.pix-qr{display:block;width:210px;height:210px;margin:10px auto;background:#fff;border-radius:12px;padding:6px}
+.pix-code{width:100%;resize:none;font:12px/1.35 ui-monospace,Consolas,monospace;color:#cfe;background:#081211;border:1px solid #2a4a47;border-radius:10px;padding:8px;word-break:break-all}
+.pix-copy{width:100%;margin-top:8px;background:linear-gradient(180deg,#36c9b8,#1f9c8d)!important;color:#03201c!important}

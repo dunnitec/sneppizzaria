@@ -132,6 +132,7 @@ def data_from_db(tenant, order_url, assets):
         },
         "hours": json.loads(tenant.hours_json) if tenant.hours_json else {},
         "open": is_open(tenant),
+        "pix": bool(tenant.pix_key),  # QR Code do Pix no pedido feito (app/services/pix.py)
         "notices": [line.strip() for line in (tenant.notices or "").splitlines() if line.strip()],
         "min_order": float(tenant.min_order or 0),
         "categories": cats,

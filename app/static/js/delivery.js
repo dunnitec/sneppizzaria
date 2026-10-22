@@ -244,7 +244,7 @@ function openCheckout(){
   if(DATA.min_order&&subtotal()<DATA.min_order){toast(`O pedido mínimo é de ${money(DATA.min_order)} (sem a entrega).`);return;}
   const wd=document.getElementById("withdraw").checked;
   const md=document.getElementById("md");
-  md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Finalizar pedido</h2><p>Pagamento na entrega. O pedido é enviado pelo WhatsApp.</p></div>
+  md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Finalizar pedido</h2><p>${DATA.pix?"Pague pelo Pix aqui no site ou na entrega.":"Pagamento na entrega."} O pedido é enviado pelo WhatsApp.</p></div>
   <form class="body ck" id="ckf" onsubmit="return finish(event)">
     <label>Nome<input name="nome" required></label>
     <label>Telefone / WhatsApp<input name="tel" type="tel" required></label>
@@ -255,7 +255,7 @@ function openCheckout(){
       <label>Bairro<select name="bairro" id="bairro" onchange="totals()"><option value="">Selecione…</option>${DATA.neighborhoods.map(n=>`<option value="${esc(n.name)}">${esc(n.name)} — ${money(n.fee)}</option>`).join("")}<option value="__outro__">Outro bairro (taxa a confirmar)</option></select></label>
       <label>Ponto de referência<input name="ref"></label>
     </div>
-    <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").filter(p=>p.trim()).map(p=>`<option>${esc(p.trim())}</option>`).join("")}</select></label>
+    <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none';const pn=document.getElementById('pix-note');if(pn)pn.hidden=this.value!=='Pix'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").filter(p=>p.trim()).map(p=>`<option>${esc(p.trim())}</option>`).join("")}</select></label>${DATA.pix?`<p class="pix-note" id="pix-note" hidden>Pix: ao finalizar, aparece o QR Code e o “Pix copia e cola” com o valor do pedido para você pagar no app do banco.</p>`:""}
     <label id="troco" style="display:none">Troco para quanto? (opcional)<input name="troco" type="number" step="0.01" min="0"></label>
     <div class="sum" id="sum"></div>
     <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>
@@ -265,6 +265,21 @@ function openCheckout(){
 }
 // nome, telefone e endereço ficam salvos só neste aparelho, para o próximo pedido ser mais rápido
 const REMEMBER_KEY="snep_cliente_"+DATA.tenant.slug;
+/* ---------- Pix com QR Code (painel → Loja → Pix pelo site) ---------- */
+function pixBox(r){
+  if(r.pix_pending)return `<div class="pix-box"><p>Pix: como a taxa de entrega do seu bairro ainda vai ser confirmada, a pizzaria te manda o valor final pelo WhatsApp.</p></div>`;
+  if(!r.pix)return "";
+  return `<div class="pix-box"><h4>Pague com Pix</h4><p class="pix-amount">${money(r.pix.amount)}</p>
+    <img class="pix-qr" src="${r.pix.qr}" alt="QR Code do Pix">
+    <p class="pix-help">No app do banco: <b>Pix → Ler QR Code</b>. Ou copie o código e use <b>Pix copia e cola</b>:</p>
+    <textarea class="pix-code" id="pix-code" readonly rows="3" onclick="this.select()">${esc(r.pix.code)}</textarea>
+    <button type="button" class="btn-red pix-copy" onclick="copyPix(this)">Copiar código Pix</button></div>`;
+}
+function copyPix(btn){
+  const ta=document.getElementById("pix-code"), ok=()=>{btn.textContent="Código copiado ✓";toast("Código Pix copiado. Cole no app do banco.");};
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(ta.value).then(ok,()=>{ta.select();document.execCommand("copy");ok();});
+  else{ta.select();document.execCommand("copy");ok();}
+}
 function remember(p){try{localStorage.setItem(REMEMBER_KEY,JSON.stringify({nome:p.customer_name,tel:p.customer_phone,rua:p.street,num:p.number,comp:p.complement,bairro:p.neighborhood,ref:p.reference}));}catch(e){}}
 function fillRemembered(){
   let d=null;try{d=JSON.parse(localStorage.getItem(REMEMBER_KEY)||"null");}catch(e){}
@@ -289,7 +304,7 @@ function finish(ev){
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
-      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}<p>Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria.</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
+      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
       remember(payload);cart=[];renderCart();
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
   return false;

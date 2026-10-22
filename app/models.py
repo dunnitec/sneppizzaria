@@ -84,6 +84,11 @@ class Tenant(db.Model):
     background_image = db.Column(db.String(255))  # fundo enviado pelo painel (UPLOAD_FOLDER)
     hero_image = db.Column(db.String(255))  # foto do topo do site, atrás da marca (UPLOAD_FOLDER)
     slogan = db.Column(db.String(120))  # frase abaixo da marca, ex.: “A melhor pizzaria de Itu”
+    # Pix com QR Code no pedido feito pelo site (ver app/services/pix.py); sem chave, não aparece
+    pix_key = db.Column(db.String(80))
+    pix_key_type = db.Column(db.String(10))  # email | celular | cpf | aleatoria
+    pix_name = db.Column(db.String(25))  # nome no código Pix (o app do banco mostra o titular da conta)
+    pix_city = db.Column(db.String(15))
     # impressora de etiquetas (Zebra): tamanho da etiqueta e se imprime sozinho ao confirmar
     label_width_mm = db.Column(db.Integer, nullable=False, default=100, server_default="100")
     label_height_mm = db.Column(db.Integer, nullable=False, default=150, server_default="150")
@@ -271,6 +276,7 @@ class Order(db.Model):
     dispatch_id = db.Column(db.Integer, db.ForeignKey("dispatches.id"), index=True)  # comanda de saída do motoboy
     printed_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime)
+    pix_paid_at = db.Column(db.DateTime)  # dono confirmou que o Pix caiu na conta
     eta_at = db.Column(db.DateTime)  # previsão de chegada (entrega) ou de ficar pronto (retirada), em UTC
 
     created_at = db.Column(db.DateTime, default=utcnow, index=True)

@@ -34,6 +34,23 @@
     <p class="hint">Pedido mínimo vale para o valor das pizzas, sem a taxa de entrega. Deixe em branco para não ter mínimo.</p>
   </section>
 
+  <section class="card" id="pix">
+    <h2>Pix pelo site (QR Code)</h2>
+    <p class="hint">Quando o cliente escolhe Pix no site, ele recebe na hora o QR Code e o “Pix copia e cola” com o valor exato do pedido, para pagar no app do banco. O dinheiro cai direto na sua conta, sem taxa. Confira no app do banco e marque <b>Pix recebido</b> na aba Pedidos.</p>
+    <div class="row">
+      <label class="grow">Tipo da chave<select name="pix_key_type">
+        {% for k, label in pix_types.items() %}<option value="{{ k }}" {{ 'selected' if k == (tenant.pix_key_type or 'email') }}>{{ label }}</option>{% endfor %}
+      </select></label>
+      <label class="grow2">Chave Pix<input name="pix_key" value="{{ tenant.pix_key or '' }}" maxlength="80" placeholder="Deixe em branco para não usar Pix pelo site"></label>
+    </div>
+    <div class="row">
+      <label class="grow2">Nome no código Pix (opcional)<input name="pix_name" value="{{ tenant.pix_name or '' }}" maxlength="25" placeholder="{{ tenant.name[:25] }}"></label>
+      <label class="grow">Cidade<input name="pix_city" value="{{ tenant.pix_city or '' }}" maxlength="15" placeholder="Ex.: Itu"></label>
+    </div>
+    {% if tenant.pix_key and 'Pix' not in payments %}<p class="flash error">A chave está salva, mas “Pix” está desmarcado nas formas de pagamento acima: o cliente não vai ver a opção.</p>{% endif %}
+    <p class="hint">Na hora de pagar, o app do banco do cliente mostra o nome do titular da conta da chave. Confira se a chave está certa: um erro aqui manda o dinheiro para outra pessoa.</p>
+  </section>
+
   <section class="card">
     <h2>Impressora</h2>
     <div class="row">

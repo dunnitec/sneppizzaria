@@ -56,6 +56,8 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
         lines.append(f"Referência: {order['reference']}")
 
     lines.append(f"*Pagamento:* {order['payment_method']}")
+    if order["payment_method"] == "Pix" and tenant.pix_key and order.get("from_site"):
+        lines.append("Vou pagar pelo Pix do site e mandar o comprovante aqui.")
     if order.get("change_for"):
         lines.append(f"Troco para: {brl(float(order['change_for']))}")
     if order.get("eta"):  # previsão, como no iFood: entrega chega às HH:MM; retirada fica pronta às HH:MM

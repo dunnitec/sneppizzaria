@@ -38,6 +38,9 @@ from app.services.menu_data import WEEKDAYS
 from app.services.customers import erase_customer
 from app.services.money import brl, parse_money
 from app.services.photos import PhotoError, delete_photo, save_photo
+from app.services.pix import KEY_TYPES as PIX_KEY_TYPES
+from app.services.pix import PixKeyError
+from app.services.pix import normalize_key as normalize_pix_key
 from app.services.promotions import running_count
 from app.services.reports import month_calendar, sales_report
 
@@ -51,7 +54,7 @@ STORE_STATUS = {"auto": None, "open": True, "closed": False}
 STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.orders_poll",
                    "admin.order_label", "admin.order_printed", "admin.order_new", "admin.dispatches", "admin.dispatch_new",
                    "admin.dispatch_return", "admin.dispatch_remove_order", "admin.dispatch_label",
-                   "admin.order_status", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
+                   "admin.order_status", "admin.order_pix", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
 # papel da impressora (largura × altura, em mm). Altura 0 = bobina contínua de cupom, que corta no fim do pedido.
 LABEL_SIZES = {"80x0": (80, 0), "58x0": (58, 0), "100x150": (100, 150), "100x100": (100, 100), "100x50": (100, 50)}
@@ -292,6 +295,19 @@ def order_status(order_id):
     to_print = order.id if status == "confirmado" and g.tenant.auto_print else None
     return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None,
                             imprimir=to_print))
+
+
+@admin_bp.route("/pedidos/<int:order_id>/pix", methods=["POST"])
+def order_pix(order_id):
+    """Dono conferiu no app do banco: marca (ou desmarca) o Pix como recebido."""
+    order = Order.query.filter_by(tenant_id=g.tenant.id, id=order_id).first_or_404()
+    if order.payment_method != "Pix":
+        abort(400)
+    order.pix_paid_at = None if order.pix_paid_at else utcnow()
+    db.session.commit()
+    flash(f"Pedido #{order.id}: " + ("Pix marcado como recebido." if order.pix_paid_at else "Pix voltou para “conferir”."), "ok")
+    current_filter = request.form.get("filter")
+    return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None))
 
 
 @admin_bp.route("/pedidos/<int:order_id>/etiqueta")
@@ -794,6 +810,8 @@ def store():
                 if not chosen:
                     raise FormError("Marque pelo menos uma forma de pagamento.")
                 tenant.accepted_payments = ",".join(dict.fromkeys(chosen))
+            if "pix_key_type" in form:
+                _save_pix(tenant, form)
             if "notices" in form:
                 lines = [" ".join(line.split())[:200] for line in form["notices"].splitlines() if line.strip()]
                 tenant.notices = "\n".join(lines[:10])
@@ -828,4 +846,23 @@ def store():
         "admin/store.html", days=days, status=status, payment_options=PAYMENT_OPTIONS, label_sizes=LABEL_NAMES,
         label_size=f"{tenant.label_width_mm}x{tenant.label_height_mm}",
         payments=payments, other_payments=", ".join(p for p in payments if p not in PAYMENT_OPTIONS),
+        pix_types=PIX_KEY_TYPES,
     )
+
+
+def _save_pix(tenant, form):
+    """Chave Pix do QR Code do site. Chave em branco desliga o Pix pelo site."""
+    text = form.get("pix_key", "").strip()
+    if not text:
+        tenant.pix_key = tenant.pix_key_type = tenant.pix_name = tenant.pix_city = None
+        return
+    try:
+        tenant.pix_key = normalize_pix_key(form.get("pix_key_type"), text)
+    except PixKeyError as e:
+        raise FormError(str(e)) from None
+    tenant.pix_key_type = form.get("pix_key_type")
+    tenant.pix_name = " ".join(form.get("pix_name", "").split())[:25] or None
+    city = " ".join(form.get("pix_city", "").split())[:15]
+    if not city:
+        raise FormError("Pix: informe a cidade da loja (ex.: Itu).")
+    tenant.pix_city = city

@@ -98,6 +98,7 @@ def place_order(tenant, p, channel="site"):
         "change_for": _change_for(p.get("change_for")),
         "withdraw": withdraw,
         "eta": local_time(eta_at).strftime("%H:%M"),
+        "from_site": from_site,
     }
 
     customer = upsert_customer(tenant, key, info) if key else None

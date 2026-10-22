@@ -9,3 +9,4 @@ gunicorn==22.0.0
 Pillow==12.3.0
 requests==2.32.3
 tzdata==2026.5
+qrcode==8.2
