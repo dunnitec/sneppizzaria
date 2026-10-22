@@ -3,6 +3,8 @@
 {% block help %}
 <ul>
   <li>Quem faz um pedido entra aqui sozinho, pelo telefone. Não precisa cadastrar ninguém.</li>
+  <li><b>Cadastro no site</b> é quando o próprio cliente cria uma senha no site para ver os pedidos e participar da fidelidade (aba Fidelidade).</li>
+  <li>Cliente esqueceu a senha? Toque em <b>Gerar senha nova</b> e mande a senha que aparecer pelo WhatsApp.</li>
   <li>Toque no telefone para abrir a conversa no WhatsApp.</li>
   <li>Se um cliente pedir para apagar os dados dele (LGPD), use <b>Apagar dados</b>.</li>
 </ul>
@@ -21,9 +23,11 @@
 {% set c = row.customer %}
 <article class="card customer">
   <div class="cust-head">
-    <b>{{ c.name }}</b>
+    <b>{{ c.name }}</b>{% if c.registered_at %} <span class="tag tag-reg">Cadastro no site</span>{% endif %}
     <a href="https://wa.me/55{{ c.phone_key }}" target="_blank" rel="noopener">{{ c.phone_key|phone }}</a>
   </div>
+  {% set lc = loyalty_card(c) %}
+  {% if lc %}<p class="cust-loyalty">Fidelidade: <b>{{ lc.filled }}/{{ lc.goal }}</b> selos{% if lc.rewards %} · <b class="gift">{{ lc.rewards }} pizza(s) grátis para usar</b>{% endif %}</p>{% endif %}
   {% if c.street %}<p class="addr">{{ c.street }}, {{ c.number }}{% if c.complement %} · {{ c.complement }}{% endif %} · {{ c.neighborhood }}</p>{% endif %}
   <div class="cust-stats">
     <span><b>{{ row.orders }}</b> pedido(s)</span>
@@ -35,6 +39,9 @@
         onsubmit="return confirm(this.dataset.msg)">
     {{ csrf() }}<button class="ghost small">Apagar dados (LGPD)</button>
   </form>
+  {% if c.registered_at %}<form method="post" action="{{ url_for('admin.customer_new_pin', customer_id=c.id) }}"
+        data-msg="Gerar uma senha nova para {{ c.name }}? A senha antiga deixa de funcionar." onsubmit="return confirm(this.dataset.msg)">
+    {{ csrf() }}<button class="ghost small">Gerar senha nova</button></form>{% endif %}
 </article>
 {% else %}
 <p class="card empty">{{ 'Nenhum cliente encontrado.' if q else 'Ainda não há clientes. Eles aparecem aqui depois do primeiro pedido.' }}</p>

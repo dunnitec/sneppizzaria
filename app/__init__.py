@@ -20,8 +20,9 @@ def create_app(config_class=Config):
     csrf.init_app(app)
 
     from app.cli import create_admin, import_photos, import_static_banners
-    from app.routes import admin_manage, dispatch, pos, promos  # noqa: F401  (rotas extras do painel, mesmo blueprint)
+    from app.routes import admin_manage, dispatch, loyalty_admin, pos, promos  # noqa: F401  (rotas extras do painel, mesmo blueprint)
     from app.routes.admin import admin_bp
+    from app.routes.account import account_bp
     from app.routes.orders import orders_bp
     from app.routes.public import public_bp, static_url
     from app.services.customers import format_phone, phone_key
@@ -31,9 +32,11 @@ def create_app(config_class=Config):
 
     app.register_blueprint(public_bp)
     app.register_blueprint(orders_bp)
+    app.register_blueprint(account_bp)
     app.register_blueprint(admin_bp)
     # o pedido é uma API pública em JSON, sem sessão para proteger; o painel segue protegido
     csrf.exempt(orders_bp)
+    csrf.exempt(account_bp)  # JSON do site; ver _json_body em routes/account.py
 
     app.cli.add_command(create_admin)
     app.cli.add_command(import_photos)

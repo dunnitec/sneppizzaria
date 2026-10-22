@@ -256,7 +256,8 @@ footer .st.open{color:var(--ok)}
   .brand-slogan::before,.brand-slogan::after{content:"";flex:1;height:3px;background:var(--red);min-width:16px;margin:0 14px 0 8px}
   .brand-slogan::after{margin:0 8px 0 14px}
   .brand-slogan b{margin-left:.5em;color:var(--red);font-weight:800}
-  .hero-wa{position:absolute;top:10px;right:0;width:40px;height:40px;padding:0;justify-content:center;border-radius:50%;
+  .hero-actions{position:absolute;top:10px;right:0}
+  .hero-wa{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%;
     background:rgba(20,120,50,.55);border:2px solid #25d366}
   .hero-wa svg{width:21px;height:21px;color:#fff}
   .hero-wa span{display:none}
@@ -303,3 +304,52 @@ footer .st.open{color:var(--ok)}
 .pix-qr{display:block;width:210px;height:210px;margin:10px auto;background:#fff;border-radius:12px;padding:6px}
 .pix-code{width:100%;resize:none;font:12px/1.35 ui-monospace,Consolas,monospace;color:#cfe;background:#081211;border:1px solid #2a4a47;border-radius:10px;padding:8px;word-break:break-all}
 .pix-copy{width:100%;margin-top:8px;background:linear-gradient(180deg,#36c9b8,#1f9c8d)!important;color:#03201c!important}
+
+/* ---------- conta do cliente, fidelidade e 1º pedido ---------- */
+.hero-actions{display:flex;align-items:center;gap:8px}
+.hero-acc{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:99px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;backdrop-filter:blur(6px)}
+.hero-acc svg{width:18px;height:18px}
+@media (max-width:700px){
+  .hero-acc{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%;background:rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.8)}
+  .hero-acc span{display:none}
+}
+.acc-card{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 16px;padding:14px 16px;border-radius:var(--radius);border:1px solid rgba(255,184,0,.45);background:linear-gradient(160deg,#241a08,#161618 65%);cursor:pointer}
+.acc-card.invite{cursor:default}
+.acc-card .ic{font-size:30px}
+.acc-txt{flex:1;min-width:180px}
+.acc-txt b{display:block;font:900 16px var(--display)}
+.acc-txt small{color:#e9d9b0;font-size:13px}
+.acc-card .btn-red{flex:none}
+.stamps{display:flex;flex-wrap:wrap;gap:6px}
+.stamps span{width:32px;height:32px;border-radius:50%;border:2px dashed #555;display:flex;align-items:center;justify-content:center;font-size:12px;color:#888;font-weight:700}
+.stamps span.on{border:2px solid var(--red);background:rgba(227,20,27,.18);font-size:15px}
+.stamps span.gift{border:2px solid #f2a900;background:rgba(242,169,0,.18);font-size:15px}
+.perks{padding:10px 12px;border-radius:12px;background:rgba(242,169,0,.12);border:1px solid rgba(242,169,0,.45);color:#ffe7a8;font-size:14px;line-height:1.5;margin-bottom:6px}
+.acc-err{color:#ff7a7a;font-weight:700;min-height:1em;margin:6px 0 0}
+.acc-switch{font-size:14px;color:var(--muted)}
+.acc-switch a,.acc-line a{color:#ffd77a;font-weight:700}
+.md .body.acc{padding:14px 18px}
+.md .body.acc h3{font:900 17px var(--display);margin:16px 0 8px}
+.loyal{padding:12px;border-radius:12px;background:#1d1a12;border:1px solid rgba(242,169,0,.35)}
+.loyal b{display:block}
+.loyal small{display:block;color:var(--muted);margin:2px 0 8px}
+.loyal .gift{margin:10px 0 0;color:#ffd77a;font-weight:700}
+.hist{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.hist small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.hist .hr{display:flex;flex-direction:column;align-items:flex-end;gap:3px;white-space:nowrap}
+.hist .hr a{color:#ffd77a;font-size:13px;font-weight:700}
+.hist .st{font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;background:#2a2a2e}
+.hist .st-entregue{background:#173b24;color:#7ee2a2}
+.hist .st-cancelado{background:#3b1717;color:#ff8f8f}
+.empty-h{color:var(--muted)}
+.pinchg{margin-top:14px}
+.pinchg summary{cursor:pointer;color:var(--muted)}
+.pinchg form{display:grid;gap:8px;margin-top:8px}
+.acc-line{display:flex;flex-direction:column;gap:3px;padding:10px 12px;margin-bottom:8px;border-radius:12px;background:rgba(47,209,107,.1);border:1px solid rgba(47,209,107,.4);font-size:13.5px}
+.acc-line.invite{background:rgba(242,169,0,.1);border-color:rgba(242,169,0,.45);color:#ffe7a8}
+.acc-line .hint{color:var(--muted)}
+.use-reward{display:flex!important;align-items:center;gap:8px;margin-top:6px;font-weight:700;color:#ffd77a}
+.use-reward input{width:18px;height:18px;margin:0}
+.sum .disc{color:#ffd77a}
+.disc-ok{color:#ffd77a;font-weight:700}
+.btn-track{display:block;margin:10px 0;padding:12px;border-radius:12px;border:1.5px solid var(--line-strong);color:#fff;font-weight:800;text-align:center}

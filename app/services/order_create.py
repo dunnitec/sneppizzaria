@@ -7,7 +7,12 @@ por canal ficam todas neste arquivo:
 - balcao / mesa: lançado por quem atende; nome e telefone opcionais (mesa exige o número);
   sem pedido mínimo e mesmo com o site fechado; entra "confirmado".
 - telefone: lançado por quem atende; nome e telefone obrigatórios; pode ser entrega; entra "confirmado".
+
+Descontos de cadastro (services/loyalty.py: 1º pedido e pizza grátis da fidelidade) só no site,
+para o cliente logado e com o telefone do pedido igual ao do cadastro.
 """
+
+import secrets
 
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
@@ -17,6 +22,7 @@ from app.models import CHANNELS, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.hours import is_open, local_time
+from app.services.loyalty import discounts
 from app.services.money import brl
 from app.services.pricing import OrderError, price_item
 from app.services.whatsapp import build_order_message
@@ -40,7 +46,7 @@ def _text(p, key, limit):
     return str(p.get(key) or "").strip()[:limit]
 
 
-def place_order(tenant, p, channel="site"):
+def place_order(tenant, p, channel="site", account=None):
     """Valida, precifica e grava o pedido. Devolve (order, cart). Levanta OrderError com mensagem para a tela."""
     if channel not in CHANNELS:
         raise OrderError("Origem do pedido inválida.")
@@ -77,7 +83,10 @@ def place_order(tenant, p, channel="site"):
     neighborhood = _text(p, "neighborhood", 120)
     fee, found = (Decimal("0"), True) if withdraw else calculate_fee(tenant.id, neighborhood)
     delivery_fee = fee if found else None
-    total = subtotal + (delivery_fee or Decimal("0"))
+    discount, discount_note, first_order, used_reward = Decimal("0"), "", False, False
+    if from_site and account and account.phone_key == key:
+        discount, discount_note, first_order, used_reward = discounts(tenant, account, cart, bool(p.get("use_reward")))
+    total = subtotal - discount + (delivery_fee or Decimal("0"))
 
     # previsão: entrega usa o tempo de entrega; retirada, balcão e mesa usam o tempo de retirada
     now = utcnow()
@@ -99,6 +108,8 @@ def place_order(tenant, p, channel="site"):
         "withdraw": withdraw,
         "eta": local_time(eta_at).strftime("%H:%M"),
         "from_site": from_site,
+        "discount": discount,
+        "discount_note": discount_note,
     }
 
     customer = upsert_customer(tenant, key, info) if key else None
@@ -122,8 +133,14 @@ def place_order(tenant, p, channel="site"):
         delivery=not withdraw,
         table_label=table or None,
         status="pendente" if from_site else "confirmado",
+        confirmed_at=None if from_site else now,
         created_at=now,
         eta_at=eta_at,
+        track_token=secrets.token_urlsafe(16),
+        discount=discount,
+        discount_note=discount_note or None,
+        first_order=first_order,
+        loyalty_reward=used_reward,
     )
     db.session.add(order)
     db.session.flush()  # gera o número do pedido usado na mensagem

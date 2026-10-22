@@ -204,7 +204,8 @@ function next(){
     const title=k.cat.kind==="metro"?`${k.cat.name}: ${F.flavors.map(f=>f.name).join(" + ")}`:(F.n>1?F.flavors.map(f=>`1/${F.n} ${f.name}`).join(" + "):F.flavors[0].name);
     // sel = o que foi escolhido (ids); é isso que o servidor usa para calcular o preço. O restante é só exibição.
     const sel={category_id:k.cat.id,variant:k.label,flavors:F.flavors.map(f=>f.id),border_id:F.border!=null?DATA.borders[F.border].id:null,addons:Object.entries(F.addons).map(([i,q])=>({id:DATA.addons[i].id,qty:q})),combo_choice:F.choice||null};
-    cart.push({sel,title,variant:k.label,border:F.border!=null?borderLabel(DATA.borders[F.border]):"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),extras:comboExtras(),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
+    const base=isCombo()?k.fixed:Math.max(...F.flavors.map(f=>f.price));
+    cart.push({sel,base,title,variant:k.label,border:F.border!=null?borderLabel(DATA.borders[F.border]):"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),extras:comboExtras(),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
     closeModal();renderCart();toast("Item adicionado à cesta.");return;
   }
   F.step++;renderStep();
@@ -246,8 +247,9 @@ function openCheckout(){
   const md=document.getElementById("md");
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Finalizar pedido</h2><p>${DATA.pix?"Pague pelo Pix aqui no site ou na entrega.":"Pagamento na entrega."} O pedido é enviado pelo WhatsApp.</p></div>
   <form class="body ck" id="ckf" onsubmit="return finish(event)">
+    ${ckAccount()}
     <label>Nome<input name="nome" required></label>
-    <label>Telefone / WhatsApp<input name="tel" type="tel" required></label>
+    <label>Telefone / WhatsApp<input name="tel" type="tel" required ${ACC?"readonly":""}></label>
     <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" id="ck-wd" style="width:18px;height:18px;margin:0" ${wd?"checked":""} onchange="document.getElementById('addr').style.display=this.checked?'none':'';totals()"> Retirar na loja</label>
     <div id="addr" style="${wd?"display:none":""}">
       <label>Rua<input name="rua"></label>
@@ -261,7 +263,7 @@ function openCheckout(){
     <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>
   </form>
   <div class="ft"><button class="bk" type="button" onclick="openCart()">‹ Voltar</button><button class="nx" type="submit" form="ckf" style="background:#25d366">Enviar pelo WhatsApp</button></div>`;
-  document.getElementById("ovl").classList.add("on");fillRemembered();totals();
+  document.getElementById("ovl").classList.add("on");fillRemembered();fillAccount();totals();
 }
 // nome, telefone e endereço ficam salvos só neste aparelho, para o próximo pedido ser mais rápido
 const REMEMBER_KEY="snep_cliente_"+DATA.tenant.slug;
@@ -293,23 +295,111 @@ function fee(){
   const b=document.getElementById("bairro").value; if(!b||b==="__outro__") return null;
   const n=DATA.neighborhoods.find(x=>x.name===b); return n?n.fee:null;
 }
-function totals(){const f=fee(),s=subtotal();document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div><div><span>Entrega</span><span>${f===null?"a confirmar":money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s+(f||0))}</span></div>`;}
+function totals(){const f=fee(),s=subtotal(),d=accDiscount();document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega</span><span>${f===null?"a confirmar":money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>`;}
 function finish(ev){
   ev.preventDefault();const f=ev.target,wd=document.getElementById("ck-wd").checked;
   if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
-    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,use_reward:!!(document.getElementById("use-reward")||{}).checked,
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
-      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
-      remember(payload);cart=[];renderCart();
+      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.discount?`<p class="disc-ok">Desconto de ${money(r.discount)} (${esc(r.discount_note)}) ✓</p>`:""}${r.track_url?`<a class="btn-track" href="${r.track_url}">Acompanhar pedido ›</a>`:""}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
+      remember(payload);cart=[];renderCart();accApi("").then(setAcc);
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
   return false;
 }
 renderCart();
+
+/* ---------- conta do cliente: cadastro pelo telefone, histórico, fidelidade e 1º pedido ---------- */
+let ACC=null, AFTER_LOGIN=null; // ACC = dados da conta logada (GET /api/conta)
+async function accApi(path,body){
+  try{
+    const r=await fetch(DATA.account_url+path,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
+    return await r.json();
+  }catch(e){return {ok:false,error:"Falha de conexão. Tente de novo."};}
+}
+function setAcc(j){
+  ACC=j&&j.logged?j:null;renderAccCard();
+  const l=document.getElementById("acc-label");if(l)l.textContent=ACC?ACC.name.split(" ")[0]:"Entrar";
+}
+function perks(){const p=[];if(DATA.first_order)p.push(DATA.first_order.text);if(DATA.loyalty)p.push(`a cada ${DATA.loyalty.goal} pizzas, ${DATA.loyalty.reward}`);return p;}
+function stampsHtml(l){let h='<div class="stamps">';for(let i=0;i<l.goal;i++)h+=`<span class="${i<l.filled?"on":""}">${i<l.filled?"🍕":i+1}</span>`;return h+'<span class="gift">🎁</span></div>';}
+function renderAccCard(){
+  const box=document.getElementById("acc-card");if(!box)return;
+  if(ACC&&ACC.loyalty){const l=ACC.loyalty;box.innerHTML=`<div class="acc-card" onclick="openAccount()" role="button" tabindex="0"><div class="acc-txt"><b>Seu cartão fidelidade</b><small>${l.filled} de ${l.goal} selos${l.rewards?` · 🎁 ${l.rewards} pizza grátis para usar`:` · a cada ${l.goal} pizzas, ${esc(l.reward_text)}`}</small></div>${stampsHtml(l)}</div>`;}
+  else if(!ACC&&perks().length){box.innerHTML=`<div class="acc-card invite"><span class="ic" aria-hidden="true">🎁</span><div class="acc-txt"><b>Crie seu cadastro e ganhe</b><small>${perks().map(esc).join(" · ")}</small></div><button class="btn-red" onclick="openAccount('cadastro')">Criar cadastro</button></div>`;}
+  else box.innerHTML="";
+}
+function openAccount(tab){
+  document.getElementById("md").innerHTML=ACC?accountView():authView(tab||"entrar");
+  document.getElementById("ovl").classList.add("on");
+}
+function authView(tab){
+  const reg=tab==="cadastro";
+  return `<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>${reg?"Criar cadastro":"Entrar"}</h2><p>Só com seu telefone e uma senha de 4 a 6 números.</p></div>
+  <form class="body ck" id="accf" onsubmit="return accSubmit(event,'${reg?"cadastro":"entrar"}')">
+    ${reg&&perks().length?`<div class="perks">🎁 ${perks().map(esc).join("<br>🍕 ")}</div>`:""}
+    ${reg?`<label>Nome<input name="name" required autocomplete="name"></label>`:""}
+    <label>Telefone / WhatsApp<input name="phone" type="tel" required autocomplete="tel"></label>
+    <label>${reg?"Crie uma senha (4 a 6 números)":"Senha"}<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required autocomplete="${reg?"new-password":"current-password"}"></label>
+    ${reg?`<label>Repita a senha<input name="pin2" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required autocomplete="new-password"></label>`:""}
+    <p class="acc-err" id="acc-err" role="alert"></p>
+    <p class="acc-switch">${reg?`Já tem cadastro? <a href="#" onclick="openAccount('entrar');return false">Entrar</a>`:`Ainda não tem? <a href="#" onclick="openAccount('cadastro');return false">Criar cadastro</a>`}</p>
+    ${reg?`<p class="privacy">Usamos seu nome e telefone só para os seus pedidos e a fidelidade.</p>`:`<p class="privacy">Esqueceu a senha? Peça uma nova para a pizzaria pelo WhatsApp.</p>`}
+  </form><div class="ft"><button class="bk" type="button" onclick="backFromLogin()">‹ Voltar</button><button class="nx" type="submit" form="accf">${reg?"Criar cadastro":"Entrar"}</button></div>`;
+}
+function backFromLogin(){const fn=AFTER_LOGIN;AFTER_LOGIN=null;if(fn)fn();else closeModal();}
+async function accSubmit(ev,mode){
+  ev.preventDefault();const f=ev.target,err=document.getElementById("acc-err");err.textContent="";
+  if(mode==="cadastro"&&f.pin.value!==f.pin2.value){err.textContent="As duas senhas não são iguais.";return false;}
+  const btn=document.querySelector(".md .ft .nx");btn.disabled=true;
+  const j=await accApi("/"+mode,mode==="cadastro"?{name:f.name.value,phone:f.phone.value,pin:f.pin.value}:{phone:f.phone.value,pin:f.pin.value});
+  btn.disabled=false;
+  if(!j.ok){err.textContent=j.error||"Não deu certo. Tente de novo.";return false;}
+  setAcc(j);toast(mode==="cadastro"?"Cadastro criado!":`Olá, ${ACC.name.split(" ")[0]}!`);
+  if(AFTER_LOGIN){const fn=AFTER_LOGIN;AFTER_LOGIN=null;fn();}else openAccount();
+  return false;
+}
+function accountView(){
+  const a=ACC,l=a.loyalty;
+  return `<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>Olá, ${esc(a.name.split(" ")[0])}!</h2><p>${esc(a.phone)}</p></div><div class="body acc">
+    ${a.first_order?`<div class="perks">🎉 Você tem <b>${esc(a.first_order)}</b>. Já sai no seu próximo pedido.</div>`:""}
+    ${l?`<div class="loyal"><b>Cartão fidelidade</b><small>${l.filled} de ${l.goal} selos · a cada ${l.goal} pizzas, ${esc(l.reward_text)}</small>${stampsHtml(l)}${l.rewards?`<p class="gift">🎁 Você tem ${l.rewards} pizza(s) grátis! Marque “usar minha pizza grátis” ao finalizar o pedido.</p>`:""}</div>`:""}
+    <h3>Meus pedidos</h3>
+    ${a.orders.length?a.orders.map(o=>`<div class="hist"><div class="hl"><b>#${o.id}</b> · ${esc(o.date)}<small>${o.items.map(esc).join(", ")}</small></div><div class="hr"><span class="st st-${esc(o.status_code)}">${esc(o.status)}</span><b>${money(o.total)}</b>${o.track_url?`<a href="${o.track_url}">Acompanhar ›</a>`:""}</div></div>`).join(""):`<p class="empty-h">Seus pedidos vão aparecer aqui.</p>`}
+    <details class="pinchg"><summary>Trocar senha</summary><form onsubmit="return pinChange(event)"><label>Senha atual<input name="pin" type="password" inputmode="numeric" maxlength="6" required></label><label>Senha nova (4 a 6 números)<input name="new_pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required></label><button class="btn-red">Trocar senha</button></form></details>
+  </div><div class="ft"><button class="bk" onclick="accLogout()">Sair</button><button class="nx" onclick="closeModal()">Ver cardápio</button></div>`;
+}
+async function pinChange(ev){ev.preventDefault();const f=ev.target;const j=await accApi("/senha",{pin:f.pin.value,new_pin:f.new_pin.value});if(!j.ok){toast(j.error);return false;}setAcc(j);toast("Senha trocada.");openAccount();return false;}
+async function accLogout(){await accApi("/sair",{});setAcc(null);closeModal();toast("Você saiu da sua conta.");}
+// checkout: quem está logado vê os benefícios; quem não está, o convite
+function rewardItems(){const L=DATA.loyalty;if(!L)return [];return cart.filter(i=>i.sel.category_id===L.category_id&&(!L.size||i.variant===L.size));}
+function ckAccount(){
+  if(ACC){
+    const l=ACC.loyalty, canUse=l&&l.rewards>0&&rewardItems().length;
+    return `<div class="acc-line"><b>✓ Pedido no cadastro de ${esc(ACC.name.split(" ")[0])}</b>${ACC.first_order?`<span>🎉 ${esc(ACC.first_order)}</span>`:""}${l?`<span>Fidelidade: ${l.filled}/${l.goal} selos${l.rewards?` · 🎁 ${l.rewards} pizza grátis`:""}</span>`:""}
+      ${canUse?`<label class="use-reward"><input type="checkbox" id="use-reward" onchange="totals()" checked> Usar minha pizza grátis neste pedido</label>`:l&&l.rewards?`<span class="hint">Para usar a pizza grátis, ponha na cesta: ${esc(l.reward_text.replace(/^1 /,"").replace(/ grátis$/,""))}.</span>`:""}</div>`;
+  }
+  return perks().length?`<div class="acc-line invite"><span>🎁 Com cadastro você ganha: ${perks().map(esc).join(" · ")}</span><span class="acc-links"><a href="#" onclick="AFTER_LOGIN=openCheckout;openAccount('cadastro');return false">Criar cadastro</a> · <a href="#" onclick="AFTER_LOGIN=openCheckout;openAccount('entrar');return false">Entrar</a></span></div>`:"";
+}
+function fillAccount(){
+  if(!ACC)return;const f=document.getElementById("ckf");
+  f.nome.value=f.nome.value||ACC.name;f.tel.value=ACC.phone;
+  const a=ACC.address||{};["rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&a[k])el.value=a[k];});
+  const b=document.getElementById("bairro");if(a.bairro&&!b.value&&[...b.options].some(o=>o.value===a.bairro))b.value=a.bairro;
+}
+function accDiscount(){
+  if(!ACC)return {value:0,note:""};
+  let v=0;const notes=[];const s=subtotal();
+  const use=document.getElementById("use-reward");
+  if(use&&use.checked){const items=rewardItems();if(items.length){v+=Math.max(...items.map(i=>i.base||0));notes.push("pizza grátis");}}
+  if(ACC.first_order&&DATA.first_order){const rest=s-v;const off=DATA.first_order.type==="percent"?Math.round(rest*DATA.first_order.value)/100:Math.min(rest,DATA.first_order.value);if(off>0){v+=off;notes.push("1º pedido");}}
+  return {value:Math.min(v,s),note:notes.join(" + ")};
+}
+accApi("").then(setAcc);
 function openPromos(){
   const md=document.getElementById("md");
   md.innerHTML=`<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>🏷 Promoções de hoje</h2></div><div class="body promos">`+

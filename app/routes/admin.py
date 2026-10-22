@@ -287,6 +287,8 @@ def order_status(order_id):
     if status not in ORDER_STATUSES:
         abort(400)
     order.status = status
+    if status == "confirmado" and not order.confirmed_at:
+        order.confirmed_at = utcnow()
     if status == "entregue" and not order.delivered_at:
         order.delivered_at = utcnow()
     db.session.commit()
@@ -570,7 +572,9 @@ def customer_rows(tenant_id, q=""):
 def customers():
     q = request.args.get("q", "")
     rows = customer_rows(g.tenant.id, q)
-    return render_template("admin/customers.html", rows=rows[:300], total=len(rows), q=q)
+    from app.routes.loyalty_admin import loyalty_card
+
+    return render_template("admin/customers.html", rows=rows[:300], total=len(rows), q=q, loyalty_card=loyalty_card)
 
 
 @admin_bp.route("/clientes/<int:customer_id>/apagar", methods=["POST"])

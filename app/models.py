@@ -89,6 +89,16 @@ class Tenant(db.Model):
     pix_key_type = db.Column(db.String(10))  # email | celular | cpf | aleatoria
     pix_name = db.Column(db.String(25))  # nome no código Pix (o app do banco mostra o titular da conta)
     pix_city = db.Column(db.String(15))
+    # fidelidade (services/loyalty.py): a cada loyalty_goal pizzas, 1 grátis; só para quem tem cadastro
+    loyalty_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    loyalty_goal = db.Column(db.Integer, nullable=False, default=8, server_default="8")
+    loyalty_kinds = db.Column(db.String(40), nullable=False, default="pizza,doce", server_default="pizza,doce")  # o que conta selo
+    loyalty_reward_category_id = db.Column(db.Integer)  # categoria da pizza grátis (sem FK: evita ciclo tenants <-> categories)
+    loyalty_reward_size = db.Column(db.String(60))  # tamanho da pizza grátis; vazio = qualquer
+    # desconto no 1º pedido de quem se cadastra
+    first_order_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    first_order_type = db.Column(db.String(10), nullable=False, default="percent", server_default="percent")  # percent | amount
+    first_order_value = db.Column(db.Numeric(8, 2), nullable=False, default=10, server_default="10")
     # impressora de etiquetas (Zebra): tamanho da etiqueta e se imprime sozinho ao confirmar
     label_width_mm = db.Column(db.Integer, nullable=False, default=100, server_default="100")
     label_height_mm = db.Column(db.Integer, nullable=False, default=150, server_default="150")
@@ -243,6 +253,17 @@ class Customer(db.Model):
     reference = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow)
+    # cadastro feito pelo próprio cliente no site (telefone + senha de números); sem isso, não entra na fidelidade
+    pin_hash = db.Column(db.String(255))
+    registered_at = db.Column(db.DateTime)
+    failed_attempts = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    locked_until = db.Column(db.DateTime)
+
+    def set_pin(self, pin):
+        self.pin_hash = generate_password_hash(pin)
+
+    def check_pin(self, pin):
+        return bool(self.pin_hash) and check_password_hash(self.pin_hash, pin)
 
 
 class Order(db.Model):
@@ -277,6 +298,12 @@ class Order(db.Model):
     printed_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime)
     pix_paid_at = db.Column(db.DateTime)  # dono confirmou que o Pix caiu na conta
+    confirmed_at = db.Column(db.DateTime)  # quando a loja confirmou (acompanhamento do pedido)
+    track_token = db.Column(db.String(32), unique=True, index=True)  # link de acompanhamento para o cliente
+    discount = db.Column(db.Numeric(8, 2), nullable=False, default=0, server_default="0")  # 1º pedido + fidelidade
+    discount_note = db.Column(db.String(160))  # ex.: "1º pedido (10%) · Pizza grátis da fidelidade"
+    first_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    loyalty_reward = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # usou a pizza grátis
     eta_at = db.Column(db.DateTime)  # previsão de chegada (entrega) ou de ficar pronto (retirada), em UTC
 
     created_at = db.Column(db.DateTime, default=utcnow, index=True)

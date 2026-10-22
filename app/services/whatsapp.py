@@ -33,6 +33,8 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
         "",
         f"Subtotal: {brl(subtotal)}",
     ]
+    if order.get("discount"):
+        lines.append(f"Desconto ({order['discount_note']}): -{brl(order['discount'])}")
     if order.get("withdraw"):
         lines.append("Retirada na loja")
         lines.append(f"*Total: {brl(total)}*")

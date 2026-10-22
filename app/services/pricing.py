@@ -148,6 +148,7 @@ def price_item(tenant, raw):
     if len(flavors) > max_flavors:
         raise OrderError(f"Este tamanho aceita no máximo {max_flavors} sabor(es).")
 
+    base_price = price  # sabor/tamanho já com promoção, sem borda e adicionais (prêmio da fidelidade)
     border = _border(tenant, raw)
     if border and not border.allowed_for(category.slug, label):
         raise OrderError(f"A borda {border.group_name} não está disponível para {label}. Escolha outra borda.")
@@ -167,7 +168,9 @@ def price_item(tenant, raw):
         "extras": ", ".join(extras)[:255],
         "promo_name": " + ".join(dict.fromkeys(applied))[:120],
         "kind": category.kind,
+        "category_id": category.id,
         "category_name": category.name,
+        "base_price": base_price,
         # combo: cada sabor é 1/n da pizza; meio a meio: 1/n de cada
         "flavors": [(p, Decimal(1) / len(flavors)) for p in flavors],
         "notes": str(raw.get("notes") or "").strip()[:255],

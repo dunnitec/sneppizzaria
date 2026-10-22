@@ -3,7 +3,7 @@
 A validação, os preços e a gravação ficam em app/services/order_create.py (mesma regra do painel).
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, url_for
 
 from app.routes.public import get_tenant_or_404
 from app.services.hours import local_time
@@ -19,7 +19,10 @@ orders_bp = Blueprint("orders", __name__)
 def create_order(slug):
     tenant = get_tenant_or_404(slug)
     try:
-        order, delivery_fee = place_order(tenant, request.get_json(silent=True) or {}, channel="site")
+        from app.routes.account import current_customer
+
+        order, delivery_fee = place_order(tenant, request.get_json(silent=True) or {}, channel="site",
+                                          account=current_customer(tenant))
     except OrderError as e:
         return jsonify(ok=False, error=str(e)), 400
     # Pix com o valor exato; com a taxa de entrega “a confirmar” o total ainda não é o final
@@ -34,5 +37,8 @@ def create_order(slug):
         eta=local_time(order.eta_at).strftime("%H:%M"),
         eta_label="Previsão de entrega" if order.delivery else "Pronto para retirar",
         pix=pix,
+        discount=float(order.discount),
+        discount_note=order.discount_note or "",
+        track_url=url_for("account.track", slug=slug, token=order.track_token),
         pix_pending=order.payment_method == "Pix" and bool(tenant.pix_key) and pix is None,
     )
