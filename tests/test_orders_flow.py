@@ -132,7 +132,7 @@ def test_printer_settings_in_store_page(panel, tenant):
 
 # ---------- impressora de cupom (bobina contínua, ex.: Bematech MP-4200 HS) ----------
 
-def test_receipt_roll_80mm_has_no_fixed_page_height(panel, tenant, client, open_store):
+def test_receipt_roll_80mm_page_follows_the_receipt_height(panel, tenant, client, open_store):
     from tests.test_admin import store_form
 
     panel.post("/snep/admin/loja", data=store_form(tenant, label_size="80x0", auto_print="on", status="open"))
@@ -140,8 +140,9 @@ def test_receipt_roll_80mm_has_no_fixed_page_height(panel, tenant, client, open_
     assert (tenant.label_width_mm, tenant.label_height_mm) == (80, 0)
     o = site_order(client, withdraw=False)
     html = panel.get(f"/snep/admin/pedidos/{o.id}/etiqueta").get_data(as_text=True)
-    assert "size: 80mm" not in html and "margin: 0" in html
-    assert "width: 72mm" in html  # área útil da bobina de 80 mm
+    # sem altura fixa no CSS: o script mede o cupom e põe a página do tamanho dele (sai numa página só)
+    assert "@page { margin: 0; }" in html and '"@page { size: 80mm " + mm + "mm; margin: 0; }"' in html
+    assert "width: 66mm" in html  # folga na bobina de 80 mm: a borda direita saía cortada
     assert "Rua A, 10" in html
 
 
