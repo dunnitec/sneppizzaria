@@ -2,71 +2,104 @@
 {% block title %}Fidelidade{% endblock %}
 {% block help %}
 <ul>
-  <li><b>Cartão fidelidade</b>: cada pizza vale 1 selo. Ao completar o cartão (ex.: 8 pizzas), o cliente ganha a pizza que você escolher aqui. No pedido seguinte ele marca “usar minha pizza grátis” e o site desconta sozinho.</li>
-  <li><b>Desconto no 1º pedido</b>: vale para quem cria o cadastro no site e ainda nunca pediu com aquele telefone.</li>
-  <li>Os dois só valem para quem tem <b>cadastro no site</b> (telefone + senha de números). Contam os pedidos <b>confirmados</b> depois do cadastro, inclusive os que você lança por telefone com o mesmo número.</li>
-  <li>Pedido cancelado não conta selo e devolve a pizza grátis.</li>
-  <li>Cliente esqueceu a senha? Em <b>Clientes</b>, toque em <b>Gerar senha nova</b> e mande pelo WhatsApp.</li>
+  <li>Você pode ter <b>vários cartões fidelidade</b>. Ex.: <b>Promocional</b> (a cada 10 promocionais, 1 promocional grátis) e <b>Premium</b> (Premium e Doces somam selos; a cada 10, 1 premium grátis).</li>
+  <li><b>Valem selo</b>: cada pizza dessas categorias vale 1 selo nesse cartão. Uma categoria só pode valer em um cartão.</li>
+  <li><b>Prêmio</b>: marque os sabores que o cliente pode escolher na pizza grátis. No site esses sabores aparecem com “🎁 vale no seu prêmio”.</li>
+  <li>Os cartões só valem para quem tem <b>cadastro no site</b>. Contam os pedidos <b>confirmados</b> depois do cadastro, inclusive os lançados por telefone com o mesmo número. Pedido cancelado não conta e devolve o prêmio.</li>
+  <li>Cliente esqueceu a senha? Em <b>Clientes</b>, toque em <b>Gerar senha nova</b>.</li>
 </ul>
 {% endblock %}
+{% macro program_form(p, action, title) %}
+{% set counted = p.counted() if p else [] %}
+{% set cur = (p.reward_category_id if p and p.reward_category_id else (cats|selectattr('kind', 'ne', 'metro')|map(attribute='id')|first)) %}
+{% set chosen = p.reward_products() if p else [] %}
+<form method="post" action="{{ action }}" class="program-form" data-track>
+  {{ csrf() }}
+  <div class="row">
+    <label class="grow2">Nome do cartão<input name="name" maxlength="40" required value="{{ p.name if p else '' }}" placeholder="Ex.: Promocional"></label>
+    <label class="money">A cada quantas pizzas<input name="goal" type="number" min="2" max="{{ max_goal }}" value="{{ p.goal if p else 10 }}"></label>
+  </div>
+  <label class="check big-check"><input type="checkbox" name="active" {{ 'checked' if (p.active if p else true) }}> Cartão ligado (aparece no site)</label>
+  <fieldset class="where"><legend>Valem selo neste cartão</legend>
+    <div class="where-row">{% for c in cats %}<label class="check"><input type="checkbox" name="counted" value="{{ c.id }}" {{ 'checked' if c.id in counted }}> {{ c.name }}</label>{% endfor %}</div>
+  </fieldset>
+  <div class="row">
+    <label class="grow">O cliente ganha<select name="reward_category" class="reward-cat">
+      {% for c in cats if c.kind != 'metro' %}<option value="{{ c.id }}" {{ 'selected' if c.id == cur }}>1 pizza de {{ c.name }}</option>{% endfor %}
+    </select></label>
+    {% for c in cats if c.kind != 'metro' %}{% set sizes = c.sizes() %}
+    <label class="grow reward-size" data-cat="{{ c.id }}" {{ 'hidden' if c.id != cur }}>Tamanho
+      <select name="reward_size-{{ c.id }}" {{ 'disabled' if c.id != cur }}>
+        {% if sizes|length > 1 %}<option value="">Qualquer tamanho</option>{% endif %}
+        {% for s in sizes %}<option {{ 'selected' if p and s.label == p.reward_size and c.id == cur }}>{{ s.label }}</option>{% endfor %}
+      </select></label>
+    {% endfor %}
+  </div>
+  {% for c in cats if c.kind != 'metro' %}
+  <fieldset class="where reward-flavors" data-cat="{{ c.id }}" {{ 'hidden' if c.id != cur }}>
+    <legend>Sabores que o cliente pode escolher no prêmio</legend>
+    <p class="flavor-tools"><button type="button" class="ghost small" data-all="1">Marcar todos</button> <button type="button" class="ghost small" data-all="0">Desmarcar todos</button></p>
+    <div class="promo-flavors">{% for prod in c.products|sort(attribute='name') %}<label class="chip"><input type="checkbox" name="flavors-{{ c.id }}" value="{{ prod.id }}" {{ 'checked' if c.id == cur and prod.id in chosen }} {{ 'disabled' if c.id != cur }}> {{ prod.name }}</label>{% endfor %}</div>
+  </fieldset>
+  {% endfor %}
+  <div class="promo-actions"><button class="primary">{{ title }}</button></div>
+</form>
+{% endmacro %}
 {% block content %}
 <h1>Fidelidade e 1º pedido</h1>
-<p class="hint">{{ registered }} cliente(s) com cadastro no site. Veja quem são e os selos de cada um em <a href="{{ url_for('admin.customers') }}">Clientes</a>.</p>
-{% set cur_cat = tenant.loyalty_reward_category_id or (cats[0].id if cats else 0) %}
-<form method="post" id="loyalty-form" data-track>
-  {{ csrf() }}
-  <section class="card">
-    <h2>Cartão fidelidade</h2>
-    <label class="check big-check"><input type="checkbox" name="loyalty_enabled" {{ 'checked' if tenant.loyalty_enabled }}> Ligar o cartão fidelidade no site</label>
-    <div class="row">
-      <label class="money">A cada quantas pizzas<input name="loyalty_goal" type="number" min="2" max="30" value="{{ tenant.loyalty_goal or 8 }}" id="goal"></label>
-      <label class="grow">O cliente ganha<select name="reward_category" id="reward-cat">
-        {% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if c.id == cur_cat }}>1 pizza de {{ c.name }}</option>{% endfor %}
-      </select></label>
-      {% for c in cats %}{% set sizes = c.sizes() %}
-      <label class="grow reward-size" data-cat="{{ c.id }}" {{ 'hidden' if c.id != cur_cat }}>Tamanho
-        <select name="reward_size-{{ c.id }}" {{ 'disabled' if c.id != cur_cat }}>
-          {% if sizes|length > 1 %}<option value="">Qualquer tamanho</option>{% endif %}
-          {% for s in sizes %}<option {{ 'selected' if s.label == tenant.loyalty_reward_size and c.id == cur_cat }}>{{ s.label }}</option>{% endfor %}
-        </select></label>
-      {% endfor %}
-    </div>
-    <fieldset class="where"><legend>O que conta selo</legend>
-      <div class="where-row">{% for k, label in kinds.items() %}<label class="check"><input type="checkbox" name="kinds" value="{{ k }}" {{ 'checked' if k in (tenant.loyalty_kinds or '').split(',') }}> {{ label }}</label>{% endfor %}</div>
-    </fieldset>
-    <p class="hint">A pizza grátis sai pelo preço do sabor e tamanho escolhidos; borda e adicionais continuam pagos. Se o cliente pedir várias pizzas dessa categoria, a mais cara sai de graça.</p>
-    <div class="stamp-preview" aria-hidden="true">
-      <p><b>Como o cliente vê:</b> cartão com <span id="goal-txt">{{ tenant.loyalty_goal or 8 }}</span> selos e “{{ reward }}”.</p>
-      <div class="stamps" id="stamps"></div>
-    </div>
-    {% if tenant.loyalty_enabled and not active %}<p class="flash error">O cartão está ligado, mas falta escolher a pizza do prêmio ou o que conta selo.</p>{% endif %}
-  </section>
+<p class="hint">{{ registered }} cliente(s) com cadastro no site. Veja os selos de cada um em <a href="{{ url_for('admin.customers') }}">Clientes</a>.</p>
 
-  <section class="card">
-    <h2>Desconto no 1º pedido</h2>
+{% for r in rows %}
+{% set p = r.p %}
+<section class="card promo {{ 'st-no_ar' if r.ready else 'st-pausada' }}">
+  <div class="promo-head">
+    <div><h2>Cartão {{ p.name }}</h2>
+      <p class="promo-text">A cada {{ p.goal }} pizzas, {{ r.reward }}{% if r.flavors %} · sabores: {{ r.flavors|join(', ') }}{% endif %}</p></div>
+    <span class="promo-status">{{ 'No site' if r.ready else 'Fora do site' }}</span>
+  </div>
+  {% if r.missing %}<p class="flash error">{{ r.missing }}</p>{% endif %}
+  <details class="program-edit" {{ 'open' if not r.ready }}><summary>Editar cartão</summary>
+    {{ program_form(p, url_for('admin.loyalty_program_save', program_id=p.id), 'Salvar cartão ' ~ p.name) }}
+    <form method="post" action="{{ url_for('admin.loyalty_program_delete', program_id=p.id) }}" data-msg="Excluir o cartão {{ p.name }}? Os selos deixam de aparecer para os clientes." onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}<button class="ghost small danger">Excluir cartão</button></form>
+  </details>
+</section>
+{% endfor %}
+
+<section class="card">
+  <details {{ 'open' if not rows }}><summary><b>+ Novo cartão fidelidade</b></summary>
+    {{ program_form(none, url_for('admin.loyalty_program_save'), 'Criar cartão') }}
+  </details>
+</section>
+
+<section class="card">
+  <h2>Desconto no 1º pedido</h2>
+  <form method="post" action="{{ url_for('admin.loyalty_first_order') }}" data-track>
+    {{ csrf() }}
     <label class="check big-check"><input type="checkbox" name="first_order_enabled" {{ 'checked' if tenant.first_order_enabled }}> Dar desconto no 1º pedido de quem se cadastrar</label>
     <div class="row">
       <label class="radio"><input type="radio" name="first_order_type" value="percent" {{ 'checked' if tenant.first_order_type != 'amount' }}> Porcentagem (%)</label>
       <label class="radio"><input type="radio" name="first_order_type" value="amount" {{ 'checked' if tenant.first_order_type == 'amount' }}> Valor fixo (R$)</label>
       <label class="money">Desconto<input name="first_order_value" inputmode="decimal" value="{{ '%g'|format(tenant.first_order_value|float) if tenant.first_order_type != 'amount' else tenant.first_order_value|money_input }}"></label>
     </div>
-    <p class="hint">Hoje: “{{ first_text }}”. O desconto vale sobre as pizzas e bebidas (a taxa de entrega continua). No site aparece um convite para o cliente se cadastrar e ganhar.</p>
-  </section>
-  <div class="savebar"><button class="primary big">Salvar</button></div>
-</form>
+    <p class="hint">Hoje: “{{ first_text }}”. Vale sobre as pizzas e bebidas (a taxa de entrega continua).</p>
+    <div class="promo-actions"><button class="primary">Salvar desconto do 1º pedido</button></div>
+  </form>
+</section>
 <script>
-(function () {
-  const sel = document.getElementById("reward-cat"), goal = document.getElementById("goal");
+document.querySelectorAll(".program-form").forEach((form) => {
+  const sel = form.querySelector(".reward-cat");
   function sync() {
-    document.querySelectorAll(".reward-size").forEach((el) => {
+    form.querySelectorAll(".reward-size, .reward-flavors").forEach((el) => {
       const on = el.dataset.cat === sel.value;
-      el.hidden = !on; el.querySelector("select").disabled = !on;
+      el.hidden = !on;
+      el.querySelectorAll("select, input").forEach((i) => { i.disabled = !on; });
     });
-    const n = Math.max(2, Math.min(30, Number(goal.value) || 8));
-    document.getElementById("goal-txt").textContent = n;
-    document.getElementById("stamps").innerHTML = Array.from({ length: n }, (_, i) => `<span class="${i < 3 ? "on" : ""}">${i < 3 ? "🍕" : i + 1}</span>`).join("") + '<span class="gift">🎁</span>';
   }
-  sel.addEventListener("change", sync); goal.addEventListener("input", sync); sync();
-})();
+  sel.addEventListener("change", sync);
+  form.querySelectorAll("[data-all]").forEach((b) => b.addEventListener("click", () => {
+    b.closest(".reward-flavors").querySelectorAll("input[type=checkbox]").forEach((i) => { i.checked = b.dataset.all === "1"; });
+  }));
+  sync();
+});
 </script>
 {% endblock %}

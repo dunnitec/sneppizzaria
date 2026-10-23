@@ -572,9 +572,9 @@ def customer_rows(tenant_id, q=""):
 def customers():
     q = request.args.get("q", "")
     rows = customer_rows(g.tenant.id, q)
-    from app.routes.loyalty_admin import loyalty_card
+    from app.routes.loyalty_admin import loyalty_cards
 
-    return render_template("admin/customers.html", rows=rows[:300], total=len(rows), q=q, loyalty_card=loyalty_card)
+    return render_template("admin/customers.html", rows=rows[:300], total=len(rows), q=q, loyalty_cards=loyalty_cards)
 
 
 @admin_bp.route("/clientes/<int:customer_id>/apagar", methods=["POST"])

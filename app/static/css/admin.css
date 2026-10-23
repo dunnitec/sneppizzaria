@@ -386,3 +386,6 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
 .tag-disc{background:#fff3dc;color:#8a5a00}
 .cust-loyalty{margin:4px 0;font-size:14px}
 .cust-loyalty .gift{color:#a64b00}
+.program-edit summary{cursor:pointer;color:var(--red-dark);font-weight:700;margin:6px 0}
+.program-form{margin-top:8px}
+.flavor-tools{margin:4px 0}

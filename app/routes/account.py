@@ -17,7 +17,7 @@ from app.models import CHANNELS, ORDER_STATUSES, Customer, Dispatch, Order, utcn
 from app.routes.public import get_tenant_or_404
 from app.services.customers import format_phone, phone_key
 from app.services.hours import local_time
-from app.services.loyalty import card, first_order_eligible, first_order_text, is_active
+from app.services.loyalty import cards, first_order_eligible, first_order_text
 from app.services.order_display import item_view
 from app.services.pix import for_order
 
@@ -95,7 +95,7 @@ def account_data(tenant, c):
         "name": c.name, "phone": format_phone(c.phone_key),
         "address": {"rua": c.street or "", "num": c.number or "", "comp": c.complement or "",
                     "bairro": c.neighborhood or "", "ref": c.reference or ""},
-        "loyalty": card(tenant, c) if is_active(tenant) else None,
+        "loyalty": cards(tenant, c),
         "first_order": first_order_text(tenant) if first_order_eligible(tenant, c) else None,
         "orders": [order_summary(o, tenant.slug) for o in orders],
     }

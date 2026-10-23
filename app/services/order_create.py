@@ -83,9 +83,10 @@ def place_order(tenant, p, channel="site", account=None):
     neighborhood = _text(p, "neighborhood", 120)
     fee, found = (Decimal("0"), True) if withdraw else calculate_fee(tenant.id, neighborhood)
     delivery_fee = fee if found else None
-    discount, discount_note, first_order, used_reward = Decimal("0"), "", False, False
+    discount, discount_note, first_order, used_programs = Decimal("0"), "", False, []
     if from_site and account and account.phone_key == key:
-        discount, discount_note, first_order, used_reward = discounts(tenant, account, cart, bool(p.get("use_reward")))
+        wanted = p.get("use_rewards") if isinstance(p.get("use_rewards"), list) else []
+        discount, discount_note, first_order, used_programs = discounts(tenant, account, cart, wanted)
     total = subtotal - discount + (delivery_fee or Decimal("0"))
 
     # previsão: entrega usa o tempo de entrega; retirada, balcão e mesa usam o tempo de retirada
@@ -140,7 +141,8 @@ def place_order(tenant, p, channel="site", account=None):
         discount=discount,
         discount_note=discount_note or None,
         first_order=first_order,
-        loyalty_reward=used_reward,
+        loyalty_reward=bool(used_programs),
+        loyalty_programs="," + ",".join(map(str, used_programs)) + "," if used_programs else None,
     )
     db.session.add(order)
     db.session.flush()  # gera o número do pedido usado na mensagem
@@ -154,6 +156,7 @@ def place_order(tenant, p, channel="site", account=None):
             extras=line["extras"] or None,
             kind=line["kind"],
             category_name=line["category_name"],
+            category_id=line["category_id"],
             notes=line["notes"] or None,
             promo_name=line["promo_name"] or None,
             unit_price=line["unit_price"],

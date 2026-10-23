@@ -364,6 +364,19 @@ footer .st.open{color:var(--ok)}
 .sum .disc{color:#ffd77a}
 .disc-ok{color:#ffd77a;font-weight:700}
 .btn-track{display:block;margin:10px 0;padding:12px;border-radius:12px;border:1.5px solid var(--line-strong);color:#fff;font-weight:800;text-align:center}
+
+/* ---------- vários cartões fidelidade: arrasta para o lado ---------- */
+.acc-slider{margin:0 0 16px}
+.acc-track{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.acc-track::-webkit-scrollbar{display:none}
+.acc-track .acc-card{flex:0 0 100%;scroll-snap-align:start;margin:0}
+.acc-dots{display:flex;justify-content:center;gap:6px;margin-top:8px}
+.acc-dots i{width:8px;height:8px;border-radius:50%;background:#444}
+.acc-dots i.on{background:#f2a900;width:20px;border-radius:99px}
+.acc-swipe{margin:4px 0 0;text-align:center;color:var(--muted);font-size:12px}
+.md .body.acc .acc-slider{margin-bottom:8px}
+.gift-note{margin:6px 0;padding:8px 10px;border-radius:10px;background:rgba(242,169,0,.12);color:#ffe7a8;font-size:13.5px}
+.gift-tag{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:99px;background:rgba(242,169,0,.2);color:#ffd77a;font:800 11px var(--display);font-style:normal;vertical-align:1px}
 </style>
 </head>
 <body>
@@ -600,7 +613,7 @@ function renderStep(){
   if(st.type==="flavor"){
     t=`Escolha o ${ordinal(st.i)} sabor.`;
     const cur=F.flavors[st.i];
-    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
+    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
   } else if(st.type==="choice"){
     const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
@@ -737,7 +750,7 @@ function finish(ev){
   ev.preventDefault();const f=ev.target,wd=document.getElementById("ck-wd").checked;
   if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
-    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,use_reward:!!(document.getElementById("use-reward")||{}).checked,
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,use_rewards:usedRewards(),
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
@@ -750,7 +763,7 @@ function finish(ev){
 }
 renderCart();
 
-/* ---------- conta do cliente: cadastro pelo telefone, histórico, fidelidade e 1º pedido ---------- */
+/* ---------- conta do cliente: cadastro pelo telefone, histórico, cartões fidelidade e 1º pedido ---------- */
 let ACC=null, AFTER_LOGIN=null; // ACC = dados da conta logada (GET /api/conta)
 async function accApi(path,body){
   try{
@@ -762,12 +775,21 @@ function setAcc(j){
   ACC=j&&j.logged?j:null;renderAccCard();
   const l=document.getElementById("acc-label");if(l)l.textContent=ACC?ACC.name.split(" ")[0]:"Entrar";
 }
-function perks(){const p=[];if(DATA.first_order)p.push(DATA.first_order.text);if(DATA.loyalty)p.push(`a cada ${DATA.loyalty.goal} pizzas, ${DATA.loyalty.reward}`);return p;}
+function perks(){const p=[];if(DATA.first_order)p.push(DATA.first_order.text);(DATA.loyalty||[]).forEach(x=>p.push(`Cartão ${x.name}: a cada ${x.goal} pizzas, ${x.reward}`));return p;}
 function stampsHtml(l){let h='<div class="stamps">';for(let i=0;i<l.goal;i++)h+=`<span class="${i<l.filled?"on":""}">${i<l.filled?"🍕":i+1}</span>`;return h+'<span class="gift">🎁</span></div>';}
+function cardHtml(l,click){
+  return `<div class="acc-card"${click?` onclick="openAccount()" role="button" tabindex="0"`:""}><div class="acc-txt"><b>Cartão ${esc(l.name)}</b>
+    <small>${l.filled} de ${l.goal} selos · você já comprou ${l.total_stamps} pizza${l.total_stamps===1?"":"s"} ${esc(l.name)}${l.rewards?` · 🎁 ${l.rewards} grátis para usar`:` · a cada ${l.goal}, ${esc(l.reward_text)}`}</small></div>${stampsHtml(l)}</div>`;
+}
+// cartões lado a lado: o cliente arrasta para ver cada um (Promocional, Premium...)
+function sliderHtml(cs,click){
+  return `<div class="acc-slider"><div class="acc-track" onscroll="slideDots(this)">${cs.map(l=>cardHtml(l,click)).join("")}</div>${cs.length>1?`<div class="acc-dots">${cs.map((_,i)=>`<i class="${i?"":"on"}"></i>`).join("")}</div><p class="acc-swipe">Arraste para o lado para ver o outro cartão ›</p>`:""}</div>`;
+}
+function slideDots(track){const i=Math.round(track.scrollLeft/track.clientWidth);track.parentElement.querySelectorAll(".acc-dots i").forEach((d,k)=>d.classList.toggle("on",k===i));}
 function renderAccCard(){
   const box=document.getElementById("acc-card");if(!box)return;
-  if(ACC&&ACC.loyalty){const l=ACC.loyalty;box.innerHTML=`<div class="acc-card" onclick="openAccount()" role="button" tabindex="0"><div class="acc-txt"><b>Seu cartão fidelidade</b><small>${l.filled} de ${l.goal} selos${l.rewards?` · 🎁 ${l.rewards} pizza grátis para usar`:` · a cada ${l.goal} pizzas, ${esc(l.reward_text)}`}</small></div>${stampsHtml(l)}</div>`;}
-  else if(!ACC&&perks().length){box.innerHTML=`<div class="acc-card invite"><span class="ic" aria-hidden="true">🎁</span><div class="acc-txt"><b>Crie seu cadastro e ganhe</b><small>${perks().map(esc).join(" · ")}</small></div><button class="btn-red" onclick="openAccount('cadastro')">Criar cadastro</button></div>`;}
+  if(ACC&&ACC.loyalty&&ACC.loyalty.length)box.innerHTML=sliderHtml(ACC.loyalty,true);
+  else if(!ACC&&perks().length)box.innerHTML=`<div class="acc-card invite"><span class="ic" aria-hidden="true">🎁</span><div class="acc-txt"><b>Crie seu cadastro e ganhe</b><small>${perks().map(esc).join("<br>")}</small></div><button class="btn-red" onclick="openAccount('cadastro')">Criar cadastro</button></div>`;
   else box.innerHTML="";
 }
 function openAccount(tab){
@@ -801,10 +823,10 @@ async function accSubmit(ev,mode){
   return false;
 }
 function accountView(){
-  const a=ACC,l=a.loyalty;
+  const a=ACC,cs=a.loyalty||[];
   return `<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>Olá, ${esc(a.name.split(" ")[0])}!</h2><p>${esc(a.phone)}</p></div><div class="body acc">
     ${a.first_order?`<div class="perks">🎉 Você tem <b>${esc(a.first_order)}</b>. Já sai no seu próximo pedido.</div>`:""}
-    ${l?`<div class="loyal"><b>Cartão fidelidade</b><small>${l.filled} de ${l.goal} selos · a cada ${l.goal} pizzas, ${esc(l.reward_text)}</small>${stampsHtml(l)}${l.rewards?`<p class="gift">🎁 Você tem ${l.rewards} pizza(s) grátis! Marque “usar minha pizza grátis” ao finalizar o pedido.</p>`:""}</div>`:""}
+    ${cs.length?`<h3>Cartões fidelidade</h3>${sliderHtml(cs,false)}${cs.filter(l=>l.rewards).map(l=>`<p class="gift-note">🎁 Você ganhou <b>${l.rewards>1?l.rewards+" × ":""}${esc(l.reward_text)}</b>. Sabores: ${l.flavors.map(esc).join(", ")}. Ponha na cesta e marque “usar” ao finalizar.</p>`).join("")}`:""}
     <h3>Meus pedidos</h3>
     ${a.orders.length?a.orders.map(o=>`<div class="hist"><div class="hl"><b>#${o.id}</b> · ${esc(o.date)}<small>${o.items.map(esc).join(", ")}</small></div><div class="hr"><span class="st st-${esc(o.status_code)}">${esc(o.status)}</span><b>${money(o.total)}</b>${o.track_url?`<a href="${o.track_url}">Acompanhar ›</a>`:""}</div></div>`).join(""):`<p class="empty-h">Seus pedidos vão aparecer aqui.</p>`}
     <details class="pinchg"><summary>Trocar senha</summary><form onsubmit="return pinChange(event)"><label>Senha atual<input name="pin" type="password" inputmode="numeric" maxlength="6" required></label><label>Senha nova (4 a 6 números)<input name="new_pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required></label><button class="btn-red">Trocar senha</button></form></details>
@@ -812,27 +834,35 @@ function accountView(){
 }
 async function pinChange(ev){ev.preventDefault();const f=ev.target;const j=await accApi("/senha",{pin:f.pin.value,new_pin:f.new_pin.value});if(!j.ok){toast(j.error);return false;}setAcc(j);toast("Senha trocada.");openAccount();return false;}
 async function accLogout(){await accApi("/sair",{});setAcc(null);closeModal();toast("Você saiu da sua conta.");}
-// checkout: quem está logado vê os benefícios; quem não está, o convite
-function rewardItems(){const L=DATA.loyalty;if(!L)return [];return cart.filter(i=>i.sel.category_id===L.category_id&&(!L.size||i.variant===L.size));}
+// prêmio: pizza da categoria/tamanho do cartão, só com sabores liberados pelo dono
+function rewardFits(l,catId,label,ids){return catId===l.category_id&&(!l.size||label===l.size)&&ids.every(id=>l.product_ids.includes(id));}
+function rewardItems(l){return cart.map((i,idx)=>({i,idx})).filter(({i})=>rewardFits(l,i.sel.category_id,i.variant,i.sel.flavors));}
+function rewardTag(card,pid){return !!(ACC&&(ACC.loyalty||[]).some(l=>l.rewards>0&&rewardFits(l,card.cat.id,card.label,[pid])));}
 function ckAccount(){
   if(ACC){
-    const l=ACC.loyalty, canUse=l&&l.rewards>0&&rewardItems().length;
-    return `<div class="acc-line"><b>✓ Pedido no cadastro de ${esc(ACC.name.split(" ")[0])}</b>${ACC.first_order?`<span>🎉 ${esc(ACC.first_order)}</span>`:""}${l?`<span>Fidelidade: ${l.filled}/${l.goal} selos${l.rewards?` · 🎁 ${l.rewards} pizza grátis`:""}</span>`:""}
-      ${canUse?`<label class="use-reward"><input type="checkbox" id="use-reward" onchange="totals()" checked> Usar minha pizza grátis neste pedido</label>`:l&&l.rewards?`<span class="hint">Para usar a pizza grátis, ponha na cesta: ${esc(l.reward_text.replace(/^1 /,"").replace(/ grátis$/,""))}.</span>`:""}</div>`;
+    const cs=(ACC.loyalty||[]).filter(l=>l.rewards>0);
+    return `<div class="acc-line"><b>✓ Pedido no cadastro de ${esc(ACC.name.split(" ")[0])}</b>${ACC.first_order?`<span>🎉 ${esc(ACC.first_order)}</span>`:""}
+      ${cs.map(l=>rewardItems(l).length?`<label class="use-reward"><input type="checkbox" class="use-reward-cb" data-id="${l.id}" onchange="totals()" checked> Usar ${esc(l.reward_text)}</label>`
+        :`<span class="hint">🎁 Você tem ${esc(l.reward_text)}: ponha na cesta 1 pizza ${esc(l.name)}${l.size?" "+esc(l.size):""} de um destes sabores: ${l.flavors.map(esc).join(", ")}.</span>`).join("")}</div>`;
   }
   return perks().length?`<div class="acc-line invite"><span>🎁 Com cadastro você ganha: ${perks().map(esc).join(" · ")}</span><span class="acc-links"><a href="#" onclick="AFTER_LOGIN=openCheckout;openAccount('cadastro');return false">Criar cadastro</a> · <a href="#" onclick="AFTER_LOGIN=openCheckout;openAccount('entrar');return false">Entrar</a></span></div>`:"";
 }
+function usedRewards(){return [...document.querySelectorAll(".use-reward-cb:checked")].map(c=>Number(c.dataset.id));}
 function fillAccount(){
   if(!ACC)return;const f=document.getElementById("ckf");
   f.nome.value=f.nome.value||ACC.name;f.tel.value=ACC.phone;
   const a=ACC.address||{};["rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&a[k])el.value=a[k];});
   const b=document.getElementById("bairro");if(a.bairro&&!b.value&&[...b.options].some(o=>o.value===a.bairro))b.value=a.bairro;
 }
+// mesma conta do servidor (services/loyalty.py), só para o cliente ver o total antes de enviar
 function accDiscount(){
   if(!ACC)return {value:0,note:""};
-  let v=0;const notes=[];const s=subtotal();
-  const use=document.getElementById("use-reward");
-  if(use&&use.checked){const items=rewardItems();if(items.length){v+=Math.max(...items.map(i=>i.base||0));notes.push("pizza grátis");}}
+  let v=0;const notes=[];const s=subtotal();const free={};
+  usedRewards().forEach(id=>{
+    const l=(ACC.loyalty||[]).find(x=>x.id===id);if(!l)return;
+    const opts=rewardItems(l).filter(({i,idx})=>(free[idx]||0)<i.qty);if(!opts.length)return;
+    const best=opts.reduce((a,b)=>(b.i.base||0)>(a.i.base||0)?b:a);free[best.idx]=(free[best.idx]||0)+1;v+=best.i.base||0;notes.push(`${l.name} grátis`);
+  });
   if(ACC.first_order&&DATA.first_order){const rest=s-v;const off=DATA.first_order.type==="percent"?Math.round(rest*DATA.first_order.value)/100:Math.min(rest,DATA.first_order.value);if(off>0){v+=off;notes.push("1º pedido");}}
   return {value:Math.min(v,s),note:notes.join(" + ")};
 }

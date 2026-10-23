@@ -89,7 +89,7 @@ class Tenant(db.Model):
     pix_key_type = db.Column(db.String(10))  # email | celular | cpf | aleatoria
     pix_name = db.Column(db.String(25))  # nome no código Pix (o app do banco mostra o titular da conta)
     pix_city = db.Column(db.String(15))
-    # fidelidade (services/loyalty.py): a cada loyalty_goal pizzas, 1 grátis; só para quem tem cadastro
+    # fidelidade antiga (um cartão só): substituída por LoyaltyProgram; ficam só para a migração de dados
     loyalty_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     loyalty_goal = db.Column(db.Integer, nullable=False, default=8, server_default="8")
     loyalty_kinds = db.Column(db.String(40), nullable=False, default="pizza,doce", server_default="pizza,doce")  # o que conta selo
@@ -303,7 +303,8 @@ class Order(db.Model):
     discount = db.Column(db.Numeric(8, 2), nullable=False, default=0, server_default="0")  # 1º pedido + fidelidade
     discount_note = db.Column(db.String(160))  # ex.: "1º pedido (10%) · Pizza grátis da fidelidade"
     first_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
-    loyalty_reward = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # usou a pizza grátis
+    loyalty_reward = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # usou pizza grátis
+    loyalty_programs = db.Column(db.String(80))  # cartões cujo prêmio foi usado, ex.: ",1,2," (busca com LIKE)
     eta_at = db.Column(db.DateTime)  # previsão de chegada (entrega) ou de ficar pronto (retirada), em UTC
 
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
@@ -316,6 +317,7 @@ class OrderItem(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False)
+    category_id = db.Column(db.Integer, index=True)  # categoria na hora da venda (selos da fidelidade); sem FK de propósito
 
     product_names = db.Column(db.String(255), nullable=False)  # "Calabresa Acebolada" ou "1/2 Toscana + 1/2 Bauru"
     variant_label = db.Column(db.String(30))
@@ -355,6 +357,32 @@ class Banner(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     image = db.Column(db.String(255), nullable=False)  # arquivo em UPLOAD_FOLDER
     sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+
+class LoyaltyProgram(db.Model):
+    """Cartão fidelidade (services/loyalty.py). Ex.: “Promocional”: a cada 10 pizzas das categorias
+    que contam, 1 pizza grátis da categoria do prêmio, só dos sabores que o dono liberou."""
+
+    __tablename__ = "loyalty_programs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id", name="fk_loyalty_programs_tenant_id"), nullable=False)
+    name = db.Column(db.String(40), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    goal = db.Column(db.Integer, nullable=False, default=10)
+    count_category_ids = db.Column(db.Text)  # JSON: categorias cujas pizzas valem selo
+    reward_category_id = db.Column(db.Integer, db.ForeignKey("categories.id", name="fk_loyalty_programs_reward_category"))
+    reward_size = db.Column(db.String(60))  # tamanho da pizza grátis; vazio = qualquer
+    reward_product_ids = db.Column(db.Text)  # JSON: sabores que podem ser escolhidos no prêmio
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    reward_category = db.relationship("Category")
+
+    def counted(self):
+        return json.loads(self.count_category_ids) if self.count_category_ids else []
+
+    def reward_products(self):
+        return json.loads(self.reward_product_ids) if self.reward_product_ids else []
 
 
 class Promotion(db.Model):

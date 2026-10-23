@@ -1,11 +1,12 @@
 """Cadastro do cliente (telefone + senha), fidelidade, desconto do 1º pedido e acompanhamento."""
+import json
 from decimal import Decimal
 from urllib.parse import unquote
 
 import pytest
 
 from app.extensions import db
-from app.models import Category, Customer, Order, Product
+from app.models import Category, Customer, LoyaltyProgram, Order, Product
 from app.services.loyalty import card
 from tests.test_admin import admin, login, make_admin, panel  # noqa: F401
 
@@ -166,62 +167,112 @@ def test_who_already_ordered_does_not_get_first_order(client, open_store):
     assert db.session.get(Order, order(client)["order_id"]).discount == 0
 
 
-# ---------- fidelidade ----------
+# ---------- fidelidade (cartões) ----------
 
-def enable_loyalty(tenant, goal=3):
-    cat = Category.query.filter_by(slug="promocionais").one()
-    tenant.loyalty_enabled, tenant.loyalty_goal, tenant.loyalty_kinds = True, goal, "pizza,doce"
-    tenant.loyalty_reward_category_id, tenant.loyalty_reward_size = cat.id, None
+def make_program(tenant, name="Promocional", goal=3, counted=("promocionais",), reward="promocionais", flavors=None, size=None):
+    cats = {c.slug: c for c in Category.query.filter_by(tenant_id=tenant.id)}
+    reward_cat = cats[reward]
+    ids = flavors if flavors is not None else [x.id for x in reward_cat.products]
+    p = LoyaltyProgram(tenant_id=tenant.id, name=name, active=True, goal=goal,
+                       count_category_ids=json.dumps([cats[s].id for s in counted]), reward_category_id=reward_cat.id,
+                       reward_size=size, reward_product_ids=json.dumps(ids))
+    db.session.add(p)
     db.session.commit()
+    return p
+
+
+def premium_item(name="Paulista", size="Inteira", qty=1):
+    p = Product.query.filter_by(name=name).one()
+    return {"category_id": p.category_id, "variant": size, "flavors": [p.id], "quantity": qty}
+
+
+def doce_item(qty=1):
+    cat = Category.query.filter_by(slug="doces").one()
+    p = cat.products[0]
+    return {"category_id": cat.id, "variant": "Inteira", "flavors": [p.id], "quantity": qty}
 
 
 def test_stamps_count_only_confirmed_pizzas_after_signup(client, open_store):
-    enable_loyalty(open_store)
+    prog = make_program(open_store)
     order(client, items=[promo_item(2)])  # antes do cadastro: não conta
     register(client)
     c = Customer.query.one()
     a = order(client, items=[promo_item(2)])["order_id"]
-    assert card(open_store, c)["total_stamps"] == 0  # pendente ainda não conta
+    assert card(prog, c)["total_stamps"] == 0  # pendente ainda não conta
     set_status(a, "confirmado")
-    assert card(open_store, c)["total_stamps"] == 2
-    b = order(client, items=[promo_item(1)])["order_id"]
-    set_status(b, "entregue")
-    lc = card(open_store, c)
+    assert card(prog, c)["total_stamps"] == 2
+    set_status(order(client, items=[promo_item(1)])["order_id"], "entregue")
+    lc = card(prog, c)
     assert (lc["filled"], lc["rewards"]) == (0, 1)
-    assert client.get("/snep/api/conta").get_json()["loyalty"]["rewards"] == 1
+    assert client.get("/snep/api/conta").get_json()["loyalty"][0]["rewards"] == 1
+
+
+def test_two_cards_count_separately_and_doces_join_premium(client, open_store):
+    promo = make_program(open_store, "Promocional", goal=10)
+    premium = make_program(open_store, "Premium", goal=10, counted=("premium", "doces"), reward="premium")
+    register(client)
+    o = order(client, items=[promo_item(3), premium_item(qty=2), doce_item(2)])["order_id"]
+    set_status(o, "confirmado")
+    c = Customer.query.one()
+    assert card(promo, c)["total_stamps"] == 3
+    assert card(premium, c)["total_stamps"] == 4  # 2 premium + 2 doces
+    names = [x["name"] for x in client.get("/snep/api/conta").get_json()["loyalty"]]
+    assert names == ["Promocional", "Premium"]
+
+
+def test_reward_only_with_allowed_flavors(client, open_store):
+    paulista, peperone = Product.query.filter_by(name="Paulista").one(), Product.query.filter_by(name="Peperone").one()
+    prog = make_program(open_store, "Premium", goal=1, counted=("premium",), reward="premium", flavors=[paulista.id])
+    register(client)
+    set_status(order(client, items=[premium_item("Peperone")])["order_id"], "confirmado")
+    c = Customer.query.one()
+    assert card(prog, c)["rewards"] == 1
+    no = db.session.get(Order, order(client, items=[premium_item("Peperone")], use_rewards=[prog.id])["order_id"])
+    assert no.discount == 0 and not no.loyalty_reward  # sabor fora da lista do dono
+    half = {"category_id": paulista.category_id, "variant": "Inteira", "flavors": [paulista.id, peperone.id], "quantity": 1}
+    assert db.session.get(Order, order(client, items=[half], use_rewards=[prog.id])["order_id"]).discount == 0
+    yes = db.session.get(Order, order(client, items=[premium_item("Paulista")], use_rewards=[prog.id])["order_id"])
+    assert yes.loyalty_reward and yes.loyalty_programs == f",{prog.id}," and yes.discount == yes.subtotal
 
 
 def test_reward_makes_one_pizza_free_and_is_used_once(client, open_store):
-    enable_loyalty(open_store, goal=2)
+    prog = make_program(open_store, goal=2)
     register(client)
     set_status(order(client, items=[promo_item(2)])["order_id"], "confirmado")
     c = Customer.query.one()
-    assert card(open_store, c)["rewards"] == 1
-    r = order(client, items=[promo_item(1), drink_free_item()], use_reward=True)
+    assert card(prog, c)["rewards"] == 1
+    r = order(client, items=[promo_item(1), drink_free_item()], use_rewards=[prog.id])
     o = db.session.get(Order, r["order_id"])
     assert o.loyalty_reward and o.discount == base_price()
-    assert card(open_store, c)["rewards"] == 0  # pendente já segura o prêmio
-    again = db.session.get(Order, order(client, items=[promo_item(1)], use_reward=True)["order_id"])
+    assert "Promocional grátis (fidelidade)" in o.discount_note
+    assert card(prog, c)["rewards"] == 0  # pendente já segura o prêmio
+    again = db.session.get(Order, order(client, items=[promo_item(1)], use_rewards=[prog.id])["order_id"])
     assert again.discount == 0
     set_status(o.id, "cancelado")
-    assert card(open_store, c)["rewards"] == 1  # cancelou: prêmio volta
+    assert card(prog, c)["rewards"] == 1  # cancelou: prêmio volta
 
 
-def test_reward_needs_the_right_pizza_in_the_cart(client, open_store):
-    enable_loyalty(open_store, goal=1)
+def test_two_rewards_in_the_same_order(client, open_store):
+    promo = make_program(open_store, "Promocional", goal=1)
+    premium = make_program(open_store, "Premium", goal=1, counted=("premium",), reward="premium")
     register(client)
-    set_status(order(client)["order_id"], "confirmado")
-    o = db.session.get(Order, order(client, items=[drink_free_item()], use_reward=True)["order_id"])
-    assert o.discount == 0 and not o.loyalty_reward
+    set_status(order(client, items=[promo_item(1), premium_item()])["order_id"], "confirmado")
+    o = db.session.get(Order, order(client, items=[promo_item(1), premium_item()], use_rewards=[promo.id, premium.id])["order_id"])
+    assert o.discount == o.subtotal and o.loyalty_programs in (f",{promo.id},{premium.id},", f",{premium.id},{promo.id},")
 
 
 def test_free_pizza_does_not_earn_a_stamp(client, open_store):
-    enable_loyalty(open_store, goal=2)
+    prog = make_program(open_store, goal=2)
     register(client)
     set_status(order(client, items=[promo_item(2)])["order_id"], "confirmado")
-    o = order(client, items=[promo_item(1)], use_reward=True)["order_id"]
-    set_status(o, "confirmado")
-    assert card(open_store, Customer.query.one())["total_stamps"] == 2
+    set_status(order(client, items=[promo_item(1)], use_rewards=[prog.id])["order_id"], "confirmado")
+    assert card(prog, Customer.query.one())["total_stamps"] == 2
+
+
+def test_card_without_flavors_is_not_shown(client, open_store):
+    make_program(open_store, flavors=[])
+    register(client)
+    assert client.get("/snep/api/conta").get_json()["loyalty"] == []
 
 
 # ---------- acompanhamento ----------
@@ -252,30 +303,73 @@ def test_account_history_has_tracking_links(client, open_store):
 
 # ---------- painel ----------
 
-def test_owner_configures_loyalty_and_first_order(panel, tenant):
-    cat = Category.query.filter_by(slug="premium").one()
-    r = panel.post("/snep/admin/fidelidade", data={
-        "loyalty_enabled": "on", "loyalty_goal": "8", "kinds": ["pizza", "doce"], "reward_category": cat.id,
-        f"reward_size-{cat.id}": "Broto", "first_order_enabled": "on", "first_order_type": "percent", "first_order_value": "15"})
+def program_form(**over):
+    promo, premium, doces = (Category.query.filter_by(slug=s).one() for s in ("promocionais", "premium", "doces"))
+    data = {"name": "Premium", "goal": "10", "active": "on", "counted": [str(premium.id), str(doces.id)],
+            "reward_category": premium.id, f"reward_size-{premium.id}": "Inteira",
+            f"flavors-{premium.id}": [str(p.id) for p in premium.products[:3]]}
+    data.update(over)
+    return data
+
+
+def test_owner_creates_two_cards(panel, tenant):
+    promo = Category.query.filter_by(slug="promocionais").one()
+    r = panel.post("/snep/admin/fidelidade/cartao/novo", data=program_form())
     assert r.status_code == 302
-    db.session.expire_all()
-    assert (tenant.loyalty_enabled, tenant.loyalty_goal, tenant.loyalty_kinds) == (True, 8, "pizza,doce")
-    assert (tenant.loyalty_reward_category_id, tenant.loyalty_reward_size) == (cat.id, "Broto")
-    assert (tenant.first_order_enabled, tenant.first_order_value) == (True, Decimal("15.00"))
+    panel.post("/snep/admin/fidelidade/cartao/novo", data={
+        "name": "Promocional", "goal": "10", "active": "on", "counted": [str(promo.id)], "reward_category": promo.id,
+        f"flavors-{promo.id}": [str(p.id) for p in promo.products[:2]]})
+    progs = LoyaltyProgram.query.order_by(LoyaltyProgram.id).all()
+    assert [p.name for p in progs] == ["Premium", "Promocional"]
+    assert progs[0].reward_size == "Inteira" and len(progs[0].reward_products()) == 3
+    page = panel.get("/snep/admin/fidelidade").get_data(as_text=True)
+    assert "Cartão Premium" in page and "No site" in page
     site = panel.get("/snep/").get_data(as_text=True)
-    assert '"loyalty": {' in site and '"first_order": {' in site
+    assert '"reward": "1 pizza Premium Inteira gr' in site  # tojson escreve “á” como \u00e1
 
 
-@pytest.mark.parametrize("over, msg", [({"loyalty_goal": "1"}, "de 2 a"), ({"kinds": []}, "conta selo"),
-                                       ({"first_order_value": "80"}, "1% a 50%")])
-def test_loyalty_form_validation(panel, tenant, over, msg):
-    cat = Category.query.filter_by(slug="premium").one()
-    data = {"loyalty_enabled": "on", "loyalty_goal": "8", "kinds": ["pizza"], "reward_category": cat.id,
-            "first_order_enabled": "on", "first_order_type": "percent", "first_order_value": "10", **over}
-    r = panel.post("/snep/admin/fidelidade", data=data, follow_redirects=True)
+@pytest.mark.parametrize("over, msg", [({"goal": "1"}, "de 2 a"), ({"counted": []}, "categorias que valem selo"),
+                                       ({"name": ""}, "nome do cartão")])
+def test_card_form_validation(panel, tenant, over, msg):
+    r = panel.post("/snep/admin/fidelidade/cartao/novo", data=program_form(**over), follow_redirects=True)
     assert msg in r.get_data(as_text=True)
+    assert LoyaltyProgram.query.count() == 0
+
+
+def test_card_needs_flavors_to_be_on(panel, tenant):
+    premium = Category.query.filter_by(slug="premium").one()
+    r = panel.post("/snep/admin/fidelidade/cartao/novo", data=program_form(**{f"flavors-{premium.id}": []}), follow_redirects=True)
+    assert "sabores que o cliente pode escolher" in r.get_data(as_text=True)
+    data = program_form(**{f"flavors-{premium.id}": []})
+    data.pop("active")
+    panel.post("/snep/admin/fidelidade/cartao/novo", data=data)  # desligado: salva incompleto
+    assert LoyaltyProgram.query.one().active is False
+
+
+def test_category_counts_in_one_card_only(panel, tenant):
+    panel.post("/snep/admin/fidelidade/cartao/novo", data=program_form())
+    r = panel.post("/snep/admin/fidelidade/cartao/novo", data=program_form(name="Outro"), follow_redirects=True)
+    assert "Cada categoria conta em um cartão só" in r.get_data(as_text=True)
+    assert LoyaltyProgram.query.count() == 1
+
+
+def test_edit_and_delete_card(panel, tenant):
+    panel.post("/snep/admin/fidelidade/cartao/novo", data=program_form())
+    p = LoyaltyProgram.query.one()
+    panel.post(f"/snep/admin/fidelidade/cartao/{p.id}", data=program_form(goal="8"))
+    assert db.session.get(LoyaltyProgram, p.id).goal == 8
+    panel.post(f"/snep/admin/fidelidade/cartao/{p.id}/excluir")
+    assert LoyaltyProgram.query.count() == 0
+
+
+def test_owner_configures_first_order(panel, tenant):
+    panel.post("/snep/admin/fidelidade/primeiro-pedido", data={"first_order_enabled": "on", "first_order_type": "percent",
+                                                              "first_order_value": "15"})
     db.session.expire_all()
-    assert tenant.loyalty_enabled is False
+    assert (tenant.first_order_enabled, tenant.first_order_value) == (True, Decimal("15.00"))
+    r = panel.post("/snep/admin/fidelidade/primeiro-pedido", data={"first_order_enabled": "on", "first_order_type": "percent",
+                                                                  "first_order_value": "80"}, follow_redirects=True)
+    assert "1% a 50%" in r.get_data(as_text=True)
 
 
 def test_owner_generates_new_pin(client, tenant):
@@ -292,14 +386,14 @@ def test_owner_generates_new_pin(client, tenant):
 
 
 def test_customers_page_shows_registration_and_stamps(client, open_store):
-    enable_loyalty(open_store, goal=4)
+    make_program(open_store, goal=4)
     register(client)
     set_status(order(client)["order_id"], "confirmado")
     make_admin(open_store)
     staff = client.application.test_client()
     login(staff)
     page = staff.get("/snep/admin/clientes").get_data(as_text=True)
-    assert "Cadastro no site" in page and "1/4" in page
+    assert "Cadastro no site" in page and "Cartão Promocional: <b>1/4</b>" in page
 
 
 def test_receipt_shows_discount(client, open_store):

@@ -72,8 +72,8 @@ def data_from_db(tenant, order_url, assets):
     from app.models import Addon, Border, Category, Neighborhood
     from app.services.hours import is_open
     from app.services.photos import photo_url
-    from app.services.loyalty import first_order_text, reward_text
-    from app.services.loyalty import is_active as loyalty_on
+    from app.services.loyalty import first_order_text
+    from app.services.loyalty import public_info as loyalty_public
     from app.services.promotions import badge, best_price, describe, running
 
     promos = running(tenant)
@@ -136,8 +136,7 @@ def data_from_db(tenant, order_url, assets):
         "open": is_open(tenant),
         "pix": bool(tenant.pix_key),  # QR Code do Pix no pedido feito (app/services/pix.py)
         # cadastro do cliente: fidelidade e 1º pedido (app/services/loyalty.py); o desconto é calculado no servidor
-        "loyalty": ({"goal": tenant.loyalty_goal, "reward": reward_text(tenant), "category_id": tenant.loyalty_reward_category_id,
-                     "size": tenant.loyalty_reward_size or ""} if loyalty_on(tenant) else None),
+        "loyalty": loyalty_public(tenant),  # cartões fidelidade ligados
         "first_order": ({"type": tenant.first_order_type, "value": float(tenant.first_order_value),
                          "text": first_order_text(tenant)} if tenant.first_order_enabled else None),
         "account_url": f"/{tenant.slug}/api/conta",

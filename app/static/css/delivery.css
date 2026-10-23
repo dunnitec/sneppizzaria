@@ -353,3 +353,16 @@ footer .st.open{color:var(--ok)}
 .sum .disc{color:#ffd77a}
 .disc-ok{color:#ffd77a;font-weight:700}
 .btn-track{display:block;margin:10px 0;padding:12px;border-radius:12px;border:1.5px solid var(--line-strong);color:#fff;font-weight:800;text-align:center}
+
+/* ---------- vários cartões fidelidade: arrasta para o lado ---------- */
+.acc-slider{margin:0 0 16px}
+.acc-track{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.acc-track::-webkit-scrollbar{display:none}
+.acc-track .acc-card{flex:0 0 100%;scroll-snap-align:start;margin:0}
+.acc-dots{display:flex;justify-content:center;gap:6px;margin-top:8px}
+.acc-dots i{width:8px;height:8px;border-radius:50%;background:#444}
+.acc-dots i.on{background:#f2a900;width:20px;border-radius:99px}
+.acc-swipe{margin:4px 0 0;text-align:center;color:var(--muted);font-size:12px}
+.md .body.acc .acc-slider{margin-bottom:8px}
+.gift-note{margin:6px 0;padding:8px 10px;border-radius:10px;background:rgba(242,169,0,.12);color:#ffe7a8;font-size:13.5px}
+.gift-tag{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:99px;background:rgba(242,169,0,.2);color:#ffd77a;font:800 11px var(--display);font-style:normal;vertical-align:1px}
