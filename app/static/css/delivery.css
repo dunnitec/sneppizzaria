@@ -366,3 +366,22 @@ footer .st.open{color:var(--ok)}
 .md .body.acc .acc-slider{margin-bottom:8px}
 .gift-note{margin:6px 0;padding:8px 10px;border-radius:10px;background:rgba(242,169,0,.12);color:#ffe7a8;font-size:13.5px}
 .gift-tag{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:99px;background:rgba(242,169,0,.2);color:#ffd77a;font:800 11px var(--display);font-style:normal;vertical-align:1px}
+
+/* ---------- app no celular e avisos ---------- */
+.app-bar{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:12px 14px;border-radius:var(--radius);background:#16161a;border:1px solid var(--line-strong)}
+.app-bar img{border-radius:12px;background:#fff;flex:none}
+.ab-txt{flex:1;min-width:0}
+.ab-txt b{display:block;font:800 15px var(--display)}
+.ab-txt small{color:var(--muted);font-size:12.5px}
+.app-bar .btn-red{flex:none;padding:9px 14px}
+.ab-x{flex:none;background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px}
+.push-ask{display:flex;align-items:center;gap:10px;margin:12px 0;padding:12px;border-radius:14px;background:#14202a;border:1px solid #2b4a63;text-align:left}
+.push-ask>span{font-size:26px}
+.push-ask b{display:block;font-size:14.5px}
+.push-ask small{display:block;color:#b9cfe0;font-size:12.5px}
+.push-ask .btn-red{flex:none;padding:9px 12px;font-size:13.5px}
+.ios-help ol{padding-left:20px;line-height:1.6}
+.ios-help li{margin-bottom:8px}
+.ios-share svg{width:20px;height:20px;vertical-align:-4px;color:#4ea3ff}
+.push-prefs p{margin:4px 0}
+.link-btn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:6px 0;font-size:13px}

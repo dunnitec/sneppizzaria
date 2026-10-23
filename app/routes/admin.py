@@ -42,6 +42,7 @@ from app.services.pix import KEY_TYPES as PIX_KEY_TYPES
 from app.services.pix import PixKeyError
 from app.services.pix import normalize_key as normalize_pix_key
 from app.services.promotions import running_count
+from app.services.push import notify_loyalty, notify_order
 from app.services.reports import month_calendar, sales_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/<slug>/admin")
@@ -292,6 +293,10 @@ def order_status(order_id):
     if status == "entregue" and not order.delivered_at:
         order.delivered_at = utcnow()
     db.session.commit()
+    if status in ("confirmado", "cancelado"):  # avisa no celular do cliente (se ele ativou os avisos)
+        notify_order(g.tenant, order, status)
+        if status == "confirmado":
+            notify_loyalty(g.tenant, order)
     current_filter = request.form.get("filter")
     # confirmou: manda o cupom para a impressora (a página de pedidos imprime sozinha)
     to_print = order.id if status == "confirmado" and g.tenant.auto_print else None
@@ -307,6 +312,8 @@ def order_pix(order_id):
         abort(400)
     order.pix_paid_at = None if order.pix_paid_at else utcnow()
     db.session.commit()
+    if order.pix_paid_at:
+        notify_order(g.tenant, order, "pix")
     flash(f"Pedido #{order.id}: " + ("Pix marcado como recebido." if order.pix_paid_at else "Pix voltou para “conferir”."), "ok")
     current_filter = request.form.get("filter")
     return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None))

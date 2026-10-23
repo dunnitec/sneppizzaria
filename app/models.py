@@ -82,6 +82,7 @@ class Tenant(db.Model):
     notices = db.Column(db.Text)  # recados do topo do cardápio, um por linha
     min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
     background_image = db.Column(db.String(255))  # fundo enviado pelo painel (UPLOAD_FOLDER)
+    app_icon = db.Column(db.String(255))  # ícone do app instalado no celular (PWA), quadrado (UPLOAD_FOLDER)
     hero_image = db.Column(db.String(255))  # foto do topo do site, atrás da marca (UPLOAD_FOLDER)
     slogan = db.Column(db.String(120))  # frase abaixo da marca, ex.: “A melhor pizzaria de Itu”
     # Pix com QR Code no pedido feito pelo site (ver app/services/pix.py); sem chave, não aparece
@@ -383,6 +384,40 @@ class LoyaltyProgram(db.Model):
 
     def reward_products(self):
         return json.loads(self.reward_product_ids) if self.reward_product_ids else []
+
+
+class PushSubscription(db.Model):
+    """Celular/navegador que aceitou receber avisos (Web Push; ver services/push.py)."""
+
+    __tablename__ = "push_subscriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id", name="fk_push_subscriptions_tenant_id"), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id", name="fk_push_subscriptions_customer_id"), index=True)
+    endpoint = db.Column(db.String(600), nullable=False, unique=True)
+    p256dh = db.Column(db.String(200), nullable=False)
+    auth = db.Column(db.String(80), nullable=False)
+    wants_promos = db.Column(db.Boolean, nullable=False, default=True)  # avisos de promoção (os do pedido sempre vão)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_sent_at = db.Column(db.DateTime)
+
+
+class PushCampaign(db.Model):
+    """Aviso que o dono manda (ou agenda) para os celulares inscritos."""
+
+    __tablename__ = "push_campaigns"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id", name="fk_push_campaigns_tenant_id"), nullable=False)
+    title = db.Column(db.String(60), nullable=False)
+    body = db.Column(db.String(160), nullable=False)
+    url = db.Column(db.String(200))  # para onde o toque leva (ex.: /snep/#cat-promocionais)
+    audience = db.Column(db.String(20), nullable=False, default="todos")  # todos | cadastro | sumidos
+    scheduled_at = db.Column(db.DateTime, index=True)  # UTC; vazio = enviar agora
+    repeat_weekly = db.Column(db.Boolean, nullable=False, default=False)
+    sent_at = db.Column(db.DateTime)
+    sent_count = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 class Promotion(db.Model):

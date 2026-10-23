@@ -10,6 +10,16 @@
 <h1>Aparência do site</h1>
 
 <section class="card">
+  <h2>Ícone do app no celular</h2>
+  <p class="hint">É o ícone que aparece na tela do celular de quem instala o site como app. Use o logo em quadrado, de preferência com 512 × 512 pixels ou mais.</p>
+  <div class="row">
+    <img class="app-icon-preview" src="{{ url_for('public.app_icon', slug=tenant.slug, size=192) }}?v={{ tenant.app_icon or 'padrao' }}" alt="Ícone atual do app" width="96" height="96">
+    <form method="post" action="{{ url_for('admin.app_icon_upload') }}" enctype="multipart/form-data">{{ csrf() }}<label class="file">{{ 'Trocar ícone' if tenant.app_icon else 'Pôr o logo como ícone' }}<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label></form>
+    {% if tenant.app_icon %}<form method="post" action="{{ url_for('admin.app_icon_remove') }}">{{ csrf() }}<button class="ghost small">Tirar ícone</button></form>{% endif %}
+  </div>
+</section>
+
+<section class="card">
   <h2>Foto do topo do site</h2>
   <p class="hint">Fica atrás do nome da pizzaria, no alto do site. Uma foto larga e escura funciona melhor (ex.: pizza com queijo puxando).</p>
   {% if tenant.hero_image %}<img class="bg-preview" src="{{ url_for('public.uploaded_file', name=tenant.hero_image) }}" alt="Foto do topo atual">{% endif %}

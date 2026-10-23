@@ -6,6 +6,7 @@ from app.routes.admin import PAYMENT_OPTIONS, admin_bp
 from app.services.menu_data import data_from_db
 from app.services.order_create import place_order
 from app.services.pricing import OrderError
+from app.services.push import notify_loyalty
 
 
 @admin_bp.route("/pedidos/novo", methods=["GET", "POST"])
@@ -23,6 +24,7 @@ def order_new():
         order, _ = place_order(g.tenant, payload, channel=channel or "")
     except OrderError as e:
         return jsonify(ok=False, error=str(e)), 400
+    notify_loyalty(g.tenant, order)  # pedido do balcão/telefone já entra confirmado: selos da fidelidade
     to_print = order.id if g.tenant.auto_print else None
     return jsonify(ok=True, order_id=order.id, total=float(order.total),
                    redirect=url_for("admin.orders", imprimir=to_print))

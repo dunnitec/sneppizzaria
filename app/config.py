@@ -29,6 +29,10 @@ class Config:
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024  # foto de celular de até 15 MB
 
     DEFAULT_TENANT_SLUG = os.environ.get("DEFAULT_TENANT_SLUG", "snep")
+    # avisos no celular (Web Push): chaves VAPID; sem elas os avisos ficam desligados (services/push.py)
+    VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+    VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+    VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "https://sneppizzaria.com.br")
 
     # Nome usado nas mensagens de pedido enviadas via WhatsApp
     SITE_NAME = "Delivery"

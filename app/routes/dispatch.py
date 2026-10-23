@@ -10,6 +10,7 @@ from flask import flash, g, redirect, render_template, request, url_for
 from app.extensions import db
 from app.models import Courier, Dispatch, Order, utcnow
 from app.routes.admin import FormError, _name, _reject, admin_bp
+from app.services.push import notify_order
 
 CARD = ("Débito", "Crédito", "Cartão")
 
@@ -70,6 +71,8 @@ def dispatch_new():
     for o in orders:
         o.dispatch_id, o.status = dispatch.id, "saiu"
     db.session.commit()
+    for o in orders:
+        notify_order(g.tenant, o, "saiu")
     flash(f"Comanda {dispatch.number} criada: {courier.name} saiu com {len(orders)} pedido(s).", "ok")
     return redirect(url_for("admin.dispatches", imprimir_comanda=dispatch.id if g.tenant.auto_print else None))
 

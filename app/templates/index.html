@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0c">
+<link rel="manifest" href="/{{ d.tenant.slug }}/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="96x96" href="/{{ d.tenant.slug }}/icone-96.png">
+<link rel="apple-touch-icon" href="/{{ d.tenant.slug }}/icone-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="{{ d.tenant.name }}">
 <title>{{ d.tenant.name }}</title>
 <meta name="description" content="{{ d.tenant.name }} — {{ d.tenant.slogan or 'Delivery' }}. Peça pelo site e receba pelo WhatsApp.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,6 +62,7 @@
         <span class="filter-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="#fff" stroke-width="2"/></svg></span>
         <select id="catsel" onchange="jumpCat(this.value)" aria-label="Filtrar cardápio"><option value="">Filtrar cardápio</option><option value="all">Mostrar tudo</option></select>
       </label>
+      <div id="app-bar"></div>
       <div id="acc-card"></div>
       <div id="cats"></div>
     </main>

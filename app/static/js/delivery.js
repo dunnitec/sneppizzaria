@@ -300,13 +300,13 @@ function finish(ev){
   ev.preventDefault();const f=ev.target,wd=document.getElementById("ck-wd").checked;
   if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
-    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,use_rewards:usedRewards(),
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
-      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.discount?`<p class="disc-ok">Desconto de ${money(r.discount)} (${esc(r.discount_note)}) ✓</p>`:""}${r.track_url?`<a class="btn-track" href="${r.track_url}">Acompanhar pedido ›</a>`:""}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
+      document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.discount?`<p class="disc-ok">Desconto de ${money(r.discount)} (${esc(r.discount_note)}) ✓</p>`:""}${r.track_url?`<a class="btn-track" href="${r.track_url}">Acompanhar pedido ›</a>`:""}${pushAskHtml((r.track_url||"").split("/").pop())}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
       remember(payload);cart=[];renderCart();accApi("").then(setAcc);
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
   return false;
@@ -322,7 +322,7 @@ async function accApi(path,body){
   }catch(e){return {ok:false,error:"Falha de conexão. Tente de novo."};}
 }
 function setAcc(j){
-  ACC=j&&j.logged?j:null;renderAccCard();
+  ACC=j&&j.logged?j:null;renderAccCard();if(ACC&&typeof pushSync==="function")pushSync();
   const l=document.getElementById("acc-label");if(l)l.textContent=ACC?ACC.name.split(" ")[0]:"Entrar";
 }
 function perks(){const p=[];if(DATA.first_order)p.push(DATA.first_order.text);(DATA.loyalty||[]).forEach(x=>p.push(`Cartão ${x.name}: a cada ${x.goal} pizzas, ${x.reward}`));return p;}
@@ -379,6 +379,7 @@ function accountView(){
     ${cs.length?`<h3>Cartões fidelidade</h3>${sliderHtml(cs,false)}${cs.filter(l=>l.rewards).map(l=>`<p class="gift-note">🎁 Você ganhou <b>${l.rewards>1?l.rewards+" × ":""}${esc(l.reward_text)}</b>. Sabores: ${l.flavors.map(esc).join(", ")}. Ponha na cesta e marque “usar” ao finalizar.</p>`).join("")}`:""}
     <h3>Meus pedidos</h3>
     ${a.orders.length?a.orders.map(o=>`<div class="hist"><div class="hl"><b>#${o.id}</b> · ${esc(o.date)}<small>${o.items.map(esc).join(", ")}</small></div><div class="hr"><span class="st st-${esc(o.status_code)}">${esc(o.status)}</span><b>${money(o.total)}</b>${o.track_url?`<a href="${o.track_url}">Acompanhar ›</a>`:""}</div></div>`).join(""):`<p class="empty-h">Seus pedidos vão aparecer aqui.</p>`}
+    ${pushAccountHtml()}
     <details class="pinchg"><summary>Trocar senha</summary><form onsubmit="return pinChange(event)"><label>Senha atual<input name="pin" type="password" inputmode="numeric" maxlength="6" required></label><label>Senha nova (4 a 6 números)<input name="new_pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required></label><button class="btn-red">Trocar senha</button></form></details>
   </div><div class="ft"><button class="bk" onclick="accLogout()">Sair</button><button class="nx" onclick="closeModal()">Ver cardápio</button></div>`;
 }
@@ -417,6 +418,83 @@ function accDiscount(){
   return {value:Math.min(v,s),note:notes.join(" + ")};
 }
 accApi("").then(setAcc);
+
+/* ---------- app no celular (PWA) e avisos (Web Push) ---------- */
+const SLUG=DATA.tenant.slug;
+const STANDALONE=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const IOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+let SWREG=null, INSTALL_EVT=null, PUSH_ENDPOINT="";
+function lsGet(k){try{return localStorage.getItem(k+"_"+SLUG);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k+"_"+SLUG,v);}catch(e){}}
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register(`/${SLUG}/sw.js`,{scope:`/${SLUG}/`}).then(r=>{SWREG=r;pushSync();}).catch(()=>{});
+}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();INSTALL_EVT=e;renderAppBar();});
+window.addEventListener("appinstalled",()=>{INSTALL_EVT=null;renderAppBar();toast("App instalado! Procure o ícone na tela do celular.");});
+function iosNeedsInstall(){return IOS&&!STANDALONE;}
+// faixa “Instale o app” acima do cardápio; fechada, volta depois de 7 dias
+function renderAppBar(){
+  const box=document.getElementById("app-bar");if(!box)return;
+  const closed=Number(lsGet("app_bar_fechada")||0);
+  if(STANDALONE||(Date.now()-closed<7*864e5)||!(INSTALL_EVT||iosNeedsInstall())){box.innerHTML="";return;}
+  box.innerHTML=`<div class="app-bar"><img src="/${SLUG}/icone-96.png" alt="" width="44" height="44"><div class="ab-txt"><b>Instale o app da ${esc(DATA.tenant.name)}</b><small>Peça mais rápido e receba avisos do seu pedido.</small></div><button class="btn-red" onclick="installApp()">Instalar</button><button class="ab-x" onclick="lsSet('app_bar_fechada',String(Date.now()));renderAppBar()" aria-label="Fechar">×</button></div>`;
+}
+function installApp(){
+  if(INSTALL_EVT){INSTALL_EVT.prompt();INSTALL_EVT.userChoice.finally(()=>{INSTALL_EVT=null;renderAppBar();});}
+  else showIosHelp();
+}
+function showIosHelp(forPush){
+  document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>Instalar no iPhone</h2><p>${forPush?"No iPhone, os avisos só funcionam com o app instalado.":"Leva 10 segundos."}</p></div>
+  <div class="body ios-help"><ol>
+    <li>Abra este site no <b>Safari</b>.</li>
+    <li>Toque em <b>Compartilhar</b> <span class="ios-share" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M5 11v9h14v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> (o quadrado com a seta, na barra de baixo).</li>
+    <li>Role e toque em <b>Adicionar à Tela de Início</b>.</li>
+    <li>Toque em <b>Adicionar</b>. Pronto: o ícone da ${esc(DATA.tenant.name)} aparece na tela do celular.</li>
+    ${forPush?`<li>Abra o app pelo ícone e toque em <b>Ativar avisos</b>.</li>`:""}
+  </ol></div><div class="ft"><button class="nx" onclick="closeModal()">Entendi</button></div>`;
+  document.getElementById("ovl").classList.add("on");
+}
+function canPush(){return !!(DATA.push_key&&SWREG&&"PushManager" in window&&"Notification" in window);}
+function pushOn(){return !!PUSH_ENDPOINT&&"Notification" in window&&Notification.permission==="granted";}
+function urlB64(s){const p="=".repeat((4-s.length%4)%4);const r=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...r].map(c=>c.charCodeAt(0)));}
+async function pushPost(sub,track){
+  try{await fetch(`/${SLUG}/api/push`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({subscription:sub.toJSON(),track:track||""})});}catch(e){}
+}
+async function pushSubscribe(track){
+  if(!canPush()){if(iosNeedsInstall())showIosHelp(true);else toast("Este navegador não aceita avisos.");return false;}
+  const perm=await Notification.requestPermission();
+  if(perm!=="granted"){toast("Avisos bloqueados. Dá para liberar nas configurações do navegador.");return false;}
+  try{
+    let sub=await SWREG.pushManager.getSubscription();
+    if(!sub)sub=await SWREG.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(DATA.push_key)});
+    PUSH_ENDPOINT=sub.endpoint;await pushPost(sub,track);
+  }catch(e){toast("Não deu para ativar os avisos agora.");return false;}
+  toast("Avisos ativados ✓");document.querySelectorAll(".push-ask").forEach(el=>el.remove());return true;
+}
+// já tinha ativado: guarda o endereço (vai junto no pedido) e liga à conta, se entrou
+async function pushSync(){
+  if(!canPush())return;
+  const sub=await SWREG.pushManager.getSubscription();
+  PUSH_ENDPOINT=sub&&Notification.permission==="granted"?sub.endpoint:"";
+  if(PUSH_ENDPOINT&&ACC)pushPost(sub);
+}
+function pushAskHtml(track){
+  if(pushOn())return "";
+  if(canPush())return `<div class="push-ask"><span>🔔</span><div><b>Quer ser avisado quando sua pizza sair?</b><small>A gente avisa no celular quando o pedido for confirmado e quando sair para entrega.</small></div><button class="btn-red" onclick="pushSubscribe('${esc(track||"")}')">Ativar avisos</button></div>`;
+  if(iosNeedsInstall()&&DATA.push_key)return `<div class="push-ask"><span>🔔</span><div><b>Receba avisos do seu pedido</b><small>No iPhone, instale o app para receber os avisos.</small></div><button class="btn-red" onclick="showIosHelp(true)">Como instalar</button></div>`;
+  return "";
+}
+async function pushPrefs(body){
+  const j=await fetch(`/${SLUG}/api/push/preferencias`,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({endpoint:PUSH_ENDPOINT,...body})}).then(r=>r.json()).catch(()=>({}));
+  if(body.off){try{const s=await SWREG.pushManager.getSubscription();if(s)await s.unsubscribe();}catch(e){}PUSH_ENDPOINT="";toast("Avisos desligados.");openAccount();}
+  else toast(j.promos?"Você vai receber as promoções.":"Promoções desligadas. Os avisos do pedido continuam.");
+}
+function pushAccountHtml(){
+  if(!DATA.push_key)return "";
+  if(pushOn())return `<h3>Avisos no celular</h3><div class="push-prefs"><p>🔔 Avisos do pedido ligados.</p><label class="use-reward"><input type="checkbox" checked onchange="pushPrefs({promos:this.checked})"> Receber promoções</label><button class="link-btn" onclick="pushPrefs({off:true})">Desligar todos os avisos</button></div>`;
+  return `<h3>Avisos no celular</h3>${pushAskHtml("")||`<p class="hint">Este navegador não aceita avisos.</p>`}`;
+}
+renderAppBar();
 function openPromos(){
   const md=document.getElementById("md");
   md.innerHTML=`<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>🏷 Promoções de hoje</h2></div><div class="body promos">`+

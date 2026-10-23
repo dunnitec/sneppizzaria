@@ -5,6 +5,8 @@ A validação, os preços e a gravação ficam em app/services/order_create.py (
 
 from flask import Blueprint, jsonify, request, url_for
 
+from app.extensions import db
+from app.models import PushSubscription
 from app.routes.public import get_tenant_or_404
 from app.services.hours import local_time
 from app.services.order_create import place_order
@@ -25,6 +27,12 @@ def create_order(slug):
                                           account=current_customer(tenant))
     except OrderError as e:
         return jsonify(ok=False, error=str(e)), 400
+    endpoint = str((request.get_json(silent=True) or {}).get("push_endpoint") or "")
+    if endpoint and order.customer_id:
+        sub = PushSubscription.query.filter_by(tenant_id=tenant.id, endpoint=endpoint).first()
+        if sub:
+            sub.customer_id = order.customer_id
+            db.session.commit()
     # Pix com o valor exato; com a taxa de entrega “a confirmar” o total ainda não é o final
     pix = for_order(tenant, order) if order.payment_method == "Pix" and (delivery_fee is not None or not order.delivery) else None
     return jsonify(

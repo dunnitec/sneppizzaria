@@ -1,0 +1,80 @@
+{% extends "admin/base.html" %}
+{% block title %}Avisos no celular{% endblock %}
+{% block help %}
+<ul>
+  <li>Os avisos chegam no celular de quem tocou em <b>Ativar avisos</b> no site (no iPhone, só com o app instalado na tela de início).</li>
+  <li><b>Automáticos</b> (não precisa fazer nada): pedido confirmado, saiu para entrega, cancelado, Pix recebido e os da fidelidade (“faltam 2 pizzas”, “você ganhou uma pizza grátis”).</li>
+  <li><b>Aqui</b> você manda avisos de promoção: agora ou agendado (ex.: toda terça às 18h). Limite de {{ max_week }} por semana, para o cliente não desligar.</li>
+  <li>Texto curto funciona melhor: título com até 60 letras e uma frase com até 160.</li>
+</ul>
+{% endblock %}
+{% block content %}
+<h1>Avisos no celular</h1>
+{% if not enabled %}<p class="flash error">Os avisos ainda não estão ligados no servidor (faltam as chaves VAPID). Fale com quem cuida do site.</p>{% endif %}
+<div class="kpis">
+  <div class="kpi"><span>Celulares com avisos</span><b>{{ stats.total }}</b></div>
+  <div class="kpi"><span>Aceitam promoções</span><b>{{ stats.promos }}</b></div>
+  <div class="kpi"><span>Com cadastro no site</span><b>{{ stats.registered }}</b></div>
+  <div class="kpi"><span>Avisos nesta semana</span><b>{{ week }}/{{ max_week }}</b></div>
+</div>
+
+<section class="card">
+  <h2>Novo aviso</h2>
+  <form method="post" id="push-form" data-track>
+    {{ csrf() }}
+    <label>Título<input name="title" maxlength="60" required placeholder="Ex.: Terça da Calabresa 🍕" id="p-title"></label>
+    <label>Texto<input name="body" maxlength="160" required placeholder="Ex.: Calabresa Grande por R$ 32,90 só hoje. Peça pelo app!" id="p-body"></label>
+    <div class="row">
+      <label class="grow">Ao tocar, abre<select name="url">{% for v, label in links %}<option value="{{ v }}">{{ label }}</option>{% endfor %}</select></label>
+      <label class="grow">Para quem<select name="audience">{% for k, label in audiences.items() %}<option value="{{ k }}">{{ label }} ({{ counts[k] }})</option>{% endfor %}</select></label>
+    </div>
+    <div class="row">
+      <label class="radio"><input type="radio" name="when" value="agora" checked> Enviar agora</label>
+      <label class="radio"><input type="radio" name="when" value="agendar"> Agendar</label>
+    </div>
+    <div class="row" id="when-fields" hidden>
+      <label class="grow">Dia<input type="date" name="date" min="{{ today }}" value="{{ today }}"></label>
+      <label class="grow">Hora<input type="time" name="time" value="18:00"></label>
+      <label class="check"><input type="checkbox" name="repeat"> Repetir toda semana</label>
+    </div>
+    <div class="push-preview" aria-hidden="true">
+      <span class="pp-app">{{ tenant.name }} · agora</span>
+      <b id="pp-title">Título do aviso</b>
+      <span id="pp-body">Texto do aviso</span>
+    </div>
+    <div class="promo-actions"><button class="primary" {{ 'disabled' if not enabled }}>Enviar / agendar aviso</button></div>
+  </form>
+</section>
+
+{% if waiting %}
+<section class="card">
+  <h2>Agendados</h2>
+  {% for c in waiting %}
+  <div class="row">
+    <div class="grow"><b>{{ c.title }}</b><br><small>{{ c.body }}</small><br>
+      <small>{{ (c.scheduled_at|local_time).strftime('%d/%m às %H:%M') }}{{ ' · repete toda semana' if c.repeat_weekly }} · {{ audiences[c.audience] }}</small></div>
+    <form method="post" action="{{ url_for('admin.push_campaign_cancel', campaign_id=c.id) }}" data-msg="Cancelar este aviso agendado?" onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}<button class="ghost small danger">Cancelar</button></form>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Enviados</h2>
+  {% for c in sent %}
+  <div class="row"><div class="grow"><b>{{ c.title }}</b><br><small>{{ c.body }}</small><br>
+    <small>{{ (c.sent_at|local_time).strftime('%d/%m às %H:%M') }} · {{ c.sent_count }} celular(es) · {{ audiences[c.audience] }}</small></div></div>
+  {% else %}<p class="hint">Nenhum aviso enviado ainda.</p>{% endfor %}
+</section>
+<script>
+(function () {
+  const f = document.getElementById("push-form"), t = document.getElementById("p-title"), b = document.getElementById("p-body");
+  function sync() {
+    document.getElementById("pp-title").textContent = t.value || "Título do aviso";
+    document.getElementById("pp-body").textContent = b.value || "Texto do aviso";
+    document.getElementById("when-fields").hidden = f.querySelector('[name=when]:checked').value !== "agendar";
+  }
+  f.addEventListener("input", sync); f.addEventListener("change", sync); sync();
+})();
+</script>
+{% endblock %}

@@ -13,7 +13,7 @@ from flask import Blueprint, current_app, jsonify, render_template, request, url
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from app.extensions import db
-from app.models import CHANNELS, ORDER_STATUSES, Customer, Dispatch, Order, utcnow
+from app.models import CHANNELS, ORDER_STATUSES, Customer, Dispatch, Order, PushSubscription, utcnow
 from app.routes.public import get_tenant_or_404
 from app.services.customers import format_phone, phone_key
 from app.services.hours import local_time
@@ -219,3 +219,50 @@ def track(slug, token):
         first_name=(order.customer_name or "").split(" ")[0], channel=CHANNELS.get(order.channel, ""),
         pix=for_order(tenant, order) if show_pix else None,
     )
+
+
+# ---------- avisos no celular (Web Push) ----------
+
+@account_bp.route("/<slug>/api/push", methods=["POST"])
+def push_subscribe(slug):
+    """O navegador aceitou os avisos: guarda o endereço do aparelho e liga ao cliente, se der."""
+    tenant = get_tenant_or_404(slug)
+    data = _json_body()
+    if data is None:
+        return _error("Pedido inválido.")
+    sub = data.get("subscription") or {}
+    endpoint, keys = str(sub.get("endpoint") or ""), sub.get("keys") or {}
+    if not endpoint.startswith("https://") or len(endpoint) > 600 or not keys.get("p256dh") or not keys.get("auth"):
+        return _error("Inscrição inválida.")
+    s = PushSubscription.query.filter_by(endpoint=endpoint).first()
+    if not s:
+        s = PushSubscription(endpoint=endpoint, created_at=utcnow())
+        db.session.add(s)
+    s.tenant_id, s.p256dh, s.auth = tenant.id, str(keys["p256dh"])[:200], str(keys["auth"])[:80]
+    account = current_customer(tenant)
+    order = Order.query.filter_by(tenant_id=tenant.id, track_token=str(data.get("track") or "")).first() if data.get("track") else None
+    if account:
+        s.customer_id = account.id
+    elif order and order.customer_id:
+        s.customer_id = order.customer_id
+    db.session.commit()
+    return jsonify(ok=True, promos=s.wants_promos)
+
+
+@account_bp.route("/<slug>/api/push/preferencias", methods=["POST"])
+def push_prefs(slug):
+    """Cliente desliga os avisos de promoção (os do pedido continuam) ou todos os avisos."""
+    tenant = get_tenant_or_404(slug)
+    data = _json_body()
+    if data is None:
+        return _error("Pedido inválido.")
+    s = PushSubscription.query.filter_by(tenant_id=tenant.id, endpoint=str(data.get("endpoint") or "")).first()
+    if not s:
+        return jsonify(ok=True, subscribed=False)
+    if data.get("off"):
+        db.session.delete(s)
+        db.session.commit()
+        return jsonify(ok=True, subscribed=False)
+    s.wants_promos = bool(data.get("promos"))
+    db.session.commit()
+    return jsonify(ok=True, subscribed=True, promos=s.wants_promos)
