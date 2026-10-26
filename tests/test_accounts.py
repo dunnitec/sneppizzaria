@@ -198,13 +198,27 @@ def test_stamps_count_only_confirmed_pizzas_after_signup(client, open_store):
     register(client)
     c = Customer.query.one()
     a = order(client, items=[promo_item(2)])["order_id"]
-    assert card(prog, c)["total_stamps"] == 0  # pendente ainda não conta
+    lc = card(prog, c)
+    assert lc["total_stamps"] == 0 and lc["pending"] == 2  # pendente: aparece como “chegando”
     set_status(a, "confirmado")
-    assert card(prog, c)["total_stamps"] == 2
+    lc = card(prog, c)
+    assert (lc["total_stamps"], lc["pending"]) == (2, 0)
     set_status(order(client, items=[promo_item(1)])["order_id"], "entregue")
     lc = card(prog, c)
-    assert (lc["filled"], lc["rewards"]) == (0, 1)
+    # completou: cartão cheio com o prêmio, não “0 de 3” (parecia que os selos tinham sumido)
+    assert (lc["filled"], lc["full"], lc["rewards"]) == (3, True, 1)
     assert client.get("/snep/api/conta").get_json()["loyalty"][0]["rewards"] == 1
+    set_status(order(client, items=[promo_item(1)])["order_id"], "confirmado")
+    lc = card(prog, c)
+    assert (lc["filled"], lc["full"], lc["rewards"]) == (1, False, 1)  # novo cartão começa, prêmio continua
+
+
+def test_pending_reward_order_does_not_count_as_stamp(client, open_store):
+    prog = make_program(open_store, goal=2)
+    register(client)
+    set_status(order(client, items=[promo_item(2)])["order_id"], "confirmado")
+    order(client, items=[promo_item(1)], use_rewards=[prog.id])  # pizza grátis, ainda pendente
+    assert card(prog, Customer.query.one())["pending"] == 0
 
 
 def test_two_cards_count_separately_and_doces_join_premium(client, open_store):

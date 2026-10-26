@@ -326,11 +326,16 @@ function setAcc(j){
   const l=document.getElementById("acc-label");if(l)l.textContent=ACC?ACC.name.split(" ")[0]:"Entrar";
 }
 function perks(){const p=[];if(DATA.first_order)p.push(DATA.first_order.text);(DATA.loyalty||[]).forEach(x=>p.push(`Cartão ${x.name}: a cada ${x.goal} pizzas, ${x.reward}`));return p;}
-function stampsHtml(l){let h='<div class="stamps">';for(let i=0;i<l.goal;i++)h+=`<span class="${i<l.filled?"on":""}">${i<l.filled?"🍕":i+1}</span>`;return h+'<span class="gift">🎁</span></div>';}
+function stampsHtml(l){let h='<div class="stamps">';for(let i=0;i<l.goal;i++)h+=`<span class="${i<l.filled?"on":""}">${i<l.filled?"🍕":i+1}</span>`;return h+`<span class="gift${l.rewards?" on":""}">🎁</span></div>`;}
 function cardHtml(l,click){
-  return `<div class="acc-card"${click?` onclick="openAccount()" role="button" tabindex="0"`:""}><div class="acc-txt"><b>Cartão ${esc(l.name)}</b>
-    <small>${l.filled} de ${l.goal} selos · você já comprou ${l.total_stamps} pizza${l.total_stamps===1?"":"s"} ${esc(l.name)}${l.rewards?` · 🎁 ${l.rewards} grátis para usar`:` · a cada ${l.goal}, ${esc(l.reward_text)}`}</small></div>${stampsHtml(l)}</div>`;
+  const head=l.full?`<b class="done">Cartão completo! 🎁 ${l.rewards>1?l.rewards+" pizzas grátis":"1 pizza grátis"} para usar</b>`
+    :`${l.filled} de ${l.goal} selos${l.rewards?` · 🎁 ${l.rewards} grátis para usar`:` · a cada ${l.goal}, ${esc(l.reward_text)}`}`;
+  return `<div class="acc-card${l.full?" full":""}"${click?` onclick="openAccount()" role="button" tabindex="0"`:""}><div class="acc-txt"><b>Cartão ${esc(l.name)}</b>
+    <small>${head}<br>Você já comprou ${l.total_stamps} pizza${l.total_stamps===1?"":"s"} ${esc(l.name)}${l.full?" · o próximo cartão começa no seu próximo pedido":""}</small>
+    ${l.pending?`<small class="pending">⏳ +${l.pending} selo${l.pending>1?"s":""} chegando: assim que a pizzaria confirmar seu pedido</small>`:""}</div>${stampsHtml(l)}</div>`;
 }
+// o cliente volta para o site (ex.: depois da pizzaria confirmar): atualiza o cartão
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&ACC)accApi("").then(setAcc);});
 // cartões lado a lado: o cliente arrasta para ver cada um (Promocional, Premium...)
 function sliderHtml(cs,click){
   return `<div class="acc-slider"><div class="acc-track" onscroll="slideDots(this)">${cs.map(l=>cardHtml(l,click)).join("")}</div>${cs.length>1?`<div class="acc-dots">${cs.map((_,i)=>`<i class="${i?"":"on"}"></i>`).join("")}</div><p class="acc-swipe">Arraste para o lado para ver o outro cartão ›</p>`:""}</div>`;
@@ -505,7 +510,9 @@ function openPromos(){
 }
 (function promoInit(){
   if(!PROMOS.length)return;
-  document.body.insertAdjacentHTML("beforeend",`<button type="button" class="promo-fab" onclick="openPromos()" aria-label="Ver promoções"><span aria-hidden="true">🏷</span><b>PROMO</b>${PROMOS.length>1?`<i>${PROMOS.length}</i>`:""}</button>`);
+  // selo das promoções no topo, junto da conta e do WhatsApp (flutuando, ele tapava o cartão fidelidade)
+  const actions=document.querySelector(".hero-actions");
+  if(actions)actions.insertAdjacentHTML("afterbegin",`<button type="button" class="hero-promo" onclick="openPromos()" aria-label="Ver promoções"><span aria-hidden="true">🏷</span><b>PROMO</b>${PROMOS.length>1?`<i>${PROMOS.length}</i>`:""}</button>`);
   const key="promos_vistas_"+DATA.tenant.slug, ids=PROMOS.filter(p=>p.popup).map(p=>p.id).join(",");
   let seen=""; try{seen=sessionStorage.getItem(key)||"";}catch(e){}
   if(ids&&seen!==ids){setTimeout(()=>{if(!document.getElementById("ovl").classList.contains("on"))openPromos();},900);try{sessionStorage.setItem(key,ids);}catch(e){}}

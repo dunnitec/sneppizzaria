@@ -296,13 +296,7 @@ footer .st.open{color:var(--ok)}
 .opt .p .was{color:var(--muted)}
 .opt .p .promo-tag{font-size:10px;padding:3px 7px;vertical-align:1px}
 .cat-promo{position:absolute;top:10px;right:10px;z-index:2;background:linear-gradient(180deg,#ffd54a,#f2a900);color:#3a2300;font:900 11px/1 var(--display);letter-spacing:1px;text-transform:uppercase;padding:6px 10px;border-radius:99px;box-shadow:0 4px 12px rgba(0,0,0,.45)}
-.promo-fab{position:fixed;right:18px;bottom:24px;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;border:3px solid #fff;
-  background:radial-gradient(circle at 35% 30%,#ffe27a,#f2a900 60%,#c97f00);color:#3a2300;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.55);animation:promo-pulse 2.4s ease-in-out infinite}
-.promo-fab span{font-size:22px;line-height:1}
-.promo-fab b{font:900 12px/1.1 var(--display);letter-spacing:.5px}
-.promo-fab i{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;border-radius:99px;background:var(--red);color:#fff;font:900 12px/22px var(--display);font-style:normal;text-align:center;border:2px solid #fff}
 @keyframes promo-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
-@media (prefers-reduced-motion:reduce){.promo-fab{animation:none}}
 .md .body.promos{display:flex;flex-direction:column;gap:14px;padding:14px 16px}
 .promo-card{border:1px solid rgba(255,184,0,.45);border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#241a08,#161618 60%)}
 .promo-card img{display:block;width:100%;max-height:220px;object-fit:cover}
@@ -311,7 +305,6 @@ footer .st.open{color:var(--ok)}
 .promo-body p{margin:0 0 8px;color:#e5e5e5;line-height:1.45}
 .promo-body .promo-rule{color:#ffd77a;font-weight:700;font-size:14px}
 .promo-body .btn-red{margin-top:6px;width:100%}
-@media (max-width:900px){.promo-fab{bottom:calc(98px + env(safe-area-inset-bottom));right:10px;width:58px;height:58px;border-width:2px}.promo-fab span{font-size:18px}.promo-fab b{font-size:10px}}
 
 /* ---------- Pix com QR Code no pedido feito ---------- */
 .pix-note{margin:6px 0 0;padding:8px 10px;border-radius:10px;background:rgba(50,188,173,.12);border:1px solid rgba(50,188,173,.45);color:#bff1ea;font-size:13px}
@@ -403,6 +396,17 @@ footer .st.open{color:var(--ok)}
 .ios-share svg{width:20px;height:20px;vertical-align:-4px;color:#4ea3ff}
 .push-prefs p{margin:4px 0}
 .link-btn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:6px 0;font-size:13px}
+.acc-card.full{border-color:#f2a900;box-shadow:0 0 0 1px rgba(242,169,0,.35) inset}
+.acc-txt .done{display:inline;color:#ffd77a;font-size:13.5px}
+.acc-txt .pending{display:block;margin-top:4px;color:#9fd3ff}
+.stamps span.gift.on{background:#f2a900;box-shadow:0 0 12px rgba(242,169,0,.6)}
+/* selo das promoções no topo (substitui o botão flutuante, que cobria o conteúdo) */
+.hero-promo{position:relative;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:99px;border:2px solid #fff;cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#ffe27a,#f2a900 60%,#c97f00);color:#3a2300;font:900 12px var(--display);box-shadow:0 6px 16px rgba(0,0,0,.45);animation:promo-pulse 2.4s ease-in-out infinite}
+.hero-promo span{font-size:15px}
+.hero-promo i{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;border-radius:99px;background:var(--red);color:#fff;font:900 11px/20px var(--display);font-style:normal;text-align:center;border:2px solid #fff}
+@media (max-width:700px){.hero-promo{height:40px;padding:0 10px}.hero-promo b{font-size:11px}}
+@media (prefers-reduced-motion:reduce){.hero-promo{animation:none}}
 </style>
 </head>
 <body>
@@ -803,11 +807,16 @@ function setAcc(j){
   const l=document.getElementById("acc-label");if(l)l.textContent=ACC?ACC.name.split(" ")[0]:"Entrar";
 }
 function perks(){const p=[];if(DATA.first_order)p.push(DATA.first_order.text);(DATA.loyalty||[]).forEach(x=>p.push(`Cartão ${x.name}: a cada ${x.goal} pizzas, ${x.reward}`));return p;}
-function stampsHtml(l){let h='<div class="stamps">';for(let i=0;i<l.goal;i++)h+=`<span class="${i<l.filled?"on":""}">${i<l.filled?"🍕":i+1}</span>`;return h+'<span class="gift">🎁</span></div>';}
+function stampsHtml(l){let h='<div class="stamps">';for(let i=0;i<l.goal;i++)h+=`<span class="${i<l.filled?"on":""}">${i<l.filled?"🍕":i+1}</span>`;return h+`<span class="gift${l.rewards?" on":""}">🎁</span></div>`;}
 function cardHtml(l,click){
-  return `<div class="acc-card"${click?` onclick="openAccount()" role="button" tabindex="0"`:""}><div class="acc-txt"><b>Cartão ${esc(l.name)}</b>
-    <small>${l.filled} de ${l.goal} selos · você já comprou ${l.total_stamps} pizza${l.total_stamps===1?"":"s"} ${esc(l.name)}${l.rewards?` · 🎁 ${l.rewards} grátis para usar`:` · a cada ${l.goal}, ${esc(l.reward_text)}`}</small></div>${stampsHtml(l)}</div>`;
+  const head=l.full?`<b class="done">Cartão completo! 🎁 ${l.rewards>1?l.rewards+" pizzas grátis":"1 pizza grátis"} para usar</b>`
+    :`${l.filled} de ${l.goal} selos${l.rewards?` · 🎁 ${l.rewards} grátis para usar`:` · a cada ${l.goal}, ${esc(l.reward_text)}`}`;
+  return `<div class="acc-card${l.full?" full":""}"${click?` onclick="openAccount()" role="button" tabindex="0"`:""}><div class="acc-txt"><b>Cartão ${esc(l.name)}</b>
+    <small>${head}<br>Você já comprou ${l.total_stamps} pizza${l.total_stamps===1?"":"s"} ${esc(l.name)}${l.full?" · o próximo cartão começa no seu próximo pedido":""}</small>
+    ${l.pending?`<small class="pending">⏳ +${l.pending} selo${l.pending>1?"s":""} chegando: assim que a pizzaria confirmar seu pedido</small>`:""}</div>${stampsHtml(l)}</div>`;
 }
+// o cliente volta para o site (ex.: depois da pizzaria confirmar): atualiza o cartão
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&ACC)accApi("").then(setAcc);});
 // cartões lado a lado: o cliente arrasta para ver cada um (Promocional, Premium...)
 function sliderHtml(cs,click){
   return `<div class="acc-slider"><div class="acc-track" onscroll="slideDots(this)">${cs.map(l=>cardHtml(l,click)).join("")}</div>${cs.length>1?`<div class="acc-dots">${cs.map((_,i)=>`<i class="${i?"":"on"}"></i>`).join("")}</div><p class="acc-swipe">Arraste para o lado para ver o outro cartão ›</p>`:""}</div>`;
@@ -982,7 +991,9 @@ function openPromos(){
 }
 (function promoInit(){
   if(!PROMOS.length)return;
-  document.body.insertAdjacentHTML("beforeend",`<button type="button" class="promo-fab" onclick="openPromos()" aria-label="Ver promoções"><span aria-hidden="true">🏷</span><b>PROMO</b>${PROMOS.length>1?`<i>${PROMOS.length}</i>`:""}</button>`);
+  // selo das promoções no topo, junto da conta e do WhatsApp (flutuando, ele tapava o cartão fidelidade)
+  const actions=document.querySelector(".hero-actions");
+  if(actions)actions.insertAdjacentHTML("afterbegin",`<button type="button" class="hero-promo" onclick="openPromos()" aria-label="Ver promoções"><span aria-hidden="true">🏷</span><b>PROMO</b>${PROMOS.length>1?`<i>${PROMOS.length}</i>`:""}</button>`);
   const key="promos_vistas_"+DATA.tenant.slug, ids=PROMOS.filter(p=>p.popup).map(p=>p.id).join(",");
   let seen=""; try{seen=sessionStorage.getItem(key)||"";}catch(e){}
   if(ids&&seen!==ids){setTimeout(()=>{if(!document.getElementById("ovl").classList.contains("on"))openPromos();},900);try{sessionStorage.setItem(key,ids);}catch(e){}}

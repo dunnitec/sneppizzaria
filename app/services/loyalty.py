@@ -68,11 +68,31 @@ def rewards_used(p, customer):
                               Order.status != "cancelado").count()
 
 
+def pending_stamps(p, customer):
+    """Selos de pedidos que a pizzaria ainda não confirmou (aparecem como “chegando” no cartão)."""
+    if not customer or not customer.registered_at or not p.counted():
+        return 0
+    waiting = Order.query.filter(Order.customer_id == customer.id, Order.status == "pendente",
+                                 Order.created_at >= customer.registered_at)
+    pizzas = (db.session.query(func.coalesce(func.sum(OrderItem.quantity), 0))
+              .filter(OrderItem.order_id.in_(waiting.with_entities(Order.id)), OrderItem.category_id.in_(p.counted()))
+              .scalar())
+    rewards = waiting.filter(Order.loyalty_programs.like(_used_like(p))).count() if p.reward_category_id in p.counted() else 0
+    return max(0, int(pizzas) - rewards)
+
+
 def card(p, customer):
-    """Cartão de selos para o site e o painel."""
+    """Cartão de selos para o site e o painel.
+
+    filled: selos do cartão atual. Quando o cartão completa e o prêmio ainda não foi usado, o
+    cartão aparece cheio (full=True) em vez de “0 de 10”, que parecia que os selos tinham sumido.
+    """
     total = stamps(p, customer)
     available = max(0, total // p.goal - rewards_used(p, customer)) if customer else 0
-    return {"id": p.id, "name": p.name, "goal": p.goal, "filled": total % p.goal, "rewards": available,
+    filled = total % p.goal
+    full = bool(available and filled == 0)
+    return {"id": p.id, "name": p.name, "goal": p.goal, "filled": p.goal if full else filled, "full": full,
+            "rewards": available, "pending": pending_stamps(p, customer),
             "total_stamps": total, "reward_text": reward_text(p), "flavors": flavor_names(p),
             "category_id": p.reward_category_id, "size": p.reward_size or "", "product_ids": p.reward_products()}
 

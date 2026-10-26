@@ -71,8 +71,10 @@
 
   <section class="card">
     <h2>3. Quando vale</h2>
-    <fieldset class="where"><legend>Dias da semana</legend>
+    <fieldset class="where"><legend>Em quais dias a promoção vale? (marque os dias em que ela vale)</legend>
+      <p class="flavor-tools"><button type="button" class="ghost small" data-days="all">Todos os dias</button> <button type="button" class="ghost small" data-days="none">Desmarcar todos</button></p>
       <div class="where-row">{% for d, name in days %}<label class="check"><input type="checkbox" name="days" value="{{ d }}" {{ 'checked' if d in cur_days }}> {{ name|capitalize }}</label>{% endfor %}</div>
+      <p class="days-summary" id="days-summary" aria-live="polite"></p>
     </fieldset>
     <div class="row">
       <label class="grow">Começa em (opcional)<input type="date" name="starts_on" value="{{ val('starts_on', p.starts_on.isoformat() if p and p.starts_on else '') }}"></label>
@@ -137,6 +139,19 @@
     box.innerHTML = (good.length ? "<p><b>Como vai ficar no site:</b></p><ul>" + good.slice(0, 4).map((r) => `<li>${r.label}: <s>${money(r.from)}</s> <b>${money(r.to)}</b></li>`).join("") + (good.length > 4 ? `<li>e mais ${good.length - 4}</li>` : "") + "</ul>" : "")
       + (bad.length ? `<p class="flash error">Não vale para ${bad.slice(0, 4).map((r) => r.label).join(", ")}${bad.length > 4 ? "…" : ""}: o preço normal já é menor ou igual.</p>` : "");
   }
+  // frase com os dias marcados: evita marcar ao contrário (ex.: “Quarta maluka” valendo todo dia menos quarta)
+  const DAYS = {1: "segundas", 2: "terças", 3: "quartas", 4: "quintas", 5: "sextas", 6: "sábados", 0: "domingos"};
+  function days() {
+    const on = [...form.querySelectorAll("input[name=days]:checked")].map((i) => DAYS[i.value]);
+    const box = document.getElementById("days-summary");
+    box.className = "days-summary" + (on.length ? "" : " bad");
+    box.textContent = !on.length ? "Nenhum dia marcado: marque pelo menos um." : on.length === 7 ? "Vale: todos os dias."
+      : "Vale: só às " + (on.length === 1 ? on[0] : on.slice(0, -1).join(", ") + " e " + on[on.length - 1]) + ".";
+  }
+  form.querySelectorAll("[data-days]").forEach((b) => b.addEventListener("click", () => {
+    form.querySelectorAll("input[name=days]").forEach((i) => { i.checked = b.dataset.days === "all"; }); days();
+  }));
+  form.addEventListener("change", days); days();
   form.addEventListener("change", sync);
   form.addEventListener("input", sync);
   sync();

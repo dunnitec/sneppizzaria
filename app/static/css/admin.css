@@ -393,3 +393,5 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
 .push-preview{margin:12px 0;padding:12px 14px;border-radius:16px;background:#f1f1f3;border:1px solid var(--line);max-width:360px;display:flex;flex-direction:column;gap:2px;font-size:14px}
 .push-preview .pp-app{font-size:12px;color:var(--muted)}
 .app-icon-preview{border-radius:20px;border:1px solid var(--line)}
+.days-summary{margin:8px 0 0;font-weight:700;color:#1d7a35}
+.days-summary.bad{color:var(--red)}
