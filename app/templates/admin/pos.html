@@ -33,8 +33,13 @@
           <label class="grow">Complemento<input name="complement" maxlength="120"></label>
         </div>
         <div class="row">
-          <label class="grow">Bairro<select name="neighborhood"><option value="">Escolha…</option>{% for n in data.neighborhoods %}<option value="{{ n.name }}" data-fee="{{ n.fee }}">{{ n.name }} — {{ n.fee|brl }}</option>{% endfor %}<option value="__outro__" data-fee="0">Outro bairro (taxa a combinar)</option></select></label>
+          <label class="grow">Bairro<select name="neighborhood"><option value="">Escolha…</option>{% for n in data.neighborhoods %}<option value="{{ n.name }}" data-fee="{{ n.fee }}">{{ n.name }} — {{ n.fee|brl }}</option>{% endfor %}<option value="__outro__" data-fee="0">Outro bairro (digitar a taxa)</option></select></label>
           <label class="grow2">Ponto de referência<input name="reference" maxlength="200"></label>
+        </div>
+        <div class="row" id="pos-other" hidden>
+          <label class="grow">Nome do bairro<input name="other_neighborhood" maxlength="120" placeholder="ex.: Vila Nova"></label>
+          <label class="money">Taxa de entrega (R$)<input name="delivery_fee" inputmode="decimal" placeholder="0,00"></label>
+          <p class="hint grow2">Bairro fora da lista: combine a taxa com o cliente e digite aqui. Para não digitar sempre, cadastre o bairro em <b>Entrega</b>.</p>
         </div>
       </div>
     </div>

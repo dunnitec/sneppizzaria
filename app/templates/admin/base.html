@@ -12,7 +12,7 @@
 {% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
 <header class="top">
   <div class="wrap bar">
-    <div class="brand">{{ tenant.name }} {% if admin and is_owner %}<a href="{{ url_for('admin.index') }}" class="pill {{ 'on' if store_open else 'off' }}" title="Abrir ou fechar a loja">{{ 'Aberta' if store_open else 'Fechada' }}</a>{% else %}<span class="pill {{ 'on' if store_open else 'off' }}">{{ 'Aberta' if store_open else 'Fechada' }}</span>{% endif %}</div>
+    <div class="brand">{{ tenant.name }} {% if admin and is_owner %}<a href="{{ url_for('admin.index') }}" data-status="{{ url_for('public.store_status', slug=tenant.slug) }}" class="pill {{ 'on' if store_open else 'off' }}" title="Abrir ou fechar a loja">{{ 'Aberta' if store_open else 'Fechada' }}</a>{% else %}<span data-status="{{ url_for('public.store_status', slug=tenant.slug) }}" class="pill {{ 'on' if store_open else 'off' }}">{{ 'Aberta' if store_open else 'Fechada' }}</span>{% endif %}</div>
     {% if admin %}
     <form method="post" action="{{ url_for('admin.logout') }}">{{ csrf() }}<button class="ghost">Sair</button></form>
     {% endif %}

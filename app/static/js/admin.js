@@ -236,3 +236,33 @@
   document.addEventListener("visibilitychange", () => { if (!document.hidden) document.title = baseTitle; });
   setInterval(poll, POLL_MS);
 })();
+
+/* Aberta/fechada no topo do painel: acompanha a loja sem recarregar (outra aba, outro celular ou o horário virando). */
+(function () {
+  "use strict";
+  const pill = document.querySelector(".pill[data-status]");
+  if (!pill) return;
+  const card = document.querySelector(".store-now[data-open]");
+  async function check() {
+    try {
+      const r = await fetch(pill.dataset.status, { credentials: "same-origin", cache: "no-store" });
+      const open = (await r.json()).open;
+      pill.classList.toggle("on", open); pill.classList.toggle("off", !open);
+      pill.textContent = open ? "Aberta" : "Fechada";
+      // a tela Início mostra o botão certo (Abrir/Fechar): se mudou, recarrega ela
+      if (card && card.dataset.open !== (open ? "1" : "0")) location.reload();
+    } catch (e) { /* sem conexão: tenta de novo na próxima */ }
+  }
+  setInterval(check, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+})();
+
+/* Loja → horário: avisa quando o fechamento fica para a madrugada do dia seguinte. */
+document.querySelectorAll(".next-day").forEach((note) => {
+  const row = note.parentElement;
+  const [o, c] = ["open", "close"].map((k) => row.querySelector(`input[name^="${k}-"]`));
+  // fechar antes de abrir, até as 06:00 (ex.: 18:00 → 01:00) = fecha na madrugada seguinte
+  const show = () => { note.hidden = !(o.value && c.value && c.value < o.value && c.value <= "06:00"); };
+  [o, c].forEach((i) => i.addEventListener("input", show));
+  show();
+});

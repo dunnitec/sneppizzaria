@@ -17,11 +17,16 @@
   function applyChannel() {
     form.querySelectorAll("[data-for]").forEach((el) => { el.hidden = !el.dataset.for.split(" ").includes(channel()); });
     $("#pos-address").hidden = !delivery();
+    $("#pos-other").hidden = !other();
     renderTotal();
   }
   form.querySelectorAll('[name="channel"]').forEach((r) => r.addEventListener("change", applyChannel));
   $("#pos-delivery").addEventListener("change", applyChannel);
-  $('[name="neighborhood"]').addEventListener("change", renderTotal);
+  const other = () => delivery() && $('[name="neighborhood"]').value === "__outro__";
+  // valor digitado: "1.234,50", "20,5" ou "20.50"; vazio = null
+  const num = (v) => { v = String(v || "").trim(); return v === "" ? null : Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v); };
+  $('[name="neighborhood"]').addEventListener("change", () => { $("#pos-other").hidden = !other(); renderTotal(); });
+  $('[name="delivery_fee"]').addEventListener("input", renderTotal);
   $('[name="payment_method"]').addEventListener("change", (e) => { $("#pos-change").hidden = e.target.value !== "Dinheiro"; });
 
   /* ---------- regras (as mesmas do site) ---------- */
@@ -167,9 +172,16 @@
   });
   function renderTotal() {
     const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const total = sub + (fee() || 0);
+    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${delivery() ? `<div><span>Entrega</span><b>${fee() === null ? "a combinar" : money(fee())}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(total)}</b></div>`;
+    return total;
+  }
+  // taxa da entrega: a do bairro da lista ou a digitada para "Outro bairro" (vazia = a combinar)
+  function fee() {
+    if (!delivery()) return 0;
     const opt = $('[name="neighborhood"]').selectedOptions[0];
-    const fee = delivery() && opt && opt.value && opt.value !== "__outro__" ? Number(opt.dataset.fee) : 0;
-    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${delivery() ? `<div><span>Entrega</span><b>${opt && opt.value === "__outro__" ? "a combinar" : money(fee)}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(sub + fee)}</b></div>`;
+    if (other()) { const v = num($('[name="delivery_fee"]').value); return v === null || isNaN(v) ? null : v; }
+    return opt && opt.value ? Number(opt.dataset.fee) : 0;
   }
   function showError(msg) { const el = $("#pos-error"); el.textContent = msg; el.hidden = !msg; }
 
@@ -178,11 +190,23 @@
     e.preventDefault();
     const f = new FormData(form);
     const hood = f.get("neighborhood");
+    const cash = f.get("payment_method") === "Dinheiro";
+    const change = cash ? num(f.get("change_for")) : null;
+    if (change !== null && !(change >= renderTotal())) {
+      showError(`O troco tem que ser para um valor maior que o total (${money(renderTotal())}). Se não precisar de troco, deixe em branco.`);
+      $('[name="change_for"]').focus();
+      return;
+    }
+    if (other() && fee() === null && !confirm("Você não digitou a taxa de entrega deste bairro. Lançar com a entrega “a combinar”?")) {
+      $('[name="delivery_fee"]').focus();
+      return;
+    }
     const payload = {
       channel: channel(), table_label: f.get("table_label"), customer_name: f.get("customer_name"), customer_phone: f.get("customer_phone"),
       withdraw: !delivery(), street: f.get("street"), number: f.get("number"), complement: f.get("complement"),
-      neighborhood: hood === "__outro__" ? "" : hood, reference: f.get("reference"),
-      payment_method: f.get("payment_method"), change_for: f.get("change_for") ? f.get("change_for").replace(",", ".") : null,
+      neighborhood: hood === "__outro__" ? (f.get("other_neighborhood") || "").trim() : hood, reference: f.get("reference"),
+      delivery_fee: other() ? fee() : null,
+      payment_method: f.get("payment_method"), change_for: change,
       items: cart.map((i) => Object.assign({}, i.sel, { quantity: i.qty })),
     };
     const btn = $("#pos-submit");

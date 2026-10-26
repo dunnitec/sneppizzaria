@@ -90,3 +90,46 @@ def test_staff_can_take_orders(client, tenant):
 
 def test_orders_page_has_new_order_button(panel):
     assert "/snep/admin/pedidos/novo" in panel.get("/snep/admin/pedidos").get_data(as_text=True)
+
+
+def phone_delivery(client, **over):
+    data = dict(channel="telefone", customer_name="Carla", customer_phone="11955554444", withdraw=False,
+                street="Rua B", number="5", neighborhood="Bairro Novo")
+    data.update(over)
+    return post(client, **data)
+
+
+def test_phone_order_to_unlisted_neighborhood_uses_typed_fee(panel):
+    r = phone_delivery(panel, delivery_fee="9,50")
+    assert r.status_code == 200, r.json
+    o = db.session.get(Order, r.json["order_id"])
+    assert o.delivery_fee == Decimal("9.50") and o.neighborhood_name == "Bairro Novo"
+    assert o.total == paulista_price() + Decimal("9.50")
+
+
+def test_phone_order_without_typed_fee_stays_to_combine(panel):
+    o = db.session.get(Order, phone_delivery(panel, delivery_fee="").json["order_id"])
+    assert o.delivery_fee == 0 and o.total == paulista_price()
+
+
+@pytest.mark.parametrize("bad", ["abc", "-3", "9999"])
+def test_phone_order_with_bad_fee_is_refused(panel, bad):
+    r = phone_delivery(panel, delivery_fee=bad)
+    assert r.status_code == 400 and "taxa" in r.json["error"].lower()
+
+
+def test_site_cannot_set_its_own_fee(client, open_store):
+    from tests.test_orders import payload
+    r = client.post("/snep/api/pedido", json=payload(withdraw=False, street="Rua", number="1",
+                                                       neighborhood="Bairro Novo", delivery_fee="0"))
+    assert r.json["delivery_fee"] is None  # taxa a confirmar pela loja, nunca a que veio do navegador
+
+
+def test_phone_order_change_smaller_than_total_is_refused(panel):
+    r = post(panel, channel="balcao", payment_method="Dinheiro", change_for=5)
+    assert r.status_code == 400 and "troco" in r.json["error"].lower()
+
+
+def test_pos_page_has_fee_field_for_other_neighborhood(panel):
+    html = panel.get("/snep/admin/pedidos/novo").get_data(as_text=True)
+    assert 'name="delivery_fee"' in html and 'name="other_neighborhood"' in html

@@ -56,3 +56,64 @@ def test_store_page_warns_when_closed_by_owner(panel, tenant):
     db.session.commit()
     page = panel.get("/snep/admin/loja").get_data(as_text=True)
     assert "FECHADA por você" in page and "Seguir o horário" in page
+
+
+# ---------- fechar depois da meia-noite ----------
+
+def test_closing_after_midnight_is_saved_as_next_day(panel, tenant):
+    # sábado das 18:00 à 01:00 (domingo de madrugada)
+    r = panel.post("/snep/admin/loja", data=store_form(tenant, **{"open-6": "18:00", "close-6": "01:00"}))
+    assert r.status_code == 302
+    db.session.expire_all()
+    assert json.loads(tenant.hours_json)["6"] == [1080, 1500]
+    page = panel.get("/snep/admin/loja").get_data(as_text=True)
+    assert 'name="close-6" value="01:00"' in page and "fecha de madrugada" in page
+
+
+def test_store_is_open_in_the_early_hours_of_the_next_day(tenant):
+    tenant.is_open_override = None
+    tenant.hours_json = json.dumps({"6": [1080, 1500], "0": None})
+    saturday = lambda h, m: datetime(2026, 10, 31, h, m, tzinfo=STORE_TZ)  # noqa: E731
+    sunday = lambda h, m: datetime(2026, 11, 1, h, m, tzinfo=STORE_TZ)  # noqa: E731
+    assert is_open(tenant, saturday(17, 59)) is False
+    assert is_open(tenant, saturday(23, 30)) is True
+    assert is_open(tenant, sunday(0, 59)) is True  # domingo fechado, mas a madrugada é do sábado
+    assert is_open(tenant, sunday(1, 0)) is False
+    from app.services.hours import status_text
+    assert "Fecha às 01:00" in status_text(tenant, sunday(0, 30))
+
+
+def test_closing_at_midnight_works(panel, tenant):
+    panel.post("/snep/admin/loja", data=store_form(tenant, **{"open-5": "18:00", "close-5": "00:00"}))
+    db.session.expire_all()
+    assert json.loads(tenant.hours_json)["5"] == [1080, 1440]
+    tenant.is_open_override = None
+    friday = lambda h, m: datetime(2026, 10, 30, h, m, tzinfo=STORE_TZ)  # noqa: E731
+    assert is_open(tenant, friday(23, 59)) is True and is_open(tenant, datetime(2026, 10, 31, 0, 0, tzinfo=STORE_TZ)) is False
+
+
+def test_same_open_and_close_is_rejected(panel, tenant):
+    before = tenant.hours_json
+    panel.post("/snep/admin/loja", data=store_form(tenant, **{"open-6": "18:00", "close-6": "18:00"}))
+    db.session.expire_all()
+    assert tenant.hours_json == before
+
+
+def test_site_lists_after_midnight_hours(app, tenant):
+    tenant.hours_json = json.dumps({"6": [1080, 1500]})
+    with app.test_request_context():
+        d = data_from_db(tenant, "/x", {})
+    assert ("Sábado", "18:00 às 01:00") in d["hours_rows"]
+
+
+# ---------- aberto/fechado sem recarregar ----------
+
+def test_status_endpoint_follows_the_panel(client, tenant):
+    tenant.is_open_override = True
+    db.session.commit()
+    r = client.get("/snep/api/status")
+    assert r.json == {"open": True} and r.headers["Cache-Control"] == "no-store"
+    tenant.is_open_override = False
+    db.session.commit()
+    assert client.get("/snep/api/status").json == {"open": False}
+    assert client.get("/naoexiste/api/status").status_code == 404

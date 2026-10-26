@@ -99,3 +99,18 @@ def test_phone_is_shown_formatted(key, shown):
     from app.services.customers import format_phone
 
     assert format_phone(key) == shown
+
+
+def test_delete_customer_also_removes_their_phone_alerts(panel, open_store):
+    from app.models import PushSubscription
+
+    panel.post("/snep/api/pedido", json=order_payload(name="Maria Souza", phone="11911112222"))
+    customer = Customer.query.one()
+    db.session.add_all([
+        PushSubscription(tenant_id=open_store.id, customer_id=customer.id, endpoint="https://push.example/maria", p256dh="k", auth="a"),
+        PushSubscription(tenant_id=open_store.id, endpoint="https://push.example/outro", p256dh="k", auth="a"),
+    ])
+    db.session.commit()
+    panel.post(f"/snep/admin/clientes/{customer.id}/apagar")
+    db.session.expire_all()
+    assert [s.endpoint for s in PushSubscription.query.all()] == ["https://push.example/outro"]

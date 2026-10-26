@@ -89,12 +89,14 @@
     <h2>Horário de atendimento</h2>
     {% if tenant.is_open_override is not none %}<p class="flash error">Agora a loja está <b>{{ 'ABERTA' if tenant.is_open_override else 'FECHADA' }} por você</b> (opção acima). O horário abaixo é salvo, mas só volta a valer quando você marcar <b>“Seguir o horário”</b> lá em cima.</p>{% endif %}
     <p class="hint">Dia marcado como <b>fechado</b> guarda o horário: dá para trocar a hora agora e ela vale quando você desmarcar “fechado”.</p>
+    <p class="hint">Fecha <b>depois da meia-noite</b>? É só pôr a hora normalmente (ex.: abre 18:00, fecha 01:00): o sistema entende que fecha na madrugada do dia seguinte (até as 06:00).</p>
     {% for d in days %}
     <div class="row {{ 'day-closed' if d.closed }}">
       <span class="grow name">{{ d.name }}</span>
       <label class="check"><input type="checkbox" name="closed-{{ d.n }}" {{ 'checked' if d.closed }}> fechado</label>
       <label class="time">Abre<input type="time" name="open-{{ d.n }}" value="{{ d.open }}"></label>
       <label class="time">Fecha<input type="time" name="close-{{ d.n }}" value="{{ d.close }}"></label>
+      <small class="next-day" hidden>fecha de madrugada, no dia seguinte</small>
     </div>
     {% endfor %}
   </section>

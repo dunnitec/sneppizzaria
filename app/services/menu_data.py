@@ -22,7 +22,8 @@ def _hours_rows(hours):
     for d in (1, 2, 3, 4, 5, 6, 0):
         h = hours.get(str(d))
         if h:
-            rows.append((WEEKDAYS[d], f"{h[0]//60:02d}:{h[0]%60:02d} às {h[1]//60:02d}:{h[1]%60:02d}"))
+            close = h[1] % 1440  # depois da meia-noite: fecha na madrugada do dia seguinte
+            rows.append((WEEKDAYS[d], f"{h[0]//60:02d}:{h[0]%60:02d} às {close//60:02d}:{close%60:02d}"))
         else:
             rows.append((WEEKDAYS[d], "Fechado"))
     return rows

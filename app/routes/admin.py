@@ -787,6 +787,9 @@ def _minutes(text):
     return int(match[1]) * 60 + int(match[2]) if match else None
 
 
+LATEST_NEXT_DAY_CLOSE = 6 * 60  # fechar até as 06:00 = madrugada do dia seguinte; depois disso é engano
+
+
 @admin_bp.route("/loja", methods=["GET", "POST"])
 def store():
     tenant = g.tenant
@@ -801,13 +804,17 @@ def store():
             hours = {}
             for day in range(7):
                 opens, closes = _minutes(form.get(f"open-{day}")), _minutes(form.get(f"close-{day}"))
+                if opens is not None and closes is not None and closes < opens and closes <= LATEST_NEXT_DAY_CLOSE:
+                    closes += 1440  # fecha depois da meia-noite, na madrugada do dia seguinte
+                valid = opens is not None and closes is not None and opens < closes
                 if f"closed-{day}" in form:
                     # dia fechado guarda o horário digitado, para valer quando o dono reabrir o dia
-                    hours[str(day)] = [opens, closes, 0] if opens is not None and closes is not None and opens < closes else None
+                    hours[str(day)] = [opens, closes, 0] if valid else None
                     continue
-                if opens is None or closes is None or opens >= closes:
+                if not valid:
                     raise FormError(
-                        f"Horário inválido em {WEEKDAYS[day]}: o fechamento precisa ser depois da abertura, no mesmo dia (até 23:59)."
+                        f"Horário inválido em {WEEKDAYS[day]}: o fechamento precisa ser depois da abertura "
+                        "(ou de madrugada, até as 06:00)."
                     )
                 hours[str(day)] = [opens, closes]
             if "name" in form:
@@ -845,7 +852,7 @@ def store():
         return redirect(url_for("admin.store"))
 
     hours = json.loads(tenant.hours_json) if tenant.hours_json else {}
-    fmt = lambda m: f"{m // 60:02d}:{m % 60:02d}"  # noqa: E731
+    fmt = lambda m: f"{m % 1440 // 60:02d}:{m % 60:02d}"  # noqa: E731
     days = [
         {"n": d, "name": WEEKDAYS[d],
          "closed": not hours.get(str(d)) or (len(hours[str(d)]) > 2 and not hours[str(d)][2]),

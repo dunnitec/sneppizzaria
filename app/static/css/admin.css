@@ -396,3 +396,4 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
 .days-summary{margin:8px 0 0;font-weight:700;color:#1d7a35}
 .days-summary.bad{color:var(--red)}
 .day-closed .time input{opacity:.55}
+.next-day{flex:1 1 100%;color:#8a5a00;font-weight:600}

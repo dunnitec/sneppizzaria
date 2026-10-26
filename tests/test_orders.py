@@ -113,3 +113,21 @@ def test_static_files_carry_a_version_so_phones_get_new_banners(client):
     html = client.get("/snep/").get_data(as_text=True)
     assert "banner1.webp?v=" in html
     assert "delivery.js?v=" in html
+
+
+def test_change_smaller_than_total_is_refused(client, open_store):
+    r = client.post("/snep/api/pedido", json=payload(payment_method="Dinheiro", change_for="20"))
+    assert r.status_code == 400 and "troco" in r.json["error"].lower()
+    assert Order.query.count() == 0
+
+
+def test_change_equal_to_total_is_accepted(client, open_store):
+    total = paulista_price() * 2
+    r = client.post("/snep/api/pedido", json=payload(payment_method="Dinheiro", change_for=str(total)))
+    assert r.status_code == 200
+    assert Order.query.one().change_for == total
+
+
+def test_change_is_ignored_when_not_paying_cash(client, open_store):
+    r = client.post("/snep/api/pedido", json=payload(payment_method="Pix", change_for="20"))
+    assert r.status_code == 200 and Order.query.one().change_for is None

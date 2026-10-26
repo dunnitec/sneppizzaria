@@ -65,6 +65,16 @@ def menu(slug):
     return render_template("index.html", d=d, pay_icons=PAY_ICONS, inline=False)
 
 
+@public_bp.route("/<slug>/api/status")
+def store_status(slug):
+    """Aberta/fechada agora: o site e o painel consultam de tempos em tempos, para mudar sem recarregar."""
+    from app.services.hours import is_open
+
+    resp = make_response({"open": is_open(get_tenant_or_404(slug))})
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 # ---------- app no celular (PWA) ----------
 
 ICON_SIZES = (96, 180, 192, 512)

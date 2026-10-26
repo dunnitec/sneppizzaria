@@ -11,7 +11,7 @@
 {% block content %}
 <h1>Início</h1>
 
-<section class="card store-now {{ 'is-open' if store_open else 'is-closed' }}">
+<section class="card store-now {{ 'is-open' if store_open else 'is-closed' }}" data-open="{{ 1 if store_open else 0 }}">
   <p class="big-status">A loja está <b>{{ 'ABERTA' if store_open else 'FECHADA' }}</b> para pedidos</p>
   <p class="hint">{{ status_line }}</p>
   <form method="post" action="{{ url_for('admin.store_now') }}" class="now-buttons">

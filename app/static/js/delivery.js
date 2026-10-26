@@ -15,18 +15,34 @@ bimgs.forEach(sl=>{const im=sl.querySelector("img");sl.style.backgroundImage=`ur
 function togglePop(id,ev){ev.stopPropagation();const p=document.getElementById(id);const on=p.classList.contains("on");document.querySelectorAll(".pop").forEach(x=>x.classList.remove("on"));if(!on)p.classList.add("on");}
 document.addEventListener("click",()=>document.querySelectorAll(".pop").forEach(x=>x.classList.remove("on")));
 // aberto/fechado vem do servidor (horário de Brasília); a prévia estática não tem servidor e usa o relógio local
-const CLOSED=DATA.open===false;
+let CLOSED=DATA.open===false;
 const CLOSED_MSG="Estamos fechados no momento. Confira nossos horários de atendimento.";
+function showStatus(open){
+  CLOSED=!open;
+  document.getElementById("st-dot").classList.toggle("open",open);
+  document.getElementById("st-txt").textContent=open?"Aberto":"Fechado";
+  const f=document.getElementById("ft-st"); f.textContent=open?"◉ Aberto!":"◉ Fechado!"; f.classList.toggle("open",open);
+}
 (function status(){
   let open=DATA.open;
   if(open===undefined){
     const now=new Date(), d=now.getDay(), m=now.getHours()*60+now.getMinutes();
-    const h=DATA.hours[d]; open=false;
+    const h=DATA.hours[d], y=DATA.hours[(d+6)%7]; open=false;
     if(h){const [a,b]=h; open = m>=a && m<b;}
+    if(y&&y[1]>1440&&m<y[1]-1440)open=true; // expediente de ontem que vai até a madrugada
+    showStatus(open);return;
   }
-  document.getElementById("st-dot").classList.toggle("open",open);
-  document.getElementById("st-txt").textContent=open?"Aberto":"Fechado";
-  const f=document.getElementById("ft-st"); f.textContent=open?"◉ Aberto!":"◉ Fechado!"; f.classList.toggle("open",open);
+  showStatus(open);
+  // o dono pode abrir/fechar pelo painel (ou o horário virar) com o site já aberto: confere de tempos em tempos
+  const url=DATA.order_url.replace(/api\/.*$/,"api/status");
+  const check=()=>fetch(url,{cache:"no-store"}).then(r=>r.json()).then(r=>{
+    if(r.open===!CLOSED)return;
+    showStatus(r.open);
+    if(typeof renderCart==="function")renderCart();
+    toast(r.open?"A loja abriu! Já dá para fazer o pedido.":CLOSED_MSG);
+  }).catch(()=>{});
+  setInterval(check,30000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)check();});
 })();
 
 /* ---------- ícones dos títulos (painel → categoria → Como aparece no site) ---------- */
@@ -266,7 +282,7 @@ function openCheckout(){
       <label>Ponto de referência<input name="ref"></label>
     </div>
     <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none';const pn=document.getElementById('pix-note');if(pn)pn.hidden=this.value!=='Pix'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").filter(p=>p.trim()).map(p=>`<option>${esc(p.trim())}</option>`).join("")}</select></label>${DATA.pix?`<p class="pix-note" id="pix-note" hidden>Pix: ao finalizar, aparece o QR Code e o “Pix copia e cola” com o valor do pedido para você pagar no app do banco.</p>`:""}
-    <label id="troco" style="display:none">Troco para quanto? (opcional)<input name="troco" type="number" step="0.01" min="0"></label>
+    <label id="troco" style="display:none">Troco para quanto? (opcional; maior que o total)<input name="troco" type="number" step="0.01" min="0" inputmode="decimal"></label>
     <div class="sum" id="sum"></div>
     <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>
   </form>
@@ -307,8 +323,11 @@ function totals(){const f=fee(),s=subtotal(),d=accDiscount();document.getElement
 function finish(ev){
   ev.preventDefault();const f=ev.target,wd=document.getElementById("ck-wd").checked;
   if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
+  const cash=f.pag.value==="Dinheiro", troco=cash&&f.troco.value?Number(f.troco.value):null;
+  const total=subtotal()-accDiscount().value+(fee()||0);
+  if(troco!==null&&troco<total-0.004){toast(`O troco tem que ser para um valor maior que o total (${money(total)}).`);f.troco.focus();return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
-    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:f.troco.value||null,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})

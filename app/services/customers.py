@@ -8,7 +8,7 @@ dos pedidos dele, mas mantém os valores para os relatórios.
 import re
 
 from app.extensions import db
-from app.models import Customer, Order, utcnow
+from app.models import Customer, Order, PushSubscription, utcnow
 
 
 def phone_key(raw):
@@ -53,4 +53,6 @@ def erase_customer(customer):
         order.street = order.number = order.complement = order.reference = ""
         order.change_for = None
         order.whatsapp_message = None
+    # celulares inscritos nos avisos por este cliente param de receber qualquer aviso
+    PushSubscription.query.filter_by(customer_id=customer.id).delete()
     db.session.delete(customer)

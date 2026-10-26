@@ -7,6 +7,7 @@ por canal ficam todas neste arquivo:
 - balcao / mesa: lançado por quem atende; nome e telefone opcionais (mesa exige o número);
   sem pedido mínimo e mesmo com o site fechado; entra "confirmado".
 - telefone: lançado por quem atende; nome e telefone obrigatórios; pode ser entrega; entra "confirmado".
+  Bairro fora da lista: quem atende combina a taxa com o cliente e digita (delivery_fee).
 
 Descontos de cadastro (services/loyalty.py: 1º pedido e pizza grátis da fidelidade) só no site,
 para o cliente logado e com o telefone do pedido igual ao do cadastro.
@@ -29,6 +30,7 @@ from app.services.whatsapp import build_order_message
 
 MAX_ITEMS = 30
 MAX_CHANGE_FOR = Decimal("99999.99")
+MAX_MANUAL_FEE = Decimal("500")
 
 
 def _change_for(value):
@@ -40,6 +42,19 @@ def _change_for(value):
     if not amount.is_finite() or not 0 < amount <= MAX_CHANGE_FOR:
         return None
     return amount.quantize(Decimal("0.01"))
+
+
+def _manual_fee(value):
+    """Taxa digitada no painel para bairro fora da lista; vazio = a combinar (None)."""
+    if value in (None, ""):
+        return None
+    try:
+        fee = Decimal(str(value).replace(",", "."))
+    except InvalidOperation:
+        raise OrderError("Taxa de entrega inválida.")
+    if not fee.is_finite() or not 0 <= fee <= MAX_MANUAL_FEE:
+        raise OrderError("Taxa de entrega inválida.")
+    return fee.quantize(Decimal("0.01"))
 
 
 def _text(p, key, limit):
@@ -83,11 +98,19 @@ def place_order(tenant, p, channel="site", account=None):
     neighborhood = _text(p, "neighborhood", 120)
     fee, found = (Decimal("0"), True) if withdraw else calculate_fee(tenant.id, neighborhood)
     delivery_fee = fee if found else None
+    if not found and not from_site:
+        delivery_fee = _manual_fee(p.get("delivery_fee"))
     discount, discount_note, first_order, used_programs = Decimal("0"), "", False, []
     if from_site and account and account.phone_key == key:
         wanted = p.get("use_rewards") if isinstance(p.get("use_rewards"), list) else []
         discount, discount_note, first_order, used_programs = discounts(tenant, account, cart, wanted)
     total = subtotal - discount + (delivery_fee or Decimal("0"))
+
+    payment = _text(p, "payment_method", 30)
+    change_for = _change_for(p.get("change_for")) if payment == "Dinheiro" else None
+    if change_for is not None and change_for < total:
+        raise OrderError(f"O troco tem que ser para um valor maior que o total do pedido ({brl(total)}). "
+                         "Se não precisar de troco, deixe em branco.")
 
     # previsão: entrega usa o tempo de entrega; retirada, balcão e mesa usam o tempo de retirada
     now = utcnow()
@@ -104,8 +127,8 @@ def place_order(tenant, p, channel="site", account=None):
         "neighborhood_name": neighborhood if not withdraw and neighborhood else
         ("(outro bairro)" if not withdraw else {"mesa": "Comer na loja"}.get(channel, "Retirada na loja")),
         "reference": "" if withdraw else _text(p, "reference", 200),
-        "payment_method": _text(p, "payment_method", 30),
-        "change_for": _change_for(p.get("change_for")),
+        "payment_method": payment,
+        "change_for": change_for,
         "withdraw": withdraw,
         "eta": local_time(eta_at).strftime("%H:%M"),
         "from_site": from_site,
