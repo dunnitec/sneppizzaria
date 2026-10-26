@@ -414,6 +414,9 @@ function ckAccount(){
 function usedRewards(){return [...document.querySelectorAll(".use-reward-cb:checked")].map(c=>Number(c.dataset.id));}
 function fillAccount(){
   if(!ACC)return;const f=document.getElementById("ckf");
+  // os dados guardados no aparelho são de outra pessoa (outro telefone): limpa antes de usar os da conta
+  const digits=x=>String(x||"").replace(/\D/g,"").slice(-11);
+  if(digits(f.tel.value)!==digits(ACC.phone)){["nome","rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el)el.value="";});document.getElementById("bairro").value="";}
   f.nome.value=f.nome.value||ACC.name;f.tel.value=ACC.phone;
   const a=ACC.address||{};["rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&a[k])el.value=a[k];});
   const b=document.getElementById("bairro");if(a.bairro&&!b.value&&[...b.options].some(o=>o.value===a.bairro))b.value=a.bairro;
