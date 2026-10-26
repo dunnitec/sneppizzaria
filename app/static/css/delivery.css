@@ -389,3 +389,23 @@ footer .st.open{color:var(--ok)}
 .hero-promo i{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;border-radius:99px;background:var(--red);color:#fff;font:900 11px/20px var(--display);font-style:normal;text-align:center;border:2px solid #fff}
 @media (max-width:700px){.hero-promo{height:40px;padding:0 10px}.hero-promo b{font-size:11px}}
 @media (prefers-reduced-motion:reduce){.hero-promo{animation:none}}
+
+/* ---------- quadros Aberto / Entrega / Pagamento: mesmo ícone, mesma altura, texto alinhado ---------- */
+.infobar{align-items:stretch}
+.infobar .blk{display:flex;flex-direction:row;align-items:center;gap:10px;min-height:62px;padding:10px 12px}
+.ib-ico{flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);color:#e9e9ec}
+.ib-ico svg{width:19px;height:19px}
+.ib-ico .dot{margin:0}
+.ib-txt{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.ib-txt b{font-size:14px;line-height:1.15}
+.ib-txt small{font-size:12px;line-height:1.25}
+@media (max-width:900px){
+  .infobar{gap:6px}
+  .infobar .blk{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:6px;min-height:84px;padding:10px}
+  .ib-ico{width:28px;height:28px}
+  .ib-ico svg{width:17px;height:17px}
+  .ib-txt b{font-size:13px}
+  .ib-txt small{font-size:11px}
+}
+@keyframes nudge{0%,100%{transform:scale(1)}40%{transform:scale(1.35)}}
+.md .x.nudge{animation:nudge .5s ease-in-out 2;box-shadow:0 0 0 3px rgba(255,255,255,.35)}

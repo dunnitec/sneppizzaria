@@ -16,12 +16,22 @@ def local_time(utc_naive):
     return utc_naive.replace(tzinfo=timezone.utc).astimezone(STORE_TZ) if utc_naive else None
 
 
+def open_hours(tenant):
+    """Horário de cada dia: {"0": [abre, fecha] ou None se fechado}.
+
+    Dia marcado como fechado guarda o horário como [abre, fecha, 0], para o dono poder trocar
+    a hora sem desmarcar “fechado” (e o horário não se perder quando ele reabrir o dia).
+    """
+    raw = json.loads(tenant.hours_json) if tenant.hours_json else {}
+    return {d: (v[:2] if v and (len(v) < 3 or v[2]) else None) for d, v in raw.items()}
+
+
 def is_open(tenant, now=None):
     if tenant.is_open_override is not None:
         return tenant.is_open_override
 
     now = (now or datetime.now(STORE_TZ)).astimezone(STORE_TZ)
-    hours = json.loads(tenant.hours_json) if tenant.hours_json else {}
+    hours = open_hours(tenant)
     weekday = (now.weekday() + 1) % 7  # hours_json usa 0 = domingo
     today = hours.get(str(weekday))
     if not today:
@@ -41,7 +51,7 @@ def status_text(tenant, now=None):
     if tenant.is_open_override is False:
         return "Fechada por você, até você abrir de novo."
     now = (now or datetime.now(STORE_TZ)).astimezone(STORE_TZ)
-    hours = json.loads(tenant.hours_json) if tenant.hours_json else {}
+    hours = open_hours(tenant)
     today = hours.get(str((now.weekday() + 1) % 7))
     if not today:
         return "Fechada agora. Hoje não abre."

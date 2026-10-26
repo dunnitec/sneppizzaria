@@ -49,10 +49,10 @@
   {% else %}<div id="banner" hidden></div><div id="dots" hidden></div>{% endif %}
 
   <div class="infobar">
-    <button type="button" class="blk" onclick="togglePop('pop-h',event)"><span class="dot" id="st-dot"></span><span><b id="st-txt">Fechado</b><small>Ver horários</small></span>
+    <button type="button" class="blk" onclick="togglePop('pop-h',event)"><span class="ib-ico" aria-hidden="true"><span class="dot" id="st-dot"></span></span><span class="ib-txt"><b id="st-txt">Fechado</b><small>Ver horários ›</small></span>
       <span class="pop hrs" id="pop-h">{% for h in d.hours_rows %}<span class="row"><span>{{ h[0] }}</span><span>{{ h[1] }}</span></span>{% endfor %}</span></button>
-    <div class="blk"><span class="ico" aria-hidden="true">🕒</span><span><b>Entrega</b><small>{{ d.tenant.eta }}</small></span></div>
-    <button type="button" class="blk" onclick="togglePop('pop-p',event)"><span class="ico" aria-hidden="true">💳</span><span><b>Pagamento</b><small>na entrega</small></span>
+    <div class="blk"><span class="ib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="ib-txt"><b>Entrega</b><small>{{ d.tenant.eta }}</small></span></div>
+    <button type="button" class="blk" onclick="togglePop('pop-p',event)"><span class="ib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M7 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="ib-txt"><b>Pagamento</b><small>{{ 'Pix no site ou na entrega' if d.pix else 'na entrega' }} ›</small></span>
       <span class="pop right" id="pop-p">{% for p in d.payments %}<span class="row"><span class="ic">{{ pay_icons.get(p, pay_icons["Cartão"])|safe }}</span><span>{{ p }}</span></span>{% endfor %}</span></button>
   </div>
 
@@ -85,7 +85,7 @@
   <span class="mbar-total"><span id="mbar-total">R$ 0,00</span> ›</span>
 </button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<div class="ovl" id="ovl" onclick="if(event.target===this)closeModal()"><div class="md" id="md" role="dialog" aria-modal="true"></div></div>
+<div class="ovl" id="ovl" onclick="if(event.target===this)backdropClose()"><div class="md" id="md" role="dialog" aria-modal="true"></div></div>
 
 <script>window.DELIVERY_DATA = {{ d|tojson }};</script>
 {% if inline %}<script>{{ js|safe }}</script>{% else %}<script src="{{ static_url('js/delivery.js') }}"></script>{% endif %}

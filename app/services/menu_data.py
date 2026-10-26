@@ -70,7 +70,7 @@ def data_from_db(tenant, order_url, assets):
     import json
 
     from app.models import Addon, Border, Category, Neighborhood
-    from app.services.hours import is_open
+    from app.services.hours import is_open, open_hours
     from app.services.photos import photo_url
     from flask import current_app
 
@@ -134,7 +134,7 @@ def data_from_db(tenant, order_url, assets):
             "eta_minutes": tenant.eta_minutes,
             "pickup_minutes": tenant.pickup_minutes,
         },
-        "hours": json.loads(tenant.hours_json) if tenant.hours_json else {},
+        "hours": open_hours(tenant),
         "open": is_open(tenant),
         "pix": bool(tenant.pix_key),  # QR Code do Pix no pedido feito (app/services/pix.py)
         # cadastro do cliente: fidelidade e 1º pedido (app/services/loyalty.py); o desconto é calculado no servidor

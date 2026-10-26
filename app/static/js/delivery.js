@@ -123,6 +123,14 @@ function addDrink(ci,ki,vi){
     title:k.p.name,variant:v.label,border:"",addons:"",extras:"",notes:"",price:v.price,qty:1});
   renderCart();toast(`${k.p.name} (${v.label}) adicionado à cesta.`);
 }
+// toque fora da janela: fecha, menos em formulário (cadastro, entrar, finalizar pedido), que só fecha no X
+function backdropClose(){
+  if(document.querySelector("#md #accf, #md #ckf")){
+    const x=document.querySelector("#md .x");if(x){x.classList.remove("nudge");void x.offsetWidth;x.classList.add("nudge");}
+    toast("Para fechar, toque no X.");return;
+  }
+  closeModal();
+}
 function closeModal(){document.getElementById("ovl").classList.remove("on");F=null;}
 function flavorPool(){
   const k=F.card;

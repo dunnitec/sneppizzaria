@@ -87,8 +87,10 @@
 
   <section class="card">
     <h2>Horário de atendimento</h2>
+    {% if tenant.is_open_override is not none %}<p class="flash error">Agora a loja está <b>{{ 'ABERTA' if tenant.is_open_override else 'FECHADA' }} por você</b> (opção acima). O horário abaixo é salvo, mas só volta a valer quando você marcar <b>“Seguir o horário”</b> lá em cima.</p>{% endif %}
+    <p class="hint">Dia marcado como <b>fechado</b> guarda o horário: dá para trocar a hora agora e ela vale quando você desmarcar “fechado”.</p>
     {% for d in days %}
-    <div class="row">
+    <div class="row {{ 'day-closed' if d.closed }}">
       <span class="grow name">{{ d.name }}</span>
       <label class="check"><input type="checkbox" name="closed-{{ d.n }}" {{ 'checked' if d.closed }}> fechado</label>
       <label class="time">Abre<input type="time" name="open-{{ d.n }}" value="{{ d.open }}"></label>
@@ -107,4 +109,7 @@
   </section>
   <div class="savebar"><button class="primary">Salvar dados da loja</button></div>
 </form>
+<script>
+document.querySelectorAll('input[name^="closed-"]').forEach((cb) => cb.addEventListener("change", () => cb.closest(".row").classList.toggle("day-closed", cb.checked)));
+</script>
 {% endblock %}

@@ -800,10 +800,11 @@ def store():
                 raise FormError("WhatsApp inválido. Use 55 + DDD + número, ex.: 5511973937104.")
             hours = {}
             for day in range(7):
-                if f"closed-{day}" in form:
-                    hours[str(day)] = None
-                    continue
                 opens, closes = _minutes(form.get(f"open-{day}")), _minutes(form.get(f"close-{day}"))
+                if f"closed-{day}" in form:
+                    # dia fechado guarda o horário digitado, para valer quando o dono reabrir o dia
+                    hours[str(day)] = [opens, closes, 0] if opens is not None and closes is not None and opens < closes else None
+                    continue
                 if opens is None or closes is None or opens >= closes:
                     raise FormError(
                         f"Horário inválido em {WEEKDAYS[day]}: o fechamento precisa ser depois da abertura, no mesmo dia (até 23:59)."
@@ -846,7 +847,8 @@ def store():
     hours = json.loads(tenant.hours_json) if tenant.hours_json else {}
     fmt = lambda m: f"{m // 60:02d}:{m % 60:02d}"  # noqa: E731
     days = [
-        {"n": d, "name": WEEKDAYS[d], "closed": not hours.get(str(d)),
+        {"n": d, "name": WEEKDAYS[d],
+         "closed": not hours.get(str(d)) or (len(hours[str(d)]) > 2 and not hours[str(d)][2]),
          "open": fmt(hours[str(d)][0]) if hours.get(str(d)) else "18:00",
          "close": fmt(hours[str(d)][1]) if hours.get(str(d)) else "22:00"}
         for d in (1, 2, 3, 4, 5, 6, 0)
