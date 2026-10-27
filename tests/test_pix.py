@@ -10,7 +10,7 @@ from app.services.menu_data import data_from_db
 from app.services.pix import PixKeyError, crc16, normalize_key, payload
 from tests.test_admin import admin, login, make_admin, panel, store_form  # noqa: F401
 
-KEY = "amandabellon12@gmail.com"
+KEY = "pizzaria.teste@email.com"
 
 
 def with_pix(tenant):
@@ -53,7 +53,7 @@ def test_payload_removes_accents_and_limits_sizes():
 
 
 @pytest.mark.parametrize("kind, text, expected", [
-    ("email", " AmandaBellon12@Gmail.com ", "amandabellon12@gmail.com"),
+    ("email", " Pizzaria.Teste@Email.com ", "pizzaria.teste@email.com"),
     ("celular", "(11) 99999-0000", "+5511999990000"),
     ("celular", "+55 11 99999-0000", "+5511999990000"),
     ("cpf", "123.456.789-09", "12345678909"),
@@ -108,7 +108,7 @@ def test_site_data_tells_if_pix_is_on(app, tenant):
 
 def test_owner_saves_pix_key(panel, tenant):
     panel.post("/snep/admin/loja", data=store_form(tenant, status="open", pix_key_type="email",
-                                                    pix_key="AmandaBellon12@gmail.com", pix_city="Itu"))
+                                                    pix_key="Pizzaria.Teste@email.com", pix_city="Itu"))
     db.session.expire_all()
     assert (tenant.pix_key, tenant.pix_key_type, tenant.pix_city) == (KEY, "email", "Itu")
 
