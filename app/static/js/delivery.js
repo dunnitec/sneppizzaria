@@ -343,6 +343,7 @@ renderCart();
 /* ---------- conta do cliente: cadastro pelo telefone, histórico, cartões fidelidade e 1º pedido ---------- */
 let ACC=null, AFTER_LOGIN=null; // ACC = dados da conta logada (GET /api/conta)
 async function accApi(path,body){
+  if(!DATA.account_url)return {ok:false,logged:false}; // plano sem cadastro de cliente
   try{
     const r=await fetch(DATA.account_url+path,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
     return await r.json();
@@ -471,7 +472,7 @@ function iosNeedsInstall(){return IOS&&!STANDALONE;}
 function renderAppBar(){
   const box=document.getElementById("app-bar");if(!box)return;
   const closed=Number(lsGet("app_bar_fechada")||0);
-  if(STANDALONE||(Date.now()-closed<7*864e5)||!(INSTALL_EVT||iosNeedsInstall())){box.innerHTML="";return;}
+  if(!DATA.app||STANDALONE||(Date.now()-closed<7*864e5)||!(INSTALL_EVT||iosNeedsInstall())){box.innerHTML="";return;}
   box.innerHTML=`<div class="app-bar"><img src="/${SLUG}/icone-96.png" alt="" width="44" height="44"><div class="ab-txt"><b>Instale o app da ${esc(DATA.tenant.name)}</b><small>Peça mais rápido e receba avisos do seu pedido.</small></div><button class="btn-red" onclick="installApp()">Instalar</button><button class="ab-x" onclick="lsSet('app_bar_fechada',String(Date.now()));renderAppBar()" aria-label="Fechar">×</button></div>`;
 }
 function installApp(){

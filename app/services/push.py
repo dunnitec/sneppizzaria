@@ -15,6 +15,7 @@ from flask import current_app, url_for
 
 from app.extensions import db
 from app.models import PushSubscription, utcnow
+from app.services.plans import has as has_feature
 from app.services.hours import local_time
 
 _pool = ThreadPoolExecutor(max_workers=4)
@@ -42,7 +43,7 @@ def _post(info, data, private_key, claims):
 def send(tenant, subs, title, body, url, tag=None):
     """Manda o aviso para os aparelhos. Devolve quantos foram tentados."""
     subs = list(subs)
-    if not enabled() or not subs:
+    if not enabled() or not subs or not has_feature(tenant, "app"):
         return 0
     app = current_app._get_current_object()
     payload = json.dumps({

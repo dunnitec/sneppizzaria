@@ -20,6 +20,7 @@ from app.services.hours import local_time
 from app.services.loyalty import cards, first_order_eligible, first_order_text
 from app.services.order_display import item_view
 from app.services.pix import for_order
+from app.services.plans import has as has_feature
 
 account_bp = Blueprint("account", __name__)
 
@@ -27,6 +28,18 @@ COOKIE_DAYS = 90
 MAX_FAILED = 5
 LOCK_TIME = timedelta(minutes=15)
 PIN = re.compile(r"\d{4,6}")
+
+
+# rotas que dependem do plano da loja (services/plans.py); o acompanhamento do pedido vale em todos
+PLAN_ENDPOINTS = {"account.me": "fidelidade", "account.register": "fidelidade", "account.login": "fidelidade",
+                  "account.change_pin": "fidelidade", "account.push_subscribe": "app"}
+
+
+@account_bp.before_request
+def _check_plan():
+    feature = PLAN_ENDPOINTS.get(request.endpoint)
+    if feature and not has_feature(get_tenant_or_404((request.view_args or {}).get("slug")), feature):
+        return _error("Esta função não está disponível nesta loja.", 404)
 
 
 def _cookie_name(tenant):

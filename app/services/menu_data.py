@@ -75,7 +75,8 @@ def data_from_db(tenant, order_url, assets):
     from app.services.photos import photo_url
     from flask import current_app
 
-    from app.services.loyalty import first_order_text
+    from app.services.loyalty import first_order_on, first_order_text
+    from app.services.plans import has as has_feature
     from app.services.loyalty import public_info as loyalty_public
     from app.services.promotions import badge, best_price, describe, running
 
@@ -141,10 +142,13 @@ def data_from_db(tenant, order_url, assets):
         # cadastro do cliente: fidelidade e 1º pedido (app/services/loyalty.py); o desconto é calculado no servidor
         "loyalty": loyalty_public(tenant),  # cartões fidelidade ligados
         "first_order": ({"type": tenant.first_order_type, "value": float(tenant.first_order_value),
-                         "text": first_order_text(tenant)} if tenant.first_order_enabled else None),
-        "account_url": f"/{tenant.slug}/api/conta",
+                         "text": first_order_text(tenant)} if first_order_on(tenant) else None),
+        # cadastro do cliente só no plano com fidelidade (services/plans.py); vazio = site sem “Entrar”
+        "account_url": f"/{tenant.slug}/api/conta" if has_feature(tenant, "fidelidade") else "",
         # app no celular e avisos (Web Push); sem chave VAPID os avisos ficam desligados
-        "push_key": current_app.config.get("VAPID_PUBLIC_KEY", "") if current_app.config.get("VAPID_PRIVATE_KEY") else "",
+        "app": has_feature(tenant, "app"),
+        "push_key": (current_app.config.get("VAPID_PUBLIC_KEY", "") if current_app.config.get("VAPID_PRIVATE_KEY")
+                     and has_feature(tenant, "app") else ""),
         "notices": [line.strip() for line in (tenant.notices or "").splitlines() if line.strip()],
         "min_order": float(tenant.min_order or 0),
         "categories": cats,

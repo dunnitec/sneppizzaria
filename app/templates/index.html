@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0c">
-<link rel="manifest" href="/{{ d.tenant.slug }}/manifest.webmanifest">
+{% if d.app %}<link rel="manifest" href="/{{ d.tenant.slug }}/manifest.webmanifest">{% endif %}
 <link rel="icon" type="image/png" sizes="96x96" href="/{{ d.tenant.slug }}/icone-96.png">
 <link rel="apple-touch-icon" href="/{{ d.tenant.slug }}/icone-180.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -30,7 +30,7 @@
       {% if slogan_words %}<p class="brand-slogan">{{ slogan_words[:-1]|join(' ') }} <b>{{ slogan_words[-1] }}</b></p>{% endif %}
     </div>
     <div class="hero-actions">
-    <button type="button" class="hero-acc" onclick="openAccount()" aria-label="Minha conta"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span id="acc-label">Entrar</span></button>
+    {% if d.account_url %}<button type="button" class="hero-acc" onclick="openAccount()" aria-label="Minha conta"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span id="acc-label">Entrar</span></button>{% endif %}
     <a class="hero-wa" href="https://wa.me/{{ d.tenant.whatsapp }}" target="_blank" rel="noopener" aria-label="Falar no WhatsApp">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.6a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>
       <span>WhatsApp</span>

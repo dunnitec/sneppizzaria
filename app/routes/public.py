@@ -16,6 +16,8 @@ def get_tenant_or_404(slug):
     tenant = Tenant.query.filter_by(slug=slug).first()
     if not tenant:
         abort(404)
+    if not tenant.active:  # suspensa pela plataforma: site, pedidos e painel da loja ficam fora do ar
+        abort(make_response(render_template("suspended.html", tenant=tenant), 503))
     return tenant
 
 

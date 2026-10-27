@@ -1,0 +1,41 @@
+{% extends "platform/base.html" %}
+{% block title %}Nova pizzaria{% endblock %}
+{% block content %}
+<h1>Nova pizzaria</h1>
+<form method="post" class="card">
+  {{ csrf() }}
+  <label>Nome da pizzaria<input name="name" id="np-name" maxlength="120" required value="{{ form.get('name', '') }}" placeholder="ex.: Pizzaria do João"></label>
+  <label>Endereço do site
+    <span class="slug-field"><span class="hint">…/</span><input name="slug" id="np-slug" maxlength="40" value="{{ form.get('slug', '') }}" placeholder="pizzaria-do-joao" pattern="[a-z0-9]+(-[a-z0-9]+)*"><span class="hint">/</span></span>
+  </label>
+  <p class="hint">Só letras minúsculas, números e hífen. Não dá para trocar depois sem quebrar o link que os clientes já salvaram.</p>
+  <label>WhatsApp que recebe os pedidos<input name="whatsapp" inputmode="numeric" required value="{{ form.get('whatsapp', '') }}" placeholder="5511999999999"></label>
+  <label>Plano
+    <select name="plan">
+      {% for key, p in plans.items() %}<option value="{{ key }}" {{ 'selected' if form.get('plan', 'completo') == key }}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <p class="hint">O <b>Completo</b> inclui: {{ features.values()|join('; ') }}. O <b>Essencial</b> tem todo o resto (cardápio, pedidos, Pix, balcão, motoboy, relatórios).</p>
+  <label>Cardápio inicial
+    <select name="copy_from">
+      <option value="">Começar vazio (a pizzaria cadastra tudo)</option>
+      {% for s in sources %}<option value="{{ s.id }}" {{ 'selected' if form.get('copy_from') == s.id|string }}>Copiar o cardápio de {{ s.name }} (/{{ s.slug }}/)</option>{% endfor %}
+    </select>
+  </label>
+  <p class="hint">A cópia leva categorias, sabores, preços, fotos, bordas e adicionais — a pizzaria depois só ajusta. Bairros, promoções, fidelidade, clientes e pedidos não são copiados.</p>
+  <label>Usuário do dono no painel<input name="owner_username" value="{{ form.get('owner_username', 'dono') }}" autocapitalize="none" maxlength="60"></label>
+  <div class="savebar"><button class="primary big">Criar pizzaria</button></div>
+</form>
+<script>
+  // sugere o endereço a partir do nome, até a pessoa mexer no endereço
+  (function () {
+    const name = document.getElementById("np-name"), slug = document.getElementById("np-slug");
+    let touched = !!slug.value;
+    slug.addEventListener("input", () => { touched = true; });
+    name.addEventListener("input", () => {
+      if (touched) return;
+      slug.value = name.value.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+    });
+  })();
+</script>
+{% endblock %}

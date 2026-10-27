@@ -18,6 +18,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy import func
 
 from app.extensions import db
+from app.services.plans import has as has_feature
 from app.models import SOLD_STATUSES, LoyaltyProgram, Order, OrderItem, Product
 
 CENT = Decimal("0.01")
@@ -25,6 +26,8 @@ CENT = Decimal("0.01")
 
 def programs(tenant):
     """Cartões prontos para o site: ligados e com tudo preenchido."""
+    if not has_feature(tenant, "fidelidade"):
+        return []
     rows = LoyaltyProgram.query.filter_by(tenant_id=tenant.id, active=True).order_by(LoyaltyProgram.sort_order,
                                                                                      LoyaltyProgram.id)
     return [p for p in rows if is_ready(p)]
@@ -109,9 +112,13 @@ def public_info(tenant):
 
 
 def first_order_eligible(tenant, customer):
-    if not tenant.first_order_enabled or not customer or not customer.registered_at:
+    if not first_order_on(tenant) or not customer or not customer.registered_at:
         return False
     return not Order.query.filter(Order.customer_id == customer.id, Order.status != "cancelado").first()
+
+
+def first_order_on(tenant):
+    return bool(tenant.first_order_enabled) and has_feature(tenant, "fidelidade")
 
 
 def first_order_text(tenant):

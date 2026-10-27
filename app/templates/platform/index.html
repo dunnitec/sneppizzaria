@@ -1,0 +1,30 @@
+{% extends "platform/base.html" %}
+{% block title %}Pizzarias{% endblock %}
+{% block content %}
+<div class="head-row">
+  <h1>Pizzarias</h1>
+  <a class="button primary" href="{{ url_for('platform.tenant_new') }}">+ Nova pizzaria</a>
+</div>
+<p class="hint">{{ counts.active }} no ar{% if counts.suspended %} · {{ counts.suspended }} suspensa{{ 's' if counts.suspended > 1 }}{% endif %}. Vendas e pedidos contam os últimos 30 dias (só pedidos confirmados).</p>
+
+{% for r in rows %}
+<section class="card plat-row {{ 'is-off' if not r.t.active }}">
+  <div class="plat-main">
+    <h2><a href="{{ url_for('platform.tenant_edit', tenant_id=r.t.id) }}">{{ r.t.name }}</a></h2>
+    <p class="hint">
+      <a href="{{ url_for('public.menu', slug=r.t.slug) }}" target="_blank" rel="noopener">/{{ r.t.slug }}/ ↗</a>
+      · Plano <b>{{ plans[r.t.plan].name if r.t.plan in plans else r.t.plan }}</b>
+      · {% if r.t.active %}<span class="ok-txt">No ar</span>{% else %}<b class="err-txt">Suspensa</b>{% endif %}
+    </p>
+  </div>
+  <div class="plat-nums">
+    <span><b>{{ r.orders }}</b> pedidos</span>
+    <span><b>{{ r.sold|brl }}</b> vendidos</span>
+    <span class="hint">{% if r.last %}último pedido {{ r.last|local_time|attr('strftime')('%d/%m %H:%M') }}{% else %}nenhum pedido ainda{% endif %}</span>
+  </div>
+  <a class="button" href="{{ url_for('platform.tenant_edit', tenant_id=r.t.id) }}">Gerenciar</a>
+</section>
+{% else %}
+<p class="card empty">Nenhuma pizzaria ainda.</p>
+{% endfor %}
+{% endblock %}

@@ -34,6 +34,8 @@ from app.models import (
 )
 from app.routes.public import get_tenant_or_404
 from app.services.hours import STORE_TZ, is_open, status_text
+from app.services.plans import blocked_feature
+from app.services.plans import has as has_feature
 from app.services.menu_data import WEEKDAYS
 from app.services.customers import erase_customer
 from app.services.money import brl, parse_money
@@ -101,6 +103,9 @@ def _require_login():
         g.admin = user
         if user.role != "dono" and request.endpoint not in STAFF_ENDPOINTS:
             abort(403)
+        if blocked_feature(g.tenant, request.endpoint):
+            flash("Esta função não faz parte do seu plano. Para usar, fale com quem te vendeu o sistema.", "error")
+            return redirect(url_for("admin.index"))
     elif request.endpoint != "admin.login":
         return redirect(url_for("admin.login"))
 
@@ -116,7 +121,9 @@ def _no_cache(response):
 def _template_context():
     pending = Order.query.filter_by(tenant_id=g.tenant.id, status="pendente").count() if g.admin else 0
     return {"tenant": g.tenant, "admin": g.admin, "store_open": is_open(g.tenant),
-            "is_owner": bool(g.admin and g.admin.role == "dono"), "pending_count": pending, "kinds": KINDS}
+            "is_owner": bool(g.admin and g.admin.role == "dono"), "pending_count": pending, "kinds": KINDS,
+            "has_feature": lambda feature: has_feature(g.tenant, feature),
+            "blocked_tab": lambda endpoint: blocked_feature(g.tenant, endpoint)}
 
 
 def _price(text, what, positive=False):

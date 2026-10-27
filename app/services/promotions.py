@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 
+from app.services.plans import has as has_feature
 from app.models import Promotion
 from app.services.hours import STORE_TZ
 from app.services.money import brl
@@ -41,6 +42,8 @@ def status(promo, today=None):
 
 
 def running(tenant, today=None):
+    if not has_feature(tenant, "promocoes"):
+        return []
     today = today or store_today()
     promos = Promotion.query.filter_by(tenant_id=tenant.id, active=True).order_by(Promotion.id).all()
     return [p for p in promos if status(p, today)[0] == "no_ar"]

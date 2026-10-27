@@ -59,6 +59,25 @@ class AdminUser(db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+class PlatformAdmin(db.Model):
+    """Quem administra a plataforma (/plataforma/): cria pizzarias, muda plano, suspende. O dono da loja não entra aqui."""
+
+    __tablename__ = "platform_admins"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(60), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    failed_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
 class Tenant(db.Model):
     """Uma pizzaria/loja dentro da plataforma multi-tenant."""
 
@@ -104,6 +123,10 @@ class Tenant(db.Model):
     label_width_mm = db.Column(db.Integer, nullable=False, default=100, server_default="100")
     label_height_mm = db.Column(db.Integer, nullable=False, default=150, server_default="150")
     auto_print = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    # plataforma (só /plataforma/ muda): plano contratado e loja no ar ou suspensa (ver services/plans.py)
+    plan = db.Column(db.String(20), nullable=False, default="completo", server_default="completo")
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    platform_notes = db.Column(db.Text)  # anotações internas: contato, valor combinado, vencimento
     created_at = db.Column(db.DateTime, default=utcnow)
 
     categories = db.relationship("Category", backref="tenant", lazy=True, order_by="Category.sort_order")

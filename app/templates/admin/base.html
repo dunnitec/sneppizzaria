@@ -41,7 +41,7 @@
       ('admin.stock', 'Estoque', ['admin.stock']),
       ('admin.password', 'Minha senha', ['admin.password']),
     ] %}
-    {% for endpoint, label, group in tabs %}
+    {% for endpoint, label, group in tabs if not blocked_tab(endpoint) %}
     <a href="{{ url_for(endpoint) }}" class="{{ 'cur' if request.endpoint in group }}">{{ label }}{% if endpoint == 'admin.orders' %} <span class="badge" {{ 'hidden' if not pending_count }}>{{ pending_count }}</span>{% endif %}</a>
     {% endfor %}
     <a href="{{ url_for('public.menu', slug=tenant.slug) }}" target="_blank" rel="noopener">Ver site ↗</a>

@@ -1,0 +1,29 @@
+{% extends "platform/base.html" %}
+{% block title %}{{ t.name }}{% endblock %}
+{% block content %}
+<h1>{{ 'Pizzaria criada' if new else 'Senha nova do dono' }}</h1>
+<section class="card">
+  <p class="flash ok">{{ 'A pizzaria ' ~ t.name ~ ' já está no ar.' if new else 'A senha antiga do dono deixou de funcionar.' }}{% if copied %} Cardápio copiado de {{ copied.name }}.{% endif %}</p>
+  <p><b>Anote ou envie agora: a senha não aparece de novo.</b> Na tela Início do painel aparece o lembrete para o dono trocar por uma senha só dele.</p>
+  <textarea class="credentials" rows="6" readonly onclick="this.select()">{{ t.name }}
+Site: {{ url_for('public.menu', slug=t.slug, _external=True) }}
+Painel: {{ url_for('admin.login', slug=t.slug, _external=True) }}
+Usuário: {{ username }}
+Senha: {{ password }}</textarea>
+  <div class="row">
+    <button type="button" class="primary" onclick="const a=document.querySelector('.credentials');navigator.clipboard?navigator.clipboard.writeText(a.value).then(()=>this.textContent='Copiado ✓'):(a.select(),document.execCommand('copy'),this.textContent='Copiado ✓')">Copiar para mandar no WhatsApp</button>
+    <a class="button" href="{{ url_for('platform.tenant_edit', tenant_id=t.id) }}">Ir para a pizzaria</a>
+  </div>
+</section>
+{% if new %}
+<section class="card">
+  <h2>Próximos passos da implantação</h2>
+  <ol class="hint">
+    <li>Clique em <b>Entrar no painel da loja</b> (na tela da pizzaria) para configurar junto com o dono, ou mande o acesso acima.</li>
+    <li>Em <b>Loja</b>: endereço, horário, formas de pagamento e chave Pix.</li>
+    <li>Em <b>Cardápio</b>: confira sabores e preços. Em <b>Entrega</b>: bairros e taxas.</li>
+    <li>Em <b>Aparência</b>: ícone do app, foto do topo e banners.</li>
+  </ol>
+</section>
+{% endif %}
+{% endblock %}

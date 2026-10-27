@@ -51,11 +51,13 @@
     <span>{{ 'item esgotado' if sold_out == 1 else 'itens esgotados' }} (fora do site)</span>
     <span class="tile-link">Ir para o Estoque ›</span>
   </a>
+  {% if has_feature('promocoes') %}
   <a class="card tile {{ 'promo-on' if promos_running }}" href="{{ url_for('admin.promos') }}">
     <span class="tile-num">{{ promos_running }}</span>
     <span>{{ 'promoção no ar' if promos_running == 1 else 'promoções no ar' }} hoje</span>
     <span class="tile-link">{{ 'Ver promoções ›' if promos_running else 'Criar uma promoção ›' }}</span>
   </a>
+  {% endif %}
 </div>
 
 {% if steps|selectattr('done', 'equalto', False)|list %}

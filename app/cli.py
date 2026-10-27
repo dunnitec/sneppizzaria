@@ -3,7 +3,7 @@ from pathlib import Path
 import click
 
 from app.extensions import db
-from app.models import MIN_PASSWORD_LENGTH, AdminUser, Tenant
+from app.models import MIN_PASSWORD_LENGTH, AdminUser, PlatformAdmin, Tenant
 
 
 @click.command("create-admin")
@@ -35,6 +35,30 @@ def create_admin(slug, username, password):
     user.locked_until = None
     db.session.commit()
     click.echo(f"Usuário '{username}' {'criado' if created else 'atualizado'}. Painel: /{slug}/admin/")
+
+
+@click.command("create-platform-admin")
+@click.argument("username")
+@click.option("--password", prompt="Senha", hide_input=True, confirmation_prompt="Repita a senha")
+def create_platform_admin(username, password):
+    """Cria quem administra a plataforma (/plataforma/), ou redefine a senha.
+
+    Exemplo: flask create-platform-admin jeferson
+    """
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise click.ClickException(f"A senha precisa ter pelo menos {MIN_PASSWORD_LENGTH} caracteres.")
+    username = username.strip().lower()
+    if not 3 <= len(username) <= 60:
+        raise click.ClickException("O nome de usuário precisa ter de 3 a 60 caracteres.")
+    user = PlatformAdmin.query.filter_by(username=username).first()
+    created = user is None
+    if created:
+        user = PlatformAdmin(username=username)
+        db.session.add(user)
+    user.set_password(password)
+    user.failed_attempts, user.locked_until = 0, None
+    db.session.commit()
+    click.echo(f"Acesso '{username}' {'criado' if created else 'atualizado'}. Painel: /plataforma/")
 
 
 @click.command("import-photos")

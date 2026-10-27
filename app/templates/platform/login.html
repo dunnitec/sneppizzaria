@@ -1,0 +1,11 @@
+{% extends "platform/base.html" %}
+{% block title %}Entrar{% endblock %}
+{% block content %}
+<form method="post" class="card narrow">
+  {{ csrf() }}
+  <h1>Painel da plataforma</h1>
+  <label>Usuário<input name="username" autocomplete="username" autocapitalize="none" required autofocus></label>
+  <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+  <button class="primary">Entrar</button>
+</form>
+{% endblock %}

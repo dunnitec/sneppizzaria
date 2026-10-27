@@ -397,3 +397,20 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
 .days-summary.bad{color:var(--red)}
 .day-closed .time input{opacity:.55}
 .next-day{flex:1 1 100%;color:#8a5a00;font-weight:600}
+
+/* ---------- painel da plataforma (/plataforma/) ---------- */
+.platform .top{background:#1f2430}
+.platform .top .bar{background:none}
+.head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.plat-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.plat-row.is-off{opacity:.7;border-style:dashed}
+.plat-row h2{margin:0 0 4px}
+.plat-row h2 a{color:inherit;text-decoration:none}
+.plat-main{flex:1 1 260px;min-width:0}
+.plat-main .hint{margin:0}
+.plat-nums{display:flex;flex-direction:column;gap:2px;font-size:14px;min-width:150px}
+.ok-txt{color:var(--ok);font-weight:600}
+.err-txt{color:var(--red-dark)}
+.slug-field{display:flex;align-items:center;gap:4px}
+.slug-field input{flex:1}
+.credentials{width:100%;box-sizing:border-box;font:14px/1.5 ui-monospace,Consolas,monospace;padding:10px;border:1px solid var(--line);border-radius:8px;background:#f7f7f9}

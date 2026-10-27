@@ -19,11 +19,12 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     csrf.init_app(app)
 
-    from app.cli import create_admin, import_photos, import_static_banners
+    from app.cli import create_admin, create_platform_admin, import_photos, import_static_banners
     from app.routes import admin_manage, dispatch, loyalty_admin, pos, promos, push_admin  # noqa: F401  (rotas extras do painel, mesmo blueprint)
     from app.routes.admin import admin_bp
     from app.routes.account import account_bp
     from app.routes.orders import orders_bp
+    from app.routes.platform import platform_bp
     from app.routes.public import public_bp, static_url
     from app.services.customers import format_phone, phone_key
     from app.services.hours import local_time
@@ -34,11 +35,13 @@ def create_app(config_class=Config):
     app.register_blueprint(orders_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(platform_bp)
     # o pedido é uma API pública em JSON, sem sessão para proteger; o painel segue protegido
     csrf.exempt(orders_bp)
     csrf.exempt(account_bp)  # JSON do site; ver _json_body em routes/account.py
 
     app.cli.add_command(create_admin)
+    app.cli.add_command(create_platform_admin)
     app.cli.add_command(import_photos)
     app.cli.add_command(import_static_banners)
     app.jinja_env.filters.update(item_view=item_view, phone=format_phone, any_phone=lambda raw: format_phone(phone_key(raw)) or raw, brl=brl, money_input=money_input, local_time=local_time)
