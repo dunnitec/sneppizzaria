@@ -248,7 +248,7 @@ function renderCart(){
   c.innerHTML=`<div class="hd"><span>🛒 Sua cesta</span><span>${cart.reduce((s,i)=>s+i.qty,0)} item(ns)</span></div>`+
     cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.extras?" · Acompanha: "+esc(i.extras):""}${i.notes?" · Obs: "+esc(i.notes):""}</small><span class="lt">${money(i.price*i.qty)}</span></div>
       <div class="q"><button class="m" onclick="qty(${idx},-1)">−</button>${i.qty}<button class="p" onclick="qty(${idx},1)">+</button></div></div>`).join("")+
-    `<div class="ct"><span>Subtotal</span><span>${money(subtotal())}</span></div><div class="ct"><span>Entrega</span><span>${wd?"retirada":"por bairro"}</span></div>
+    `<div class="ct"><span>Subtotal</span><span>${money(subtotal())}</span></div><div class="ct"><span>Entrega</span><span>${wd?"retirada":DATA.km?"pela distância":"por bairro"}</span></div>
      ${DATA.min_order&&subtotal()<DATA.min_order?`<p class="closed-note">Pedido mínimo: ${money(DATA.min_order)} (sem a entrega).</p>`:""}
      ${CLOSED?`<p class="closed-note">${CLOSED_MSG}</p>`:`<button class="go" onclick="openCheckout()">Finalizar pedido</button>`}`;
 }
@@ -278,9 +278,11 @@ function openCheckout(){
     <label>Telefone / WhatsApp<input name="tel" type="tel" required ${ACC?"readonly":""}></label>
     <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" id="ck-wd" style="width:18px;height:18px;margin:0" ${wd?"checked":""} onchange="document.getElementById('addr').style.display=this.checked?'none':'';totals()"> Retirar na loja</label>
     <div id="addr" style="${wd?"display:none":""}">
-      <label>Rua<input name="rua"></label>
+      ${DATA.km?`<label>CEP<input name="cep" id="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" oninput="cepInput(this)"></label>
+      <p class="km-info" id="km-info" aria-live="polite">Digite o CEP para calcular a entrega.</p>`:""}
+      <label>Rua<input name="rua"${DATA.km?` onchange="kmQuote()"`:""}></label>
       <div class="r2"><label>Número<input name="num"></label><label>Complemento<input name="comp"></label></div>
-      <label>Bairro<select name="bairro" id="bairro" onchange="totals()"><option value="">Selecione…</option>${DATA.neighborhoods.map(n=>`<option value="${esc(n.name)}">${esc(n.name)} — ${money(n.fee)}</option>`).join("")}<option value="__outro__">Outro bairro (taxa a confirmar)</option></select></label>
+      ${DATA.km?`<label>Bairro<input name="bairro" id="bairro" onchange="kmQuote()"></label>`:`<label>Bairro<select name="bairro" id="bairro" onchange="totals()"><option value="">Selecione…</option>${DATA.neighborhoods.map(n=>`<option value="${esc(n.name)}">${esc(n.name)} — ${money(n.fee)}</option>`).join("")}<option value="__outro__">Outro bairro (taxa a confirmar)</option></select></label>`}
       <label>Ponto de referência<input name="ref"></label>
     </div>
     <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none';const pn=document.getElementById('pix-note');if(pn)pn.hidden=this.value!=='Pix'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").filter(p=>p.trim()).map(p=>`<option>${esc(p.trim())}</option>`).join("")}</select></label>${DATA.pix?`<p class="pix-note" id="pix-note" hidden>Pix: ao finalizar, aparece o QR Code e o “Pix copia e cola” com o valor do pedido para você pagar no app do banco.</p>`:""}
@@ -289,7 +291,7 @@ function openCheckout(){
     <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>
   </form>
   <div class="ft"><button class="bk" type="button" onclick="openCart()">‹ Voltar</button><button class="nx" type="submit" form="ckf" style="background:#25d366">Enviar pelo WhatsApp</button></div>`;
-  document.getElementById("ovl").classList.add("on");fillRemembered();fillAccount();totals();
+  document.getElementById("ovl").classList.add("on");fillRemembered();fillAccount();totals();if(DATA.km)kmQuote();
 }
 // nome, telefone e endereço ficam salvos só neste aparelho, para o próximo pedido ser mais rápido
 const REMEMBER_KEY="snep_cliente_"+DATA.tenant.slug;
@@ -309,27 +311,71 @@ function copyPix(btn){
   if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(ta.value).then(ok,()=>{ta.select();document.execCommand("copy");ok();});
   else{ta.select();document.execCommand("copy");ok();}
 }
-function remember(p){try{localStorage.setItem(REMEMBER_KEY,JSON.stringify({nome:p.customer_name,tel:p.customer_phone,rua:p.street,num:p.number,comp:p.complement,bairro:p.neighborhood,ref:p.reference}));}catch(e){}}
+function remember(p){try{
+  // retirada: guarda só nome e telefone, sem apagar o endereço do pedido anterior
+  const old=p.withdraw?JSON.parse(localStorage.getItem(REMEMBER_KEY)||"{}")||{}:{};
+  localStorage.setItem(REMEMBER_KEY,JSON.stringify(p.withdraw?{...old,nome:p.customer_name,tel:p.customer_phone}:
+    {nome:p.customer_name,tel:p.customer_phone,cep:p.cep,rua:p.street,num:p.number,comp:p.complement,bairro:p.neighborhood,ref:p.reference}));}catch(e){}}
+// bairro: lista (frete por bairro) ou campo de texto (frete por distância)
+function setBairro(v){const b=document.getElementById("bairro");if(!v||b.value)return;if(b.tagName!=="SELECT"||[...b.options].some(o=>o.value===v))b.value=v;}
 function fillRemembered(){
   let d=null;try{d=JSON.parse(localStorage.getItem(REMEMBER_KEY)||"null");}catch(e){}
   if(!d)return;
   const f=document.getElementById("ckf");
-  ["nome","tel","rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&d[k])el.value=d[k];});
-  const b=document.getElementById("bairro");if(d.bairro&&[...b.options].some(o=>o.value===d.bairro))b.value=d.bairro;
+  ["nome","tel","cep","rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&d[k])el.value=d[k];});
+  setBairro(d.bairro);
+}
+/* ---------- frete por distância (painel → Entrega → Por distância) ---------- */
+let KMQ=null, KMQ_KEY="", KMQ_RUN=null; // última consulta: {status: ok|far|unknown|store, km, fee}
+const kmKey=()=>{const f=document.getElementById("ckf");return [f.cep.value.replace(/\D/g,""),f.rua.value.trim(),f.bairro.value.trim()].join("|");};
+const kmText=v=>Number(v).toFixed(1).replace(".",",");
+function cepInput(el){
+  const d=el.value.replace(/\D/g,"").slice(0,8);el.value=d.length>5?d.slice(0,5)+"-"+d.slice(5):d;
+  if(d.length===8){const f=document.getElementById("ckf");f.rua.value="";f.bairro.value="";kmQuote();}
+}
+function kmQuote(){
+  const f=document.getElementById("ckf");if(!f||!DATA.km)return Promise.resolve();
+  const key=kmKey(),info=document.getElementById("km-info");
+  if(key===KMQ_KEY&&KMQ_RUN)return KMQ_RUN;
+  const cep=f.cep.value.replace(/\D/g,"");
+  if(cep.length!==8&&!f.rua.value.trim()){KMQ=null;KMQ_KEY="";KMQ_RUN=null;info.textContent="Digite o CEP para calcular a entrega.";totals();return Promise.resolve();}
+  info.textContent="Calculando a entrega…";info.className="km-info";KMQ_KEY=key;
+  const qs=new URLSearchParams({cep,street:f.rua.value.trim(),neighborhood:f.bairro.value.trim()});
+  KMQ_RUN=fetch(DATA.km.quote_url+"?"+qs).then(r=>r.json()).then(r=>{
+    if(KMQ_KEY!==key)return;
+    if(!r.ok){KMQ=null;info.textContent=r.error||"Não deu para calcular agora. A pizzaria confirma a taxa.";totals();return;}
+    if(r.street&&!f.rua.value)f.rua.value=r.street;
+    if(r.neighborhood&&!f.bairro.value)f.bairro.value=r.neighborhood;
+    KMQ=r;KMQ_KEY=kmKey();
+    info.className="km-info"+(r.status==="far"?" bad":r.status==="ok"?" ok":"");
+    info.textContent=r.status==="ok"?`Entrega: ${kmText(r.km)} km · ${money(r.fee)}`:
+      r.status==="far"?`Este endereço fica a cerca de ${kmText(r.km)} km. Entregamos até ${kmText(DATA.km.max)} km. Você pode retirar na loja.`:
+      cep.length===8&&!r.cep_found?"CEP não encontrado. Confira o número ou preencha rua e bairro.":
+      "Não achamos este endereço no mapa. A pizzaria confirma a taxa pelo WhatsApp.";
+    if(r.status==="ok"&&!f.num.value)f.num.focus();
+    totals();
+  }).catch(()=>{if(KMQ_KEY===key){KMQ=null;info.textContent="Sem conexão para calcular. A pizzaria confirma a taxa.";totals();}});
+  return KMQ_RUN;
 }
 function fee(){
   if(document.getElementById("ck-wd").checked) return 0;
+  if(DATA.km) return KMQ&&KMQ.status==="ok"?KMQ.fee:null;
   const b=document.getElementById("bairro").value; if(!b||b==="__outro__") return null;
   const n=DATA.neighborhoods.find(x=>x.name===b); return n?n.fee:null;
 }
-function totals(){const f=fee(),s=subtotal(),d=accDiscount();document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega</span><span>${f===null?"a confirmar":money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>`;}
-function finish(ev){
-  ev.preventDefault();const f=ev.target,wd=document.getElementById("ck-wd").checked;
-  if(!wd&&(!f.rua.value||!f.num.value||!f.bairro.value)){toast("Preencha o endereço de entrega.");return false;}
+function totals(){const f=fee(),s=subtotal(),d=accDiscount();document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega${f&&DATA.km&&KMQ?` (${kmText(KMQ.km)} km)`:""}</span><span>${f===null?(DATA.km&&KMQ&&KMQ.status==="far"?"fora da área":"a confirmar"):money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>`;}
+function finish(ev){ev.preventDefault();sendOrder(ev.target);return false;}
+async function sendOrder(f){
+  const wd=document.getElementById("ck-wd").checked;
+  if(!wd&&(!f.rua.value||!f.num.value||(!DATA.km&&!f.bairro.value))){toast("Preencha o endereço de entrega.");return false;}
+  if(!wd&&DATA.km){
+    if(kmKey()!==KMQ_KEY||!KMQ_RUN)await kmQuote();else await KMQ_RUN;
+    if(KMQ&&KMQ.status==="far"){toast("Este endereço fica fora da nossa área de entrega. Você pode retirar na loja.");return false;}
+  }
   const cash=f.pag.value==="Dinheiro", troco=cash&&f.troco.value?Number(f.troco.value):null;
   const total=subtotal()-accDiscount().value+(fee()||0);
   if(troco!==null&&troco<total-0.004){toast(`O troco tem que ser para um valor maior que o total (${money(total)}).`);f.troco.focus();return false;}
-  const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
+  const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,cep:wd||!DATA.km?"":f.cep.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
     neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
@@ -442,7 +488,7 @@ function fillAccount(){
   if(digits(f.tel.value)!==digits(ACC.phone)){["nome","rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el)el.value="";});document.getElementById("bairro").value="";}
   f.nome.value=f.nome.value||ACC.name;f.tel.value=ACC.phone;
   const a=ACC.address||{};["rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&a[k])el.value=a[k];});
-  const b=document.getElementById("bairro");if(a.bairro&&!b.value&&[...b.options].some(o=>o.value===a.bairro))b.value=a.bairro;
+  setBairro(a.bairro);
 }
 // mesma conta do servidor (services/loyalty.py), só para o cliente ver o total antes de enviar
 function accDiscount(){

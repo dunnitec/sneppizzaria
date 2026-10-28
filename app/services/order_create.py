@@ -9,6 +9,10 @@ por canal ficam todas neste arquivo:
 - telefone: lançado por quem atende; nome e telefone obrigatórios; pode ser entrega; entra "confirmado".
   Bairro fora da lista: quem atende combina a taxa com o cliente e digita (delivery_fee).
 
+Frete: por bairro (tabela) ou por distância (tenant.delivery_mode == "km", services/geo.py), sempre
+recalculado aqui. Endereço não achado = entrega "a combinar" (fee_pending); longe demais = recusado
+no site. No painel, a taxa digitada por quem atende vale sobre a calculada.
+
 Descontos de cadastro (services/loyalty.py: 1º pedido e pizza grátis da fidelidade) só no site,
 para o cliente logado e com o telefone do pedido igual ao do cadastro.
 """
@@ -22,6 +26,7 @@ from app.extensions import db
 from app.models import CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
+from app.services.geo import cep_digits, quote
 from app.services.hours import is_open, local_time
 from app.services.loyalty import card, discounts
 from app.services.money import brl
@@ -67,6 +72,10 @@ def _foreign_account(tenant, key, account, from_site):
     return bool(owner and owner.pin_hash and (not account or account.id != owner.id))
 
 
+def _km(value):
+    return f"{Decimal(str(value)):.1f}".replace(".", ",")
+
+
 def _text(p, key, limit):
     return str(p.get(key) or "").strip()[:limit]
 
@@ -106,10 +115,23 @@ def place_order(tenant, p, channel="site", account=None):
         raise OrderError(f"O pedido mínimo é de {brl(tenant.min_order)} (sem a entrega).")
 
     neighborhood = _text(p, "neighborhood", 120)
-    fee, found = (Decimal("0"), True) if withdraw else calculate_fee(tenant.id, neighborhood)
-    delivery_fee = fee if found else None
-    if not found and not from_site:
-        delivery_fee = _manual_fee(p.get("delivery_fee"))
+    cep = None if withdraw else cep_digits(p.get("cep"))
+    manual = None if from_site else _manual_fee(p.get("delivery_fee"))
+    by_km = not withdraw and tenant.delivery_mode == "km"
+    distance = None
+    if withdraw:
+        delivery_fee = Decimal("0")
+    elif by_km:
+        q = quote(tenant, cep or "", _text(p, "street", 200), neighborhood)
+        distance = q["km"]
+        if q["status"] == "far" and manual is None:
+            raise OrderError(f"Este endereço fica a cerca de {_km(q['km'])} km e entregamos até {_km(tenant.km_max)} km."
+                             + (" Você pode escolher “Retirar na loja”." if from_site else
+                                " Para entregar mesmo assim, digite a taxa combinada."))
+        delivery_fee = manual if manual is not None else q["fee"]
+    else:
+        fee, found = calculate_fee(tenant.id, neighborhood)
+        delivery_fee = fee if found else manual
     discount, discount_note, first_order, used_programs = Decimal("0"), "", False, []
     if from_site and account and account.phone_key == key:
         # trava o cadastro até o pedido ser gravado: dois pedidos ao mesmo tempo (dois celulares na mesma
@@ -149,6 +171,7 @@ def place_order(tenant, p, channel="site", account=None):
         "neighborhood_name": neighborhood if not withdraw and neighborhood else
         ("(outro bairro)" if not withdraw else {"mesa": "Comer na loja"}.get(channel, "Retirada na loja")),
         "reference": "" if withdraw else _text(p, "reference", 200),
+        "distance_km": distance,
         "payment_method": payment,
         "change_for": change_for,
         "withdraw": withdraw,
@@ -170,6 +193,9 @@ def place_order(tenant, p, channel="site", account=None):
         complement=info["complement"],
         neighborhood_name=info["neighborhood_name"],
         reference=info["reference"],
+        cep=cep,
+        distance_km=distance,
+        fee_pending=not withdraw and delivery_fee is None,
         payment_method=info["payment_method"],
         change_for=info["change_for"],
         subtotal=subtotal,

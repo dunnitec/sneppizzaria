@@ -3,6 +3,7 @@
 from flask import g, jsonify, render_template, request, url_for
 
 from app.routes.admin import PAYMENT_OPTIONS, admin_bp
+from app.routes.public import fee_quote
 from app.services.menu_data import data_from_db
 from app.services.order_create import place_order
 from app.services.pricing import OrderError
@@ -28,3 +29,9 @@ def order_new():
     to_print = order.id if g.tenant.auto_print else None
     return jsonify(ok=True, order_id=order.id, total=float(order.total),
                    redirect=url_for("admin.orders", imprimir=to_print))
+
+
+@admin_bp.route("/pedidos/frete")
+def order_fee_quote():
+    """Frete por distância no pedido por telefone: preenche o endereço pelo CEP e sugere a taxa."""
+    return jsonify(fee_quote(g.tenant, request.args))

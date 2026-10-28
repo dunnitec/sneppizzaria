@@ -741,6 +741,69 @@ def delivery():
     return render_template("admin/delivery.html", hoods=hoods)
 
 
+MAX_KM = Decimal("100")
+
+
+def _optional_money(text, what):
+    return None if not str(text or "").strip() else _price(text, what)
+
+
+def _optional_km(text):
+    text = str(text or "").strip().replace(",", ".")
+    if not text:
+        return None
+    try:
+        km = Decimal(text)
+    except ArithmeticError:
+        km = None
+    if km is None or not km.is_finite() or not 0 < km <= MAX_KM:
+        raise FormError(f"Distância máxima inválida: “{text}”. Use um número de km, ex.: 8 ou 7,5.")
+    return km.quantize(Decimal("0.1"))
+
+
+def _locate_store(tenant, coords_text):
+    """Põe a loja no mapa: coordenadas coladas do Google Maps ou o endereço da aba Loja."""
+    from app.services.geo import geocode, parse_coords
+
+    if coords_text.strip():
+        coords = parse_coords(coords_text)
+        if not coords:
+            raise FormError("Coordenadas inválidas. No Google Maps, toque e segure no ponto da pizzaria e copie "
+                            "os números que aparecem, ex.: -23.2641, -47.2995.")
+        tenant.store_lat, tenant.store_lng = coords
+        return
+    address = (tenant.address or "").strip()
+    if not address:
+        raise FormError("Preencha o endereço da pizzaria na aba Loja para acharmos ela no mapa.")
+    point = geocode(q=address) or geocode(q=re.sub(r"\d+", " ", address))
+    if not point:
+        raise FormError(f"Não achamos “{address}” no mapa. Confira o endereço na aba Loja (rua, número, cidade e "
+                        "estado) ou cole as coordenadas do Google Maps no campo abaixo.")
+    tenant.store_lat, tenant.store_lng = point["lat"], point["lng"]
+    tenant.store_city, tenant.store_uf = point["city"] or tenant.store_city, point["uf"] or tenant.store_uf
+
+
+@admin_bp.route("/entrega/modo", methods=["POST"])
+def delivery_mode():
+    """Como cobrar a entrega: por bairro (tabela) ou por distância (km até a loja)."""
+    tenant, form = g.tenant, request.form
+    mode = form.get("delivery_mode")
+    try:
+        if mode not in ("bairro", "km"):
+            raise FormError("Escolha como cobrar a entrega.")
+        if mode == "km":
+            tenant.km_price = _price(form.get("km_price"), "o preço por km", positive=True)
+            tenant.km_min_fee = _optional_money(form.get("km_min_fee"), "a taxa mínima") or None
+            tenant.km_max = _optional_km(form.get("km_max"))
+            if form.get("store_coords", "").strip() or form.get("relocate") or tenant.store_lat is None:
+                _locate_store(tenant, form.get("store_coords", ""))
+        tenant.delivery_mode = mode
+        _save("Entrega pela distância salva." if mode == "km" else "Entrega por bairro salva.")
+    except FormError as e:
+        _reject(e)
+    return redirect(url_for("admin.delivery"))
+
+
 @admin_bp.route("/entrega/novo", methods=["POST"])
 def delivery_new():
     try:

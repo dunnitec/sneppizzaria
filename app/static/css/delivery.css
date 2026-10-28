@@ -291,6 +291,9 @@ footer .st.open{color:var(--ok)}
 
 /* ---------- Pix com QR Code no pedido feito ---------- */
 .pix-note{margin:6px 0 0;padding:8px 10px;border-radius:10px;background:rgba(50,188,173,.12);border:1px solid rgba(50,188,173,.45);color:#bff1ea;font-size:13px}
+.km-info{margin:6px 0 0;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);font-size:13px}
+.km-info.ok{background:rgba(50,188,173,.12);border-color:rgba(50,188,173,.45);color:#bff1ea;font-weight:600}
+.km-info.bad{background:rgba(227,20,27,.12);border-color:rgba(227,20,27,.5);color:#ffc9cb}
 .pix-box{margin:14px 0;padding:16px;border-radius:14px;background:#0f1d1c;border:1px solid rgba(50,188,173,.55);text-align:center}
 .pix-box h4{margin:0;font:900 18px var(--display);color:#5fe0d0}
 .pix-box p{margin:6px 0;color:#dfe;font-size:14px}

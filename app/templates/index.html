@@ -76,7 +76,7 @@
 <footer id="contato"><div class="wrap foot-in">
   <div><h4>{{ d.tenant.name }}</h4><p>WhatsApp: {{ d.tenant.whatsapp_fmt }}</p>{% if d.tenant.instagram %}<p>Instagram: @{{ d.tenant.instagram }}</p>{% endif %}<p>{{ d.tenant.address }}</p></div>
   <div><h4>Horário</h4><p class="st" id="ft-st">◉ Fechado</p>{% for h in d.hours_rows %}<p>{{ h[0] }}: {{ h[1] }}</p>{% endfor %}</div>
-  <div><h4>Pagamento na entrega</h4><p>{{ d.payments|join(", ") }}</p><h4>Área de entrega</h4><p>{{ d.neighborhoods|length }} bairros — taxa a partir de R$ {{ "%.2f"|format(d.min_fee)|replace(".", ",") }}</p></div>
+  <div><h4>Pagamento na entrega</h4><p>{{ d.payments|join(", ") }}</p><h4>Área de entrega</h4>{% if d.km %}<p>Taxa pela distância{% if d.km.max %}, até {{ "%.1f"|format(d.km.max)|replace(".0", "")|replace(".", ",") }} km{% endif %} — informe o CEP ao finalizar</p>{% else %}<p>{{ d.neighborhoods|length }} bairros — taxa a partir de R$ {{ "%.2f"|format(d.min_fee)|replace(".", ",") }}</p>{% endif %}</div>
 </div></footer>
 
 <button type="button" class="mbar" onclick="openCart()" aria-label="Ver carrinho">

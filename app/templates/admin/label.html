@@ -50,7 +50,7 @@
   {% if o.eta_at %}<div class="eta">PREVISÃO {{ (o.eta_at|local_time).strftime('%H:%M') }}</div>{% endif %}
   {% if o.customer_name %}<div class="who">{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</div>{% endif %}
   {% if o.delivery %}
-  <div class="addr">{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}<br><b>{{ o.neighborhood_name }}</b>{% if o.reference %}<br>Ref.: {{ o.reference }}{% endif %}</div>
+  <div class="addr">{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}<br><b>{{ o.neighborhood_name }}</b>{% if o.cep %} · CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}{% endif %}{% if o.reference %}<br>Ref.: {{ o.reference }}{% endif %}</div>
   {% endif %}
 
   <ul class="items">
@@ -70,7 +70,7 @@
 
   <div class="tot"><span>Subtotal</span><span>{{ o.subtotal|brl }}</span></div>
   {% if o.discount %}<div class="tot"><span>Desconto{% if o.discount_note %} ({{ o.discount_note }}){% endif %}</span><span>-{{ o.discount|brl }}</span></div>{% endif %}
-  {% if o.delivery %}<div class="tot"><span>Entrega</span><span>{{ o.delivery_fee|brl }}</span></div>{% endif %}
+  {% if o.delivery %}<div class="tot"><span>Entrega{% if o.distance_km is not none %} ({{ '%.1f'|format(o.distance_km)|replace('.', ',') }} km){% endif %}</span><span>{{ 'a combinar' if o.fee_pending else o.delivery_fee|brl }}</span></div>{% endif %}
   <div class="tot big"><span>TOTAL</span><span>{{ o.total|brl }}</span></div>
   <div class="pay">{{ o.payment_method or 'Pagamento a combinar' }}{% if o.payment_method == 'Pix' and o.channel == 'site' %} · {{ 'PAGO' if o.pix_paid_at else 'CONFERIR PAGAMENTO' }}{% endif %}{% if o.change_for %} · Troco para {{ o.change_for|brl }} (levar {{ (o.change_for - o.total)|brl }}){% endif %}</div>
   <div class="foot">{{ tenant.name }}</div>

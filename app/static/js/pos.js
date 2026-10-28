@@ -18,7 +18,7 @@
   function applyChannel() {
     form.querySelectorAll("[data-for]").forEach((el) => { el.hidden = !el.dataset.for.split(" ").includes(channel()); });
     $("#pos-address").hidden = !delivery();
-    $("#pos-other").hidden = !other();
+    if ($("#pos-other")) $("#pos-other").hidden = !other();
     renderTotal();
   }
   form.querySelectorAll('[name="channel"]').forEach((r) => r.addEventListener("change", applyChannel));
@@ -26,8 +26,36 @@
   const other = () => delivery() && $('[name="neighborhood"]').value === "__outro__";
   // valor digitado: "1.234,50", "20,5" ou "20.50"; vazio = null
   const num = (v) => { v = String(v || "").trim(); return v === "" ? null : Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v); };
-  $('[name="neighborhood"]').addEventListener("change", () => { $("#pos-other").hidden = !other(); renderTotal(); });
+  $('[name="neighborhood"]').addEventListener("change", () => { if ($("#pos-other")) $("#pos-other").hidden = !other(); renderTotal(); });
   $('[name="delivery_fee"]').addEventListener("input", renderTotal);
+  /* ---------- frete por distância: CEP → rua, bairro e taxa sugerida (editável) ---------- */
+  const km = (v) => Number(v).toFixed(1).replace(".", ",");
+  async function kmQuote() {
+    const cepEl = $('[name="cep"]'), info = $("#pos-km-info");
+    const cep = cepEl.value.replace(/\D/g, "");
+    if (cep.length !== 8 && !$('[name="street"]').value.trim()) return;
+    info.textContent = "Calculando…";
+    try {
+      const qs = new URLSearchParams({ cep, street: $('[name="street"]').value.trim(), neighborhood: $('[name="neighborhood"]').value.trim() });
+      const r = await (await fetch(cepEl.dataset.url + "?" + qs, { credentials: "same-origin" })).json();
+      if (r.street && !$('[name="street"]').value) $('[name="street"]').value = r.street;
+      if (r.neighborhood && !$('[name="neighborhood"]').value) $('[name="neighborhood"]').value = r.neighborhood;
+      const feeEl = $("#pos-km-fee");
+      if (r.status === "ok") { feeEl.value = r.fee.toFixed(2).replace(".", ","); info.textContent = `${km(r.km)} km · taxa ${money(r.fee)} (pode mudar o valor).`; }
+      else if (r.status === "far") { feeEl.value = ""; info.textContent = `Fica a cerca de ${km(r.km)} km, fora da área de entrega (até ${km(D.km.max)} km). Para entregar mesmo assim, digite a taxa.`; }
+      else if (r.status === "store") { feeEl.value = ""; info.textContent = "A pizzaria ainda não está no mapa (aba Entrega). Digite a taxa."; }
+      else { feeEl.value = ""; info.textContent = cep.length === 8 && !r.cep_found ? "CEP não encontrado. Preencha rua e bairro e digite a taxa." : "Endereço não achado no mapa. Combine e digite a taxa."; }
+    } catch (e) { info.textContent = "Sem conexão para calcular. Digite a taxa."; }
+    renderTotal();
+  }
+  if (D.km) {
+    $('[name="cep"]').addEventListener("input", (e) => {
+      const d = e.target.value.replace(/\D/g, "").slice(0, 8);
+      e.target.value = d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d;
+      if (d.length === 8) { $('[name="street"]').value = ""; $('[name="neighborhood"]').value = ""; kmQuote(); }
+    });
+    $('[name="street"]').addEventListener("change", () => { if (!$('[name="cep"]').value) kmQuote(); });
+  }
   $('[name="payment_method"]').addEventListener("change", (e) => { $("#pos-change").hidden = e.target.value !== "Dinheiro"; });
 
   /* ---------- regras (as mesmas do site) ---------- */
@@ -180,6 +208,7 @@
   // taxa da entrega: a do bairro da lista ou a digitada para "Outro bairro" (vazia = a combinar)
   function fee() {
     if (!delivery()) return 0;
+    if (D.km) { const v = num($("#pos-km-fee").value); return v === null || isNaN(v) ? null : v; }
     const opt = $('[name="neighborhood"]').selectedOptions[0];
     if (other()) { const v = num($('[name="delivery_fee"]').value); return v === null || isNaN(v) ? null : v; }
     return opt && opt.value ? Number(opt.dataset.fee) : 0;
@@ -198,7 +227,7 @@
       $('[name="change_for"]').focus();
       return;
     }
-    if (other() && fee() === null && !confirm("Você não digitou a taxa de entrega deste bairro. Lançar com a entrega “a combinar”?")) {
+    if ((other() || (D.km && delivery())) && fee() === null && !confirm("Você não digitou a taxa de entrega. Lançar com a entrega “a combinar”?")) {
       $('[name="delivery_fee"]').focus();
       return;
     }
@@ -206,7 +235,7 @@
       channel: channel(), table_label: f.get("table_label"), customer_name: f.get("customer_name"), customer_phone: f.get("customer_phone"),
       withdraw: !delivery(), street: f.get("street"), number: f.get("number"), complement: f.get("complement"),
       neighborhood: hood === "__outro__" ? (f.get("other_neighborhood") || "").trim() : hood, reference: f.get("reference"),
-      delivery_fee: other() ? fee() : null,
+      delivery_fee: other() || D.km ? fee() : null, cep: D.km ? f.get("cep") : "",
       payment_method: f.get("payment_method"), change_for: change,
       items: cart.map((i) => Object.assign({}, i.sel, { quantity: i.qty })),
     };

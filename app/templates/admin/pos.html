@@ -27,20 +27,33 @@
     <div data-for="telefone">
       <label class="check"><input type="checkbox" name="delivery" id="pos-delivery"> é para <b>entregar</b> no endereço</label>
       <div id="pos-address" hidden>
+        {% if data.km %}
+        <div class="row">
+          <label class="money">CEP<input name="cep" maxlength="9" inputmode="numeric" placeholder="00000-000" data-url="{{ url_for('admin.order_fee_quote') }}"></label>
+          <p class="hint grow2" id="pos-km-info" aria-live="polite">Digite o CEP: a rua, o bairro e a taxa se preenchem sozinhos.</p>
+        </div>
+        {% endif %}
         <div class="row">
           <label class="grow2">Rua<input name="street" maxlength="200"></label>
           <label class="money">Número<input name="number" maxlength="20"></label>
           <label class="grow">Complemento<input name="complement" maxlength="120"></label>
         </div>
         <div class="row">
+          {% if data.km %}
+          <label class="grow">Bairro<input name="neighborhood" maxlength="120"></label>
+          <label class="money">Taxa de entrega (R$)<input name="delivery_fee" id="pos-km-fee" inputmode="decimal" placeholder="a combinar"></label>
+          {% else %}
           <label class="grow">Bairro<select name="neighborhood"><option value="">Escolha…</option>{% for n in data.neighborhoods %}<option value="{{ n.name }}" data-fee="{{ n.fee }}">{{ n.name }} — {{ n.fee|brl }}</option>{% endfor %}<option value="__outro__" data-fee="0">Outro bairro (digitar a taxa)</option></select></label>
+          {% endif %}
           <label class="grow2">Ponto de referência<input name="reference" maxlength="200"></label>
         </div>
+        {% if not data.km %}
         <div class="row" id="pos-other" hidden>
           <label class="grow">Nome do bairro<input name="other_neighborhood" maxlength="120" placeholder="ex.: Vila Nova"></label>
           <label class="money">Taxa de entrega (R$)<input name="delivery_fee" inputmode="decimal" placeholder="0,00"></label>
           <p class="hint grow2">Bairro fora da lista: combine a taxa com o cliente e digite aqui. Para não digitar sempre, cadastre o bairro em <b>Entrega</b>.</p>
         </div>
+        {% endif %}
       </div>
     </div>
   </section>

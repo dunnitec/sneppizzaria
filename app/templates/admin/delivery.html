@@ -2,15 +2,51 @@
 {% block title %}Entrega{% endblock %}
 {% block help %}
 <ul>
-  <li>Cada bairro tem sua taxa de entrega. O cliente escolhe o bairro e a taxa entra no total.</li>
-  <li>Bairro que não está na lista aparece como “taxa a confirmar” — você combina pelo WhatsApp.</li>
-  <li>Mude as taxas e toque em <b>Salvar bairros</b>.</li>
+  <li><b>Por bairro:</b> cada bairro tem sua taxa. O cliente escolhe o bairro e a taxa entra no total. Bairro fora da lista fica “a confirmar”.</li>
+  <li><b>Por distância:</b> o cliente digita o CEP e o site calcula os km até a pizzaria × o seu preço por km. A distância é estimada (linha reta + 30% pelas ruas).</li>
+  <li>Endereço que o mapa não acha fica com a entrega “a confirmar” — você combina pelo WhatsApp.</li>
 </ul>
 {% endblock %}
 {% block content %}
-<h1>Taxa de entrega por bairro</h1>
-<p class="hint">Bairro fora da lista (ou desmarcado) aparece para o cliente como “taxa a confirmar”.</p>
+{% set t = g.tenant %}
+{% set km = t.delivery_mode == 'km' %}
+<h1>Entrega</h1>
 
+<form method="post" action="{{ url_for('admin.delivery_mode') }}" class="card" data-track id="mode-form">
+  {{ csrf() }}
+  <h2>Como cobrar a entrega</h2>
+  <div class="kind-choices">
+    <label class="kind-choice"><input type="radio" name="delivery_mode" value="bairro" {{ 'checked' if not km }}><span class="kind-icon" aria-hidden="true">🏘️</span><b>Por bairro</b><small>Uma taxa para cada bairro, da lista abaixo.</small></label>
+    <label class="kind-choice"><input type="radio" name="delivery_mode" value="km" {{ 'checked' if km }}><span class="kind-icon" aria-hidden="true">📍</span><b>Por distância</b><small>O cliente digita o CEP e paga pelos km até a pizzaria.</small></label>
+  </div>
+
+  <div id="km-fields" {{ 'hidden' if not km }}>
+    <div class="row">
+      <label class="money">Preço por km (R$)<input name="km_price" value="{{ t.km_price|money_input if t.km_price else '' }}" inputmode="decimal" placeholder="2,00"></label>
+      <label class="money">Taxa mínima (R$) <span class="hint">opcional</span><input name="km_min_fee" value="{{ t.km_min_fee|money_input if t.km_min_fee else '' }}" inputmode="decimal" placeholder="sem mínimo"></label>
+      <label class="money">Entrega até (km) <span class="hint">opcional</span><input name="km_max" value="{{ ('%.1f'|format(t.km_max)).replace('.0', '').replace('.', ',') if t.km_max else '' }}" inputmode="decimal" placeholder="sem limite"></label>
+    </div>
+    <p class="hint" id="km-example"></p>
+
+    <h3>Onde fica a pizzaria no mapa</h3>
+    {% if t.store_lat is not none %}
+    <p>📍 Localizada{% if t.store_city %} em <b>{{ t.store_city }}{% if t.store_uf %} - {{ t.store_uf }}{% endif %}</b>{% endif %}.
+      <a href="https://www.google.com/maps?q={{ t.store_lat }},{{ t.store_lng }}" target="_blank" rel="noopener">Conferir no mapa ›</a></p>
+    <label class="check"><input type="checkbox" name="relocate"> procurar de novo pelo endereço da aba Loja ({{ t.address or 'sem endereço' }})</label>
+    {% else %}
+    <p class="hint">Ao salvar, procuramos a pizzaria no mapa pelo endereço da aba Loja: <b>{{ t.address or 'sem endereço — preencha na aba Loja' }}</b>.</p>
+    {% endif %}
+    <details class="coords"><summary>O mapa errou o lugar? Colar a localização do Google Maps</summary>
+      <p class="hint">No Google Maps, toque e segure em cima da pizzaria. Aparecem dois números, ex.: <b>-23.2641, -47.2995</b>. Copie e cole aqui.</p>
+      <label class="grow">Coordenadas<input name="store_coords" placeholder="-23.2641, -47.2995" autocomplete="off"></label>
+    </details>
+  </div>
+  <div class="savebar"><button class="primary">Salvar forma de cobrar</button></div>
+</form>
+
+{% if km %}
+<p class="hint">A lista de bairros não é usada enquanto a entrega for <b>por distância</b>. Ela continua guardada caso você volte para “Por bairro”.</p>
+{% else %}
 <section class="card">
   <h2>Adicionar bairro</h2>
   <form method="post" action="{{ url_for('admin.delivery_new') }}" class="row" data-track>
@@ -24,6 +60,7 @@
 <form method="post" class="card" data-track>
   {{ csrf() }}
   <h2>Bairros atendidos</h2>
+  <p class="hint">Bairro fora da lista (ou desmarcado) aparece para o cliente como “taxa a confirmar”.</p>
   <div class="search-bar inline-search"><label class="grow">Buscar bairro<input id="search" type="search" autocomplete="off" data-items=".hood" data-sections=".none"></label><span id="search-count" class="hint" aria-live="polite"></span></div>
   {% for h in hoods %}
   <div class="row hood {{ 'off' if not h.active }}" data-name="{{ h.name }}">
@@ -36,4 +73,26 @@
   <div class="savebar"><button class="primary">Salvar bairros</button></div>
 </form>
 {% for h in hoods %}<form id="del-hood-{{ h.id }}" method="post" action="{{ url_for('admin.delivery_delete', hood_id=h.id) }}" data-msg="Excluir o bairro {{ h.name }}? Se for só por um tempo, prefira desmarcar “atende”." onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}</form>{% endfor %}
+{% endif %}
+
+<script>
+  (function () {
+    const form = document.getElementById("mode-form"), box = document.getElementById("km-fields");
+    const num = (v) => { v = String(v || "").trim(); return v === "" ? null : Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v); };
+    const money = (v) => "R$ " + v.toFixed(2).replace(".", ",");
+    function update() {
+      const km = form.delivery_mode.value === "km";
+      box.hidden = !km;
+      form.km_price.required = km;
+      const price = num(form.km_price.value), min = num(form.km_min_fee.value) || 0;
+      const ex = document.getElementById("km-example");
+      if (!price) { ex.textContent = ""; return; }
+      const fee = (d) => Math.max(Math.round(d * price * 100) / 100, min);
+      ex.textContent = `Exemplo: 1 km = ${money(fee(1))} · 3 km = ${money(fee(3))} · 6 km = ${money(fee(6))}.`;
+    }
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+    update();
+  })();
+</script>
 {% endblock %}

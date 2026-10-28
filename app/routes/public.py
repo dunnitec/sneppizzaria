@@ -1,9 +1,11 @@
 import io
 import json
+import time
+from collections import defaultdict, deque
 from functools import lru_cache
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, make_response, redirect, render_template, send_from_directory, url_for
+from flask import Blueprint, abort, current_app, make_response, redirect, render_template, request, send_from_directory, url_for
 from PIL import Image, ImageDraw, ImageFont
 
 from app.models import Tenant
@@ -73,6 +75,41 @@ def store_status(slug):
     from app.services.hours import is_open
 
     resp = make_response({"open": is_open(get_tenant_or_404(slug))})
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+QUOTES_PER_10_MIN = 40
+_quotes = defaultdict(deque)  # ip → horários das consultas de frete (protege o mapa grátis de abuso)
+
+
+def fee_quote(tenant, args):
+    """Frete por distância para o checkout (site e painel): preenche o endereço pelo CEP e calcula."""
+    from app.services.geo import cep_digits, lookup_cep, quote
+
+    cep = cep_digits(args.get("cep"))
+    info = (lookup_cep(cep) if cep else None) or {}
+    street = (args.get("street") or "").strip()[:200] or info.get("street", "")
+    hood = (args.get("neighborhood") or "").strip()[:120] or info.get("neighborhood", "")
+    q = quote(tenant, cep or "", street, hood)
+    return {"ok": True, "status": q["status"], "km": float(q["km"]) if q["km"] is not None else None,
+            "fee": float(q["fee"]) if q["fee"] is not None else None, "cep_found": bool(info),
+            "street": info.get("street", ""), "neighborhood": info.get("neighborhood", ""),
+            "city": info.get("city", ""), "uf": info.get("uf", "")}
+
+
+@public_bp.route("/<slug>/api/frete")
+def delivery_quote(slug):
+    tenant = get_tenant_or_404(slug)
+    if tenant.delivery_mode != "km":
+        abort(404)
+    hits, now = _quotes[request.remote_addr or "?"], time.monotonic()
+    while hits and now - hits[0] > 600:
+        hits.popleft()
+    if len(hits) >= QUOTES_PER_10_MIN:
+        return {"ok": False, "error": "Muitas consultas seguidas. Espere alguns minutos."}, 429
+    hits.append(now)
+    resp = make_response(fee_quote(tenant, request.args))
     resp.headers["Cache-Control"] = "no-store"
     return resp
 

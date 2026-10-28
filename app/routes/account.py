@@ -240,7 +240,7 @@ def track(slug, token):
     tenant = get_tenant_or_404(slug)
     order = Order.query.filter_by(tenant_id=tenant.id, track_token=token).first_or_404()
     show_pix = (order.payment_method == "Pix" and order.channel == "site" and not order.pix_paid_at
-                and order.status != "cancelado" and order.neighborhood_name != "(outro bairro)")
+                and order.status != "cancelado" and not order.fee_pending)
     return render_template(
         "track.html", tenant=tenant, o=order, steps=track_steps(order), eta=_hm(order.eta_at),
         created=local_time(order.created_at), status=ORDER_STATUSES.get(order.status, order.status),

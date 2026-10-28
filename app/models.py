@@ -123,6 +123,15 @@ class Tenant(db.Model):
     label_width_mm = db.Column(db.Integer, nullable=False, default=100, server_default="100")
     label_height_mm = db.Column(db.Integer, nullable=False, default=150, server_default="150")
     auto_print = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    # frete: "bairro" (tabela Neighborhood) ou "km" (distância até a loja, ver services/geo.py)
+    delivery_mode = db.Column(db.String(10), nullable=False, default="bairro", server_default="bairro")
+    store_lat = db.Column(db.Float)  # ponto da loja no mapa (aba Entrega → Localizar a pizzaria)
+    store_lng = db.Column(db.Float)
+    store_city = db.Column(db.String(80))  # cidade/UF da loja: usadas quando o cliente não sabe o CEP
+    store_uf = db.Column(db.String(2))
+    km_price = db.Column(db.Numeric(8, 2))  # R$ por km
+    km_min_fee = db.Column(db.Numeric(8, 2))  # taxa mínima; vazio = só o km
+    km_max = db.Column(db.Numeric(6, 1))  # entrega até X km; vazio = sem limite
     # plataforma (só /plataforma/ muda): plano contratado e loja no ar ou suspensa (ver services/plans.py)
     plan = db.Column(db.String(20), nullable=False, default="completo", server_default="completo")
     active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
@@ -259,6 +268,26 @@ class Neighborhood(db.Model):
     active = db.Column(db.Boolean, default=True)
 
 
+class GeoCache(db.Model):
+    """Consultas ao mapa já feitas (services/geo.py). lat/lng vazios = endereço não achado."""
+
+    __tablename__ = "geo_cache"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(255), unique=True, nullable=False)
+    lat = db.Column(db.Float)
+    lng = db.Column(db.Float)
+    label = db.Column(db.String(255))
+    city = db.Column(db.String(80))
+    uf = db.Column(db.String(2))
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    def as_point(self):
+        if self.lat is None or self.lng is None:
+            return None
+        return {"lat": self.lat, "lng": self.lng, "label": self.label or "", "city": self.city or "", "uf": self.uf or ""}
+
+
 class Customer(db.Model):
     """Cliente cadastrado automaticamente no primeiro pedido (services/customers.py)."""
 
@@ -305,6 +334,9 @@ class Order(db.Model):
     complement = db.Column(db.String(120))
     neighborhood_name = db.Column(db.String(120))
     reference = db.Column(db.String(200))
+    cep = db.Column(db.String(8))
+    distance_km = db.Column(db.Numeric(6, 1))  # frete por distância (services/geo.py)
+    fee_pending = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # entrega a combinar
 
     payment_method = db.Column(db.String(30))  # Dinheiro | Pix | Débito | Crédito
     change_for = db.Column(db.Numeric(8, 2))  # troco para quanto (se dinheiro)

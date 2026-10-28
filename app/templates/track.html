@@ -94,8 +94,8 @@ h1{font:900 26px var(--display);margin:0}
     <div style="margin-top:10px">
       <div class="tot"><span>Subtotal</span><span>{{ o.subtotal|brl }}</span></div>
       {% if o.discount %}<div class="tot disc"><span>Desconto{% if o.discount_note %} ({{ o.discount_note }}){% endif %}</span><span>-{{ o.discount|brl }}</span></div>{% endif %}
-      {% if o.delivery %}<div class="tot"><span>Entrega</span><span>{{ o.delivery_fee|brl if o.neighborhood_name != '(outro bairro)' else 'a confirmar' }}</span></div>{% endif %}
-      <div class="tot big"><span>Total</span><span>{{ o.total|brl }}</span></div>
+      {% if o.delivery %}<div class="tot"><span>Entrega{% if o.distance_km is not none and not o.fee_pending %} ({{ '%.1f'|format(o.distance_km)|replace('.', ',') }} km){% endif %}</span><span>{{ 'a confirmar' if o.fee_pending else o.delivery_fee|brl }}</span></div>{% endif %}
+      <div class="tot big"><span>Total</span><span>{{ o.total|brl }}{% if o.fee_pending %} + entrega a confirmar{% endif %}</span></div>
       <div class="tot"><span>Pagamento</span><span>{{ o.payment_method or '—' }}{% if o.payment_method == 'Pix' and o.pix_paid_at %} · pago ✓{% endif %}</span></div>
     </div>
   </section>

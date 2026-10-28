@@ -39,7 +39,9 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
         lines.append("Retirada na loja")
         lines.append(f"*Total: {brl(total)}*")
     elif delivery_fee is not None:
-        lines.append(f"Entrega: {brl(delivery_fee)}")
+        km = order.get("distance_km")
+        lines.append(f"Entrega ({km:.1f} km): {brl(delivery_fee)}".replace(".", ",", 1) if km is not None
+                     else f"Entrega: {brl(delivery_fee)}")
         lines.append(f"*Total: {brl(total)}*")
     else:
         lines.append("Entrega: a confirmar")
