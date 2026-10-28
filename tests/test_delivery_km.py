@@ -50,7 +50,7 @@ def km_store(open_store):
     t = open_store
     t.delivery_mode, t.store_lat, t.store_lng = "km", *STORE
     t.store_city, t.store_uf = "Itu", "SP"
-    t.km_price, t.km_min_fee, t.km_max = Decimal("2.00"), Decimal("5.00"), Decimal("8")
+    t.km_price, t.km_base_km, t.km_base_fee, t.km_max = Decimal("2.00"), Decimal("1.5"), Decimal("5.00"), Decimal("8")
     db.session.commit()
     return t
 
@@ -68,10 +68,12 @@ def test_km_between_adds_road_margin():
     assert km == Decimal("1.3")
 
 
-def test_fee_uses_min_fee_and_works_without_it(km_store):
-    assert geo.km_fee(km_store, Decimal("1.3")) == Decimal("5.00")  # 2,60 < mínimo
+def test_fixed_fee_up_to_base_km_then_only_per_km(km_store):
+    assert geo.km_fee(km_store, Decimal("1.3")) == Decimal("5.00")  # perto: taxa fixa
+    assert geo.km_fee(km_store, Decimal("1.5")) == Decimal("5.00")  # no limite ainda é a fixa
+    assert geo.km_fee(km_store, Decimal("1.6")) == Decimal("3.20")  # passou: a fixa sai, só o km
     assert geo.km_fee(km_store, Decimal("4.0")) == Decimal("8.00")
-    km_store.km_min_fee = None  # só o km, sem taxa mínima
+    km_store.km_base_km = km_store.km_base_fee = None  # sem taxa fixa: sempre pelo km
     assert geo.km_fee(km_store, Decimal("1.3")) == Decimal("2.60")
 
 
@@ -211,13 +213,13 @@ def test_panel_quote_and_pos_page(panel, km_store, net):
 # ---------- painel: escolher a forma de cobrar ----------
 
 def test_owner_switches_to_km_with_pasted_coords(panel, tenant, net):
-    r = panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "km", "km_price": "2,50", "km_min_fee": "",
+    r = panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "km", "km_price": "2,50", "km_base_km": "1", "km_base_fee": "4,00",
                                                     "km_max": "7,5", "store_coords": "-23.2641, -47.2995"},
                    follow_redirects=True)
     html = r.get_data(as_text=True)
     assert "Entrega pela distância salva" in html
-    assert (tenant.delivery_mode, tenant.km_price, tenant.km_min_fee, tenant.km_max) == \
-        ("km", Decimal("2.50"), None, Decimal("7.5"))
+    assert (tenant.delivery_mode, tenant.km_price, tenant.km_base_km, tenant.km_base_fee, tenant.km_max) == \
+        ("km", Decimal("2.50"), Decimal("1.0"), Decimal("4.00"), Decimal("7.5"))
     assert (tenant.store_lat, tenant.store_lng) == (-23.2641, -47.2995)
     assert "Conferir no mapa" in html and "Bairros atendidos" not in html
 
@@ -247,3 +249,16 @@ def test_km_needs_price(panel, tenant, net):
 def test_site_shows_cep_info_in_km_mode(client, km_store):
     html = client.get("/snep/").get_data(as_text=True)
     assert "Taxa pela distância, até 8 km" in html and "/snep/api/frete" in html
+
+
+def test_fixed_fee_needs_both_fields(panel, tenant, net):
+    html = panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "km", "km_price": "2", "km_base_km": "1",
+                                                       "store_coords": "-23.2, -47.3"},
+                      follow_redirects=True).get_data(as_text=True)
+    assert tenant.delivery_mode == "bairro" and "preencha os dois campos" in html
+
+
+def test_only_per_km_when_fixed_fee_is_blank(panel, tenant, net):
+    panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "km", "km_price": "3", "km_base_km": "",
+                                                "km_base_fee": "", "store_coords": "-23.2, -47.3"})
+    assert tenant.delivery_mode == "km" and tenant.km_base_km is None and tenant.km_base_fee is None

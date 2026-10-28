@@ -21,10 +21,17 @@
   </div>
 
   <div id="km-fields" {{ 'hidden' if not km }}>
+    {% macro km_value(v) %}{{ ('%.1f'|format(v)).replace('.0', '').replace('.', ',') if v else '' }}{% endmacro %}
+    <h3>Taxa fixa para perto <span class="hint">opcional</span></h3>
+    <div class="row">
+      <label class="money">Até (km)<input name="km_base_km" value="{{ km_value(t.km_base_km) }}" inputmode="decimal" placeholder="ex.: 1"></label>
+      <label class="money">Taxa fixa (R$)<input name="km_base_fee" value="{{ t.km_base_fee|money_input if t.km_base_fee is not none else '' }}" inputmode="decimal" placeholder="ex.: 4,00"></label>
+      <p class="hint grow2">Ex.: até 1 km cobra R$ 4,00. Passou disso, a taxa fixa sai e cobra só pelo km. Em branco = sempre pelo km.</p>
+    </div>
+    <h3>Acima disso</h3>
     <div class="row">
       <label class="money">Preço por km (R$)<input name="km_price" value="{{ t.km_price|money_input if t.km_price else '' }}" inputmode="decimal" placeholder="2,00"></label>
-      <label class="money">Taxa mínima (R$) <span class="hint">opcional</span><input name="km_min_fee" value="{{ t.km_min_fee|money_input if t.km_min_fee else '' }}" inputmode="decimal" placeholder="sem mínimo"></label>
-      <label class="money">Entrega até (km) <span class="hint">opcional</span><input name="km_max" value="{{ ('%.1f'|format(t.km_max)).replace('.0', '').replace('.', ',') if t.km_max else '' }}" inputmode="decimal" placeholder="sem limite"></label>
+      <label class="money">Entrega até (km) <span class="hint">opcional</span><input name="km_max" value="{{ km_value(t.km_max) }}" inputmode="decimal" placeholder="sem limite"></label>
     </div>
     <p class="hint" id="km-example"></p>
 
@@ -84,11 +91,13 @@
       const km = form.delivery_mode.value === "km";
       box.hidden = !km;
       form.km_price.required = km;
-      const price = num(form.km_price.value), min = num(form.km_min_fee.value) || 0;
+      const price = num(form.km_price.value), baseKm = num(form.km_base_km.value), baseFee = num(form.km_base_fee.value);
       const ex = document.getElementById("km-example");
       if (!price) { ex.textContent = ""; return; }
-      const fee = (d) => Math.max(Math.round(d * price * 100) / 100, min);
-      ex.textContent = `Exemplo: 1 km = ${money(fee(1))} · 3 km = ${money(fee(3))} · 6 km = ${money(fee(6))}.`;
+      // mesma regra do servidor (services/geo.py km_fee)
+      const fee = (d) => baseKm && baseFee !== null && d <= baseKm ? baseFee : Math.round(d * price * 100) / 100;
+      const kms = [...new Set([baseKm || 1, (baseKm || 1) + 0.5, 3, 6])].sort((a, b) => a - b);
+      ex.textContent = "Exemplo: " + kms.map((d) => `${String(d).replace(".", ",")} km = ${money(fee(d))}`).join(" · ") + ".";
     }
     form.addEventListener("input", update);
     form.addEventListener("change", update);

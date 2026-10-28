@@ -147,7 +147,7 @@ def data_from_db(tenant, order_url, assets):
         "account_url": f"/{tenant.slug}/api/conta" if has_feature(tenant, "fidelidade") else "",
         # frete por distância: o checkout pede o CEP e consulta quote_url (services/geo.py)
         "km": {"quote_url": f"/{tenant.slug}/api/frete", "price": float(tenant.km_price or 0),
-               "min_fee": float(tenant.km_min_fee or 0), "max": float(tenant.km_max) if tenant.km_max else None}
+               "max": float(tenant.km_max) if tenant.km_max else None}
         if tenant.delivery_mode == "km" else None,
         # app no celular e avisos (Web Push); sem chave VAPID os avisos ficam desligados
         "app": has_feature(tenant, "app"),

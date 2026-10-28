@@ -748,7 +748,7 @@ def _optional_money(text, what):
     return None if not str(text or "").strip() else _price(text, what)
 
 
-def _optional_km(text):
+def _optional_km(text, what):
     text = str(text or "").strip().replace(",", ".")
     if not text:
         return None
@@ -757,7 +757,7 @@ def _optional_km(text):
     except ArithmeticError:
         km = None
     if km is None or not km.is_finite() or not 0 < km <= MAX_KM:
-        raise FormError(f"Distância máxima inválida: “{text}”. Use um número de km, ex.: 8 ou 7,5.")
+        raise FormError(f"Valor inválido {what}: “{text}”. Use um número de km, ex.: 8 ou 7,5.")
     return km.quantize(Decimal("0.1"))
 
 
@@ -793,8 +793,12 @@ def delivery_mode():
             raise FormError("Escolha como cobrar a entrega.")
         if mode == "km":
             tenant.km_price = _price(form.get("km_price"), "o preço por km", positive=True)
-            tenant.km_min_fee = _optional_money(form.get("km_min_fee"), "a taxa mínima") or None
-            tenant.km_max = _optional_km(form.get("km_max"))
+            tenant.km_base_km = _optional_km(form.get("km_base_km"), "na distância da taxa fixa")
+            tenant.km_base_fee = _optional_money(form.get("km_base_fee"), "a taxa fixa")
+            if (tenant.km_base_km is None) != (tenant.km_base_fee is None):
+                raise FormError("Para a taxa fixa de perto, preencha os dois campos: até quantos km e o valor. "
+                                "Para cobrar só pelo km, deixe os dois em branco.")
+            tenant.km_max = _optional_km(form.get("km_max"), "na distância máxima")
             if form.get("store_coords", "").strip() or form.get("relocate") or tenant.store_lat is None:
                 _locate_store(tenant, form.get("store_coords", ""))
         tenant.delivery_mode = mode

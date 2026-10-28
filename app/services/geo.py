@@ -122,9 +122,11 @@ def km_between(lat1, lng1, lat2, lng2):
 
 
 def km_fee(tenant, km):
-    """Preço: km × R$/km, nunca abaixo da taxa mínima (opcional)."""
-    fee = (km * Decimal(str(tenant.km_price or 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return max(fee, Decimal(str(tenant.km_min_fee or 0)))
+    """Preço: até km_base_km cobra a taxa fixa km_base_fee; acima disso, só km × R$/km (a fixa sai).
+    Sem taxa fixa configurada, sempre km × R$/km."""
+    if tenant.km_base_km and tenant.km_base_fee is not None and km <= Decimal(str(tenant.km_base_km)):
+        return Decimal(str(tenant.km_base_fee)).quantize(Decimal("0.01"))
+    return (km * Decimal(str(tenant.km_price or 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def locate_customer(tenant, cep="", street="", neighborhood=""):

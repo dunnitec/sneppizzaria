@@ -130,7 +130,8 @@ class Tenant(db.Model):
     store_city = db.Column(db.String(80))  # cidade/UF da loja: usadas quando o cliente não sabe o CEP
     store_uf = db.Column(db.String(2))
     km_price = db.Column(db.Numeric(8, 2))  # R$ por km
-    km_min_fee = db.Column(db.Numeric(8, 2))  # taxa mínima; vazio = só o km
+    km_base_km = db.Column(db.Numeric(6, 1))  # até X km cobra a taxa fixa abaixo; acima, só km × km_price
+    km_base_fee = db.Column(db.Numeric(8, 2))  # vazios = só km × km_price
     km_max = db.Column(db.Numeric(6, 1))  # entrega até X km; vazio = sem limite
     # plataforma (só /plataforma/ muda): plano contratado e loja no ar ou suspensa (ver services/plans.py)
     plan = db.Column(db.String(20), nullable=False, default="completo", server_default="completo")

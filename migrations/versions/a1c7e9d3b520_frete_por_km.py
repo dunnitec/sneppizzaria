@@ -23,7 +23,8 @@ def upgrade():
         b.add_column(sa.Column('store_city', sa.String(length=80), nullable=True))
         b.add_column(sa.Column('store_uf', sa.String(length=2), nullable=True))
         b.add_column(sa.Column('km_price', sa.Numeric(8, 2), nullable=True))
-        b.add_column(sa.Column('km_min_fee', sa.Numeric(8, 2), nullable=True))
+        b.add_column(sa.Column('km_base_km', sa.Numeric(6, 1), nullable=True))
+        b.add_column(sa.Column('km_base_fee', sa.Numeric(8, 2), nullable=True))
         b.add_column(sa.Column('km_max', sa.Numeric(6, 1), nullable=True))
     with op.batch_alter_table('orders') as b:
         b.add_column(sa.Column('cep', sa.String(length=8), nullable=True))
@@ -54,5 +55,5 @@ def downgrade():
         b.drop_column('distance_km')
         b.drop_column('cep')
     with op.batch_alter_table('tenants') as b:
-        for col in ('km_max', 'km_min_fee', 'km_price', 'store_uf', 'store_city', 'store_lng', 'store_lat', 'delivery_mode'):
+        for col in ('km_max', 'km_base_fee', 'km_base_km', 'km_price', 'store_uf', 'store_city', 'store_lng', 'store_lat', 'delivery_mode'):
             b.drop_column(col)
