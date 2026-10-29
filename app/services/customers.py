@@ -40,6 +40,8 @@ def upsert_customer(tenant, key, info):
         customer.complement = info["complement"]
         customer.neighborhood = info["neighborhood_name"]
         customer.reference = info["reference"]
+        customer.residence = info.get("residence")
+        customer.building = info.get("building") or None
     customer.updated_at = utcnow()
     return customer
 
@@ -51,6 +53,7 @@ def erase_customer(customer):
         order.customer_name = "Cliente removido"
         order.customer_phone = ""
         order.street = order.number = order.complement = order.reference = ""
+        order.building = None
         order.change_for = None
         order.whatsapp_message = None
     # celulares inscritos nos avisos por este cliente param de receber qualquer aviso

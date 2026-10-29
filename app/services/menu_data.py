@@ -37,6 +37,8 @@ def _fmt_phone(wa):
 
 
 def _finish(d, order_url, assets):
+    from app.services.site_options import DEFAULTS as SITE_DEFAULTS
+
     t = d["tenant"]
     hours = {str(k): v for k, v in (d.get("hours") or {}).items()}
     fees = [n["fee"] for n in d.get("neighborhoods", [])] or [0]
@@ -47,6 +49,8 @@ def _finish(d, order_url, assets):
         min_fee=min(fees),
         notices=d.get("notices", ["Pizzas meio a meio será cobrado pelo valor da maior!"]),
         min_order=d.get("min_order", 0),
+        site=d.get("site") or dict(SITE_DEFAULTS),
+        residence_fees=d.get("residence_fees") or {"apartamento": 0, "condominio": 0},
         order_url=order_url,
         assets=assets,
     )
@@ -73,6 +77,7 @@ def data_from_db(tenant, order_url, assets):
     from app.models import Addon, Border, Category, Neighborhood
     from app.services.hours import is_open, open_hours
     from app.services.photos import photo_url
+    from app.services.site_options import options as site_options
     from flask import current_app
 
     from app.services.loyalty import first_order_on, first_order_text
@@ -156,6 +161,9 @@ def data_from_db(tenant, order_url, assets):
                      and has_feature(tenant, "app") else ""),
         "notices": [line.strip() for line in (tenant.notices or "").splitlines() if line.strip()],
         "min_order": float(tenant.min_order or 0),
+        # como o site aparece (Aparência → Como o site funciona) e acréscimo por tipo de endereço (Entrega)
+        "site": site_options(tenant),
+        "residence_fees": {"apartamento": float(tenant.fee_apartment or 0), "condominio": float(tenant.fee_condo or 0)},
         "categories": cats,
         # promoções no ar: viram selo no cardápio e o aviso que abre ao entrar no site
         "promotions": [

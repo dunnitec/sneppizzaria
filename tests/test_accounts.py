@@ -130,7 +130,7 @@ def test_register_on_phone_with_orders_does_not_reveal_address(client, open_stor
     order(victim, withdraw=False, street="Rua Ficticia", number="10", neighborhood="Centro")
     assert Customer.query.one().street == "Rua Ficticia"
     me = register(client).get_json()
-    assert me["address"] == {"rua": "", "num": "", "comp": "", "bairro": "", "ref": ""} and me["orders"] == []
+    assert set(me["address"].values()) == {""} and me["orders"] == []
 
 
 def test_anonymous_order_does_not_touch_registered_customer(client, open_store):

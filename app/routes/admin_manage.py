@@ -332,7 +332,20 @@ def _ordered_banners():
 
 @admin_bp.route("/visual")
 def visual():
-    return render_template("admin/visual.html", banners=_ordered_banners())
+    from app.services.site_options import options
+
+    return render_template("admin/visual.html", banners=_ordered_banners(), site=options(g.tenant))
+
+
+@admin_bp.route("/visual/site", methods=["POST"])
+def visual_site():
+    """Como o site funciona: filtro, escolha dos sabores, bordas, layout e cor (services/site_options.py)."""
+    from app.services.site_options import DEFAULTS, from_form
+
+    opts = DEFAULTS if request.form.get("reset") else from_form(request.form)
+    g.tenant.site_options = json.dumps(opts)
+    _save("Site voltou ao padrão." if request.form.get("reset") else "Pronto! O site já está com as novas opções.")
+    return redirect(url_for("admin.visual") + "#site")
 
 
 def _uploaded_image():

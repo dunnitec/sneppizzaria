@@ -262,3 +262,42 @@ def test_only_per_km_when_fixed_fee_is_blank(panel, tenant, net):
     panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "km", "km_price": "3", "km_base_km": "",
                                                 "km_base_fee": "", "store_coords": "-23.2, -47.3"})
     assert tenant.delivery_mode == "km" and tenant.km_base_km is None and tenant.km_base_fee is None
+
+
+def test_neighborhood_fee_still_records_the_distance_for_the_receipt(client, panel, open_store, net):
+    """Frete por bairro com a loja no mapa: a taxa é a do bairro, mas o cupom mostra os km e a corrida."""
+    from app.models import Neighborhood
+
+    t = open_store
+    t.store_lat, t.store_lng, t.store_city, t.store_uf = *STORE, "Itu", "SP"
+    db.session.commit()
+    hood = Neighborhood.query.filter_by(tenant_id=t.id, active=True).first()
+    r = site_order(client, neighborhood=hood.name)
+    o = db.session.get(Order, r.get_json()["order_id"])
+    assert o.delivery_fee == hood.fee and o.distance_km == Decimal("1.3")
+    label = panel.get(f"/snep/admin/pedidos/{o.id}/etiqueta").get_data(as_text=True)
+    assert "1,3 km até o cliente" in label and f"Corrida: R$ {hood.fee:.2f}".replace(".", ",") in label
+
+
+def test_neighborhood_order_goes_without_distance_when_map_fails(client, open_store, monkeypatch):
+    from app.models import Neighborhood
+
+    t = open_store
+    t.store_lat, t.store_lng = STORE
+    db.session.commit()
+
+    def broken(*a, **k):
+        raise OSError("sem internet")
+
+    monkeypatch.setattr(geo, "quote", broken)
+    monkeypatch.setattr("app.services.order_create.quote", broken)
+    hood = Neighborhood.query.filter_by(tenant_id=t.id, active=True).first()
+    r = site_order(client, neighborhood=hood.name)
+    assert r.status_code == 200 and db.session.get(Order, r.get_json()["order_id"]).distance_km is None
+
+
+def test_neighborhood_mode_can_put_store_on_map(panel, open_store):
+    r = panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "bairro", "store_coords": "-23.2641, -47.2995"})
+    assert r.status_code == 302
+    db.session.refresh(open_store)
+    assert open_store.delivery_mode == "bairro" and (open_store.store_lat, open_store.store_lng) == (-23.2641, -47.2995)

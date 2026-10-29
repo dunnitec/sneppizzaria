@@ -36,14 +36,17 @@
   <ol>
     {% for o in d.orders %}
     <li><b>#{{ o.id }} · {{ o.neighborhood_name }}</b>
-      <small>{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</small>
+      <small>{% if o.residence_text() %}<b>{{ o.residence_text() }}</b> · {% endif %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</small>
       <small>{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</small>
+      <small>{% if o.distance_km is not none %}{{ '%.1f'|format(o.distance_km)|replace('.', ',') }} km · {% endif %}corrida {{ 'a combinar' if o.fee_pending else o.delivery_fee|brl }}</small>
       <small><b>{{ o.total|brl }} · {{ o.payment_method or '—' }}{% if o.change_for %} · troco p/ {{ o.change_for|brl }}{% endif %}</b></small>
       {% if o.split_people %}<small><b>Dividir: {{ o.split_text() }}</b></small>{% endif %}
     </li>
     {% endfor %}
   </ol>
   <div class="money">
+    {% set kms = d.orders|rejectattr('status', 'equalto', 'cancelado')|selectattr('distance_km')|map(attribute='distance_km')|list %}
+    {% if kms %}<div><span>Km até os clientes (só ida)</span><span>{{ '%.1f'|format(kms|sum)|replace('.', ',') }} km</span></div>{% endif %}
     <div class="big"><span>Trazer em dinheiro</span><span>{{ s.cash|brl }}</span></div>
     <div><span>Troco levado</span><span>{{ s.change|brl }}</span></div>
     <div><span>Maquininha</span><span>{{ s.card|brl }}</span></div>

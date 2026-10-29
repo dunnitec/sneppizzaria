@@ -54,6 +54,9 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
     ]
     if not order.get("withdraw"):
         lines.append(f"*Endereço:* {order['street']}, {order['number']} - {order['neighborhood_name']}")
+    if order.get("residence") in ("apartamento", "condominio"):
+        kind = "Apartamento" if order["residence"] == "apartamento" else "Condomínio"
+        lines.append(f"*{kind}:* {order.get('building') or '(sem nome)'}")
     if order.get("complement"):
         lines.append(f"Complemento: {order['complement']}")
     if order.get("reference"):

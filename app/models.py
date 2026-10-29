@@ -133,6 +133,10 @@ class Tenant(db.Model):
     km_base_km = db.Column(db.Numeric(6, 1))  # até X km cobra a taxa fixa abaixo; acima, só km × km_price
     km_base_fee = db.Column(db.Numeric(8, 2))  # vazios = só km × km_price
     km_max = db.Column(db.Numeric(6, 1))  # entrega até X km; vazio = sem limite
+    # acréscimo na entrega por tipo de endereço (o motoboy sobe no prédio / passa pela portaria); vazio = sem acréscimo
+    fee_apartment = db.Column(db.Numeric(8, 2))
+    fee_condo = db.Column(db.Numeric(8, 2))
+    site_options = db.Column(db.Text)  # JSON: como o site aparece e funciona (services/site_options.py)
     # plataforma (só /plataforma/ muda): plano contratado e loja no ar ou suspensa (ver services/plans.py)
     plan = db.Column(db.String(20), nullable=False, default="completo", server_default="completo")
     active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
@@ -307,6 +311,8 @@ class Customer(db.Model):
     complement = db.Column(db.String(120))
     neighborhood = db.Column(db.String(120))
     reference = db.Column(db.String(200))
+    residence = db.Column(db.String(12))  # casa | apartamento | condominio (RESIDENCES)
+    building = db.Column(db.String(120))  # nome do prédio ou do condomínio
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow)
     # cadastro feito pelo próprio cliente no site (telefone + senha de números); sem isso, não entra na fidelidade
@@ -320,6 +326,10 @@ class Customer(db.Model):
 
     def check_pin(self, pin):
         return bool(self.pin_hash) and check_password_hash(self.pin_hash, pin)
+
+
+# tipo de endereço de entrega: o dono pode cobrar acréscimo para apartamento e condomínio (aba Entrega)
+RESIDENCES = {"casa": "Casa", "apartamento": "Apartamento", "condominio": "Condomínio"}
 
 
 class Order(db.Model):
@@ -339,6 +349,8 @@ class Order(db.Model):
     neighborhood_name = db.Column(db.String(120))
     reference = db.Column(db.String(200))
     cep = db.Column(db.String(8))
+    residence = db.Column(db.String(12))  # casa | apartamento | condominio (RESIDENCES)
+    building = db.Column(db.String(120))  # nome do prédio ou do condomínio
     distance_km = db.Column(db.Numeric(6, 1))  # frete por distância (services/geo.py)
     fee_pending = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # entrega a combinar
     # código que o site gera ao abrir “Finalizar pedido”: reenviar (internet caiu) não cria pedido repetido
@@ -359,6 +371,12 @@ class Order(db.Model):
     table_label = db.Column(db.String(20))  # mesa (pedido de comer na loja)
     dispatch_id = db.Column(db.Integer, db.ForeignKey("dispatches.id"), index=True)  # comanda de saída do motoboy
     printed_at = db.Column(db.DateTime)
+
+    def residence_text(self):
+        """'Apartamento · Edifício Solar' para o cupom e o painel; '' para casa ou sem informação."""
+        if self.residence not in ("apartamento", "condominio"):
+            return ""
+        return RESIDENCES[self.residence] + (f" · {self.building}" if self.building else "")
 
     def split_text(self):
         """Como dividir a conta, para o cupom, o painel e o acompanhamento ('' = não divide)."""

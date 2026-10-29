@@ -34,6 +34,10 @@
         </div>
         {% endif %}
         <div class="row">
+          <label class="grow">Tipo de endereço<select name="residence">{% for v, l in residences.items() %}<option value="{{ v }}">{{ l }}{% if v == 'apartamento' and tenant.fee_apartment %} (+{{ tenant.fee_apartment|brl }}){% elif v == 'condominio' and tenant.fee_condo %} (+{{ tenant.fee_condo|brl }}){% endif %}</option>{% endfor %}</select></label>
+          <label class="grow2" id="pos-building" hidden>Nome do prédio ou condomínio<input name="building" maxlength="120"></label>
+        </div>
+        <div class="row">
           <label class="grow2">Rua<input name="street" maxlength="200"></label>
           <label class="money">Número<input name="number" maxlength="20"></label>
           <label class="grow">Complemento<input name="complement" maxlength="120"></label>

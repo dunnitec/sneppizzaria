@@ -804,8 +804,23 @@ def delivery_mode():
             tenant.km_max = _optional_km(form.get("km_max"), "na distância máxima")
             if form.get("store_coords", "").strip() or form.get("relocate") or tenant.store_lat is None:
                 _locate_store(tenant, form.get("store_coords", ""))
+        elif form.get("store_coords", "").strip() or form.get("relocate"):
+            _locate_store(tenant, form.get("store_coords", ""))  # por bairro: só para o cupom mostrar os km
         tenant.delivery_mode = mode
         _save("Entrega pela distância salva." if mode == "km" else "Entrega por bairro salva.")
+    except FormError as e:
+        _reject(e)
+    return redirect(url_for("admin.delivery"))
+
+
+@admin_bp.route("/entrega/endereco", methods=["POST"])
+def delivery_residence():
+    """Acréscimo na entrega para apartamento e condomínio (o cliente escolhe o tipo de endereço)."""
+    tenant, form = g.tenant, request.form
+    try:
+        tenant.fee_apartment = _optional_money(form.get("fee_apartment"), "o acréscimo de apartamento")
+        tenant.fee_condo = _optional_money(form.get("fee_condo"), "o acréscimo de condomínio")
+        _save("Acréscimos por tipo de endereço salvos.")
     except FormError as e:
         _reject(e)
     return redirect(url_for("admin.delivery"))

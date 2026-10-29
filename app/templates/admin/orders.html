@@ -37,7 +37,7 @@
     <b class="total">{{ o.total|brl }}</b>
   </div>
   <p><b>{{ o.customer_name }}</b> · {{ o.customer_phone|any_phone }}</p>
-  <p class="addr">{% if o.street %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %} · {% endif %}{{ o.neighborhood_name }}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</p>
+  <p class="addr">{% if o.residence_text() %}<b>{{ o.residence_text() }}</b> · {% endif %}{% if o.street %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %} · {% endif %}{{ o.neighborhood_name }}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</p>
   <ul>
     {% for i in o.items %}
     {% set v = i|item_view %}

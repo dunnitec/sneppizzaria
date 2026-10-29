@@ -25,7 +25,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
+from app.models import RESIDENCES, CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.geo import cep_digits, quote
@@ -74,6 +74,12 @@ def _order_customer(tenant, key, info, account, from_site):
         if owner and owner.pin_hash and (not account or account.id != owner.id):
             return owner
     return upsert_customer(tenant, key, info)
+
+
+def residence_fee(tenant, residence):
+    """Acréscimo na entrega para apartamento ou condomínio (aba Entrega); 0 = sem acréscimo."""
+    fee = {"apartamento": tenant.fee_apartment, "condominio": tenant.fee_condo}.get(residence)
+    return Decimal(str(fee)) if fee else Decimal("0")
 
 
 def _fee_of(order):
@@ -146,6 +152,16 @@ def place_order(tenant, p, channel="site", account=None):
     else:
         fee, found = calculate_fee(tenant.id, neighborhood)
         delivery_fee = fee if found else manual
+        if tenant.store_lat is not None:  # a taxa é do bairro, mas o cupom mostra os km até o cliente
+            try:
+                distance = quote(tenant, cep or "", _text(p, "street", 200), neighborhood)["km"]
+            except Exception:  # sem mapa agora: o pedido vai sem a distância
+                distance = None
+    residence = None if withdraw else (p.get("residence") if p.get("residence") in RESIDENCES else None)
+    building = _text(p, "building", 120) if residence in ("apartamento", "condominio") else ""
+    extra = residence_fee(tenant, residence)
+    if extra and delivery_fee is not None and manual is None:  # taxa digitada no painel já é a combinada
+        delivery_fee += extra
     discount, discount_note, first_order, used_programs = Decimal("0"), "", False, []
     if from_site and account and account.phone_key == key:
         # trava o cadastro até o pedido ser gravado: dois pedidos ao mesmo tempo (dois celulares na mesma
@@ -182,6 +198,8 @@ def place_order(tenant, p, channel="site", account=None):
         "street": "" if withdraw else _text(p, "street", 200),
         "number": "" if withdraw else _text(p, "number", 20),
         "complement": "" if withdraw else _text(p, "complement", 120),
+        "residence": residence,
+        "building": building,
         "neighborhood_name": neighborhood if not withdraw and neighborhood else
         ("(outro bairro)" if not withdraw else {"mesa": "Comer na loja"}.get(channel, "Retirada na loja")),
         "reference": "" if withdraw else _text(p, "reference", 200),
@@ -209,6 +227,8 @@ def place_order(tenant, p, channel="site", account=None):
         neighborhood_name=info["neighborhood_name"],
         reference=info["reference"],
         cep=cep,
+        residence=info["residence"],
+        building=info["building"],
         distance_km=distance,
         fee_pending=not withdraw and delivery_fee is None,
         client_ref=client_ref or None,

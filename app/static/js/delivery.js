@@ -177,7 +177,9 @@ function comboNote(c){
 }
 function isCombo(){return F.card.cat.kind==="metro";}
 function comboExtras(){if(!isCombo())return "";const c=comboOf(F.card.cat),x=[...c.extras];if(c.choice_options.length&&F.choice)x.push(`${c.choice_label||"Escolha"}: ${F.choice}`);return x.join(", ");}
-function steps(){const s=[];for(let i=0;i<F.n;i++)s.push({type:"flavor",i});
+// opções escolhidas pelo dono em Aparência → Como o site funciona (services/site_options.py)
+const SITE=Object.assign({flavors_one_page:true,borders_grouped:true},DATA.site||{});
+function steps(){const s=[];if(SITE.flavors_one_page&&F.n>1)s.push({type:"flavors"});else for(let i=0;i<F.n;i++)s.push({type:"flavor",i});
   if(isCombo()){if(comboOf(F.card.cat).choice_options.length)s.push({type:"choice"});}
   else{if(borderOptions().length)s.push({type:"border"});if(isPremium())s.push({type:"addons"});}
   s.push({type:"confirm"});return s;}
@@ -199,6 +201,11 @@ function renderStep(){
     const cur=F.flavors[st.i];
     body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
+  } else if(st.type==="flavors"){
+    const got=F.flavors.length;
+    t=`Escolha ${F.n} sabores`; sub=got<F.n?`Marque ${F.n-got===F.n?"os":"mais"} ${F.n-got} ${F.n-got>1?"sabores":"sabor"} · ${got} de ${F.n}`:`Pronto: ${F.flavors.map(f=>esc(f.name)).join(" + ")}`;
+    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>{const on=F.flavors.some(f=>f.id===p.id);return `<div class="opt multi ${on?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickMany(${pi})" role="checkbox" aria-checked="${on}"><span class="ck-box" aria-hidden="true">${on?"✓":""}</span>${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`;}).join("")+`</div>`;
+    nextOk=got===F.n;
   } else if(st.type==="choice"){
     const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
     body=c.choice_options.map((o,i)=>`<div class="opt" onclick="F.choice=comboOf(F.card.cat).choice_options[${i}];renderStep()"><input type="radio" ${F.choice===o?"checked":""}><div class="grow" style="font-weight:400">${esc(o)}</div></div>`).join("");
@@ -206,8 +213,15 @@ function renderStep(){
   } else if(st.type==="border"){
     t="Bordas Recheadas"; sub="Escolha 1 opção para a pizza.";
     const groups=[...new Set(DATA.borders.map(b=>b.group))];
-    body=`<div class="opt" onclick="F.border=null;renderStep()"><input type="radio" ${F.border==null?"checked":""}><div class="grow n" style="font-weight:400">Sem borda</div></div>`+
-      borderOptions().map(({b,i})=>`<div class="opt" onclick="F.border=${i};renderStep()"><input type="radio" ${F.border===i?"checked":""}><div class="grow" style="font-weight:400">${esc(b.group)} — ${esc(b.name)}</div><span class="pr">${money(b.price)}</span></div>`).join("");
+    const none=`<div class="opt" onclick="F.border=null;renderStep()"><input type="radio" ${F.border==null?"checked":""}><div class="grow n" style="font-weight:400">Sem borda</div></div>`;
+    const opts=borderOptions(), byGroup=[...new Set(opts.map(o=>o.b.group))];
+    const row=({b,i},label)=>`<div class="opt" onclick="F.border=${i};renderStep()"><input type="radio" ${F.border===i?"checked":""}><div class="grow" style="font-weight:400">${esc(label)}</div><span class="pr">${money(b.price)}</span></div>`;
+    if(SITE.borders_grouped&&byGroup.length>1){
+      // um bloco por tipo (Tradicional, Caracol, Vulcão): o cliente toca no tipo para ver os sabores
+      F.openGroups=F.openGroups||new Set(F.border!=null?[DATA.borders[F.border].group]:[]);
+      body=none+byGroup.map(g=>{const items=opts.filter(o=>o.b.group===g),from=Math.min(...items.map(o=>o.b.price)),has=items.some(o=>o.i===F.border);
+        return `<details class="bgrp${has?" has":""}" data-g="${esc(g)}" ${F.openGroups.has(g)?"open":""} ontoggle="bgToggle(this)"><summary><b>${esc(g)}</b><small>${items.length} sabor${items.length>1?"es":""} · a partir de ${money(from)}${has?" · ✓ escolhida":""}</small></summary>${items.map(o=>row(o,o.b.name)).join("")}</details>`;}).join("");
+    } else body=none+opts.map(o=>row(o,`${o.b.group} — ${o.b.name}`)).join("");
   } else if(st.type==="addons"){
     t="Adicionais"; sub=`Escolha entre 0 e 5 opções para a pizza.`;
     const whole=!SMALL_PIZZA.test(F.card.label);
@@ -229,6 +243,15 @@ function renderStep(){
   const b=md.querySelector(".body"); if(b)b.scrollTop=keepTop;
 }
 function fl(q){q=q.toLowerCase();document.querySelectorAll("#fl .opt").forEach(o=>o.style.display=o.dataset.n.includes(q)?"":"none");}
+function bgToggle(el){if(!F||!F.openGroups)return;if(el.open)F.openGroups.add(el.dataset.g);else F.openGroups.delete(el.dataset.g);}
+function pickMany(pi){
+  const p=flavorPool()[pi], at=F.flavors.findIndex(f=>f.id===p.id);
+  if(at>=0)F.flavors.splice(at,1);
+  else if(F.flavors.length<F.n)F.flavors.push(p);
+  else{toast(`Você já marcou ${F.n} sabores. Toque num marcado para trocar.`);return;}
+  if(!borderOptions().length)F.border=null;
+  renderStep();
+}
 function pickFlavor(pi){F.flavors[steps()[F.step].i]=flavorPool()[pi];if(!borderOptions().length)F.border=null;renderStep();}
 function addon(i,d){const tot=Object.values(F.addons).reduce((s,q)=>s+q,0);const cur=F.addons[i]||0;if(d>0&&tot>=5)return;F.addons[i]=Math.max(0,cur+d);if(!F.addons[i])delete F.addons[i];renderStep();}
 function next(){
@@ -286,6 +309,8 @@ function openCheckout(){
     <label>Telefone / WhatsApp<input name="tel" type="tel" required ${ACC?"readonly":""}></label>
     <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" id="ck-wd" style="width:18px;height:18px;margin:0" ${wd?"checked":""} onchange="document.getElementById('addr').style.display=this.checked?'none':'';totals()"> Retirar na loja</label>
     <div id="addr" style="${wd?"display:none":""}">
+      <div class="res-pick" role="radiogroup" aria-label="Tipo de endereço"><span class="res-lbl">Tipo de endereço</span>${RESIDENCES.map(([v,l])=>`<label><input type="radio" name="tipo" value="${v}" ${v==="casa"?"checked":""} onchange="resChange()"><span>${l}${resFee(v)?`<small>+${money(resFee(v))}</small>`:""}</span></label>`).join("")}</div>
+      <label id="predio-box" hidden><span id="predio-lbl">Nome do prédio</span><input name="predio" maxlength="120"></label>
       ${DATA.km?`<label>CEP<input name="cep" id="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" oninput="cepInput(this)"></label>
       <p class="km-info" id="km-info" aria-live="polite">Digite o CEP para calcular a entrega.</p>`:""}
       <label>Rua<input name="rua"${DATA.km?` onchange="kmQuote()"`:""}></label>
@@ -324,7 +349,11 @@ function remember(p){try{
   // retirada: guarda só nome e telefone, sem apagar o endereço do pedido anterior
   const old=p.withdraw?JSON.parse(localStorage.getItem(REMEMBER_KEY)||"{}")||{}:{};
   localStorage.setItem(REMEMBER_KEY,JSON.stringify(p.withdraw?{...old,nome:p.customer_name,tel:p.customer_phone}:
-    {nome:p.customer_name,tel:p.customer_phone,cep:p.cep,rua:p.street,num:p.number,comp:p.complement,bairro:p.neighborhood,ref:p.reference}));}catch(e){}}
+    {nome:p.customer_name,tel:p.customer_phone,cep:p.cep,rua:p.street,num:p.number,comp:p.complement,bairro:p.neighborhood,ref:p.reference,tipo:p.residence,predio:p.building}));}catch(e){}}
+function setResidence(tipo,predio){
+  const r=document.querySelector(`#ckf [name=tipo][value="${tipo}"]`);if(!r||resType()!=="casa")return;
+  r.checked=true;const f=document.getElementById("ckf");if(predio&&!f.predio.value)f.predio.value=predio;resChange();
+}
 // bairro: lista (frete por bairro) ou campo de texto (frete por distância)
 function setBairro(v){const b=document.getElementById("bairro");if(!v||b.value)return;if(b.tagName!=="SELECT"||[...b.options].some(o=>o.value===v))b.value=v;}
 function fillRemembered(){
@@ -332,7 +361,7 @@ function fillRemembered(){
   if(!d)return;
   const f=document.getElementById("ckf");
   ["nome","tel","cep","rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&d[k])el.value=d[k];});
-  setBairro(d.bairro);
+  setBairro(d.bairro);setResidence(d.tipo,d.predio);
 }
 /* ---------- frete por distância (painel → Entrega → Por distância) ---------- */
 let KMQ=null, KMQ_KEY="", KMQ_RUN=null; // última consulta: {status: ok|far|unknown|store, km, fee}
@@ -366,11 +395,25 @@ function kmQuote(){
   }).catch(()=>{if(KMQ_KEY===key){KMQ=null;info.textContent="Sem conexão para calcular. A pizzaria confirma a taxa.";totals();}});
   return KMQ_RUN;
 }
-function fee(){
-  if(document.getElementById("ck-wd").checked) return 0;
+// casa, apartamento ou condomínio: o dono pode cobrar a mais na entrega (painel → Entrega)
+const RESIDENCES=[["casa","Casa"],["apartamento","Apartamento"],["condominio","Condomínio"]];
+const resFee=v=>(DATA.residence_fees||{})[v]||0;
+function resType(){const r=document.querySelector("#ckf [name=tipo]:checked");return r?r.value:"casa";}
+function resChange(){
+  const v=resType(),box=document.getElementById("predio-box"),comp=document.querySelector("#ckf [name=comp]");
+  box.hidden=v==="casa";
+  document.getElementById("predio-lbl").textContent=v==="condominio"?"Nome do condomínio":"Nome do prédio";
+  if(comp)comp.placeholder=v==="apartamento"?"Bloco e apartamento (ex.: bloco B, apto 12)":v==="condominio"?"Quadra, rua interna e nº da casa":"";
+  totals();
+}
+function baseFee(){
   if(DATA.km) return KMQ&&KMQ.status==="ok"?KMQ.fee:null;
   const b=document.getElementById("bairro").value; if(!b||b==="__outro__") return null;
   const n=DATA.neighborhoods.find(x=>x.name===b); return n?n.fee:null;
+}
+function fee(){
+  if(document.getElementById("ck-wd").checked) return 0;
+  const f=baseFee(); return f===null?null:Math.round((f+resFee(resType()))*100)/100;
 }
 // mesma conta do servidor (services/split.py): partes iguais, os centavos que sobram nas primeiras
 function splitParts(total,n){const c=Math.round(total*100),b=Math.floor(c/n),x=c-b*n;return Array.from({length:n},(_,i)=>(b+(i<x?1:0))/100);}
@@ -387,7 +430,7 @@ async function sendOrder(f){
   const cash=f.pag.value==="Dinheiro", troco=cash&&f.troco.value?Number(f.troco.value):null;
   const total=subtotal()-accDiscount().value+(fee()||0);
   if(troco!==null&&troco<total-0.004){toast(`O troco tem que ser para um valor maior que o total (${money(total)}).`);f.troco.focus();return false;}
-  const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,cep:wd||!DATA.km?"":f.cep.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
+  const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,cep:wd||!DATA.km?"":f.cep.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,residence:wd?"":resType(),building:wd||resType()==="casa"?"":f.predio.value,
     neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,split_people:f.dividir.value?Number(f.dividir.value):null,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,client_ref:checkoutRef(),
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
@@ -500,7 +543,7 @@ function fillAccount(){
   if(digits(f.tel.value)!==digits(ACC.phone)){["nome","rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el)el.value="";});document.getElementById("bairro").value="";}
   f.nome.value=f.nome.value||ACC.name;f.tel.value=ACC.phone;
   const a=ACC.address||{};["rua","num","comp","ref"].forEach(k=>{const el=f.querySelector(`[name=${k}]`);if(el&&!el.value&&a[k])el.value=a[k];});
-  setBairro(a.bairro);
+  setBairro(a.bairro);setResidence(a.tipo,a.predio);
 }
 // mesma conta do servidor (services/loyalty.py), só para o cliente ver o total antes de enviar
 function accDiscount(){

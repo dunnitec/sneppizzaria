@@ -121,7 +121,8 @@ def account_data(tenant, c):
         "ok": True, "logged": True,
         "name": c.name, "phone": format_phone(c.phone_key),
         "address": {"rua": c.street or "", "num": c.number or "", "comp": c.complement or "",
-                    "bairro": c.neighborhood or "", "ref": c.reference or ""},
+                    "bairro": c.neighborhood or "", "ref": c.reference or "",
+                    "tipo": c.residence or "", "predio": c.building or ""},
         "loyalty": cards(tenant, c),
         "first_order": first_order_text(tenant) if first_order_eligible(tenant, c) else None,
         "orders": [order_summary(o, tenant.slug) for o in orders],
@@ -162,7 +163,7 @@ def register(slug):
         # quem já pediu antes ganha o cadastro no mesmo cliente, mas sem o endereço guardado: o número
         # não é verificado, então quem cadastra o telefone de outra pessoa não pode ver onde ela mora
         # (os pedidos e selos de antes do cadastro também não aparecem: registered_at)
-        c.street = c.number = c.complement = c.neighborhood = c.reference = None
+        c.street = c.number = c.complement = c.neighborhood = c.reference = c.residence = c.building = None
     c.name, c.phone = name, format_phone(key)
     c.set_pin(pin)
     c.registered_at = utcnow()

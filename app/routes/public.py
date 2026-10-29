@@ -66,7 +66,9 @@ def menu(slug):
         order_url=url_for("orders.create_order", slug=slug),
         assets=tenant_assets(tenant),
     )
-    return render_template("index.html", d=d, pay_icons=PAY_ICONS, inline=False)
+    from app.services.site_options import color_css
+
+    return render_template("index.html", d=d, pay_icons=PAY_ICONS, inline=False, site_css=color_css(d["site"]))
 
 
 @public_bp.route("/<slug>/api/status")

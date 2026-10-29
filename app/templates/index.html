@@ -17,8 +17,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 {% if inline %}<style>{{ css|safe }}</style>{% else %}<link rel="stylesheet" href="{{ static_url('css/delivery.css') }}">{% endif %}
+{# cor escolhida pelo dono (Aparência): depois do CSS do site, para valer por cima #}
+{% if site_css %}<style>{{ site_css }}</style>{% endif %}
 </head>
-<body>
+<body class="layout-{{ d.site.layout }}">
 {% set words = d.tenant.name.split() %}
 {% set slogan_words = (d.tenant.slogan or '').split() %}
 <header class="hero" {% if d.tenant.hero %}style="--hero:url('{{ d.tenant.hero }}')"{% endif %}>
@@ -58,7 +60,7 @@
 
   <div class="cols">
     <main class="main">
-      <label class="filter">
+      <label class="filter"{% if not d.site.show_filter %} hidden{% endif %}>
         <span class="filter-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="#fff" stroke-width="2"/></svg></span>
         <select id="catsel" onchange="jumpCat(this.value)" aria-label="Filtrar cardápio"><option value="">Filtrar cardápio</option><option value="all">Mostrar tudo</option></select>
       </label>

@@ -34,14 +34,18 @@
       <label class="money">Entrega até (km) <span class="hint">opcional</span><input name="km_max" value="{{ km_value(t.km_max) }}" inputmode="decimal" placeholder="sem limite"></label>
     </div>
     <p class="hint" id="km-example"></p>
+  </div>
 
+  <div id="map-fields">
     <h3>Onde fica a pizzaria no mapa</h3>
+    <p class="hint" id="map-why" {{ 'hidden' if km }}>Opcional na entrega por bairro: com a pizzaria no mapa, o cupom mostra quantos km o motoboy vai rodar até o cliente.</p>
     {% if t.store_lat is not none %}
     <p>📍 Localizada{% if t.store_city %} em <b>{{ t.store_city }}{% if t.store_uf %} - {{ t.store_uf }}{% endif %}</b>{% endif %}.
       <a href="https://www.google.com/maps?q={{ t.store_lat }},{{ t.store_lng }}" target="_blank" rel="noopener">Conferir no mapa ›</a></p>
     <label class="check"><input type="checkbox" name="relocate"> procurar de novo pelo endereço da aba Loja ({{ t.address or 'sem endereço' }})</label>
     {% else %}
-    <p class="hint">Ao salvar, procuramos a pizzaria no mapa pelo endereço da aba Loja: <b>{{ t.address or 'sem endereço — preencha na aba Loja' }}</b>.</p>
+    <p class="hint" id="map-auto" {{ 'hidden' if not km }}>Ao salvar, procuramos a pizzaria no mapa pelo endereço da aba Loja: <b>{{ t.address or 'sem endereço — preencha na aba Loja' }}</b>.</p>
+    <label class="check" id="map-find" {{ 'hidden' if km }}><input type="checkbox" name="relocate"> pôr a pizzaria no mapa pelo endereço da aba Loja ({{ t.address or 'sem endereço' }})</label>
     {% endif %}
     <details class="coords"><summary>O mapa errou o lugar? Colar a localização do Google Maps</summary>
       <p class="hint">No Google Maps, toque e segure em cima da pizzaria. Aparecem dois números, ex.: <b>-23.2641, -47.2995</b>. Copie e cole aqui.</p>
@@ -49,6 +53,17 @@
     </details>
   </div>
   <div class="savebar"><button class="primary">Salvar forma de cobrar</button></div>
+</form>
+
+<form method="post" action="{{ url_for('admin.delivery_residence') }}" class="card" data-track>
+  {{ csrf() }}
+  <h2>Casa, apartamento ou condomínio</h2>
+  <p class="hint">O cliente escolhe o tipo de endereço ao finalizar. Se quiser, cobre a mais quando o motoboy precisa subir no prédio ou passar pela portaria. Em branco = sem acréscimo.</p>
+  <div class="row">
+    <label class="money">Apartamento (+R$)<input name="fee_apartment" value="{{ t.fee_apartment|money_input if t.fee_apartment else '' }}" inputmode="decimal" placeholder="0,00"></label>
+    <label class="money">Condomínio (+R$)<input name="fee_condo" value="{{ t.fee_condo|money_input if t.fee_condo else '' }}" inputmode="decimal" placeholder="0,00"></label>
+    <button class="primary small">Salvar acréscimos</button>
+  </div>
 </form>
 
 {% if km %}
@@ -90,6 +105,10 @@
     function update() {
       const km = form.delivery_mode.value === "km";
       box.hidden = !km;
+      document.getElementById("map-why").hidden = km;
+      const auto = document.getElementById("map-auto"), find = document.getElementById("map-find");
+      if (auto) auto.hidden = !km;
+      if (find) find.hidden = km;
       form.km_price.required = km;
       const price = num(form.km_price.value), baseKm = num(form.km_base_km.value), baseFee = num(form.km_base_fee.value);
       const ex = document.getElementById("km-example");

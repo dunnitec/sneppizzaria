@@ -15,7 +15,9 @@ def order_new():
     if request.method == "GET":
         data = data_from_db(g.tenant, order_url=url_for("admin.order_new"), assets={})
         payments = [p for p in (g.tenant.accepted_payments or "").split(",") if p] or PAYMENT_OPTIONS
-        return render_template("admin/pos.html", data=data, payments=payments)
+        from app.models import RESIDENCES
+
+        return render_template("admin/pos.html", data=data, payments=payments, residences=RESIDENCES)
 
     payload = request.get_json(silent=True) or {}
     channel = payload.get("channel")

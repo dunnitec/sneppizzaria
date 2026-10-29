@@ -27,7 +27,7 @@
     <a href="https://wa.me/55{{ c.phone_key }}" target="_blank" rel="noopener">{{ c.phone_key|phone }}</a>
   </div>
   {% for lc in loyalty_cards(c) %}<p class="cust-loyalty">Cartão {{ lc.name }}: <b>{{ lc.filled }}/{{ lc.goal }}</b> selos · {{ lc.total_stamps }} pizza(s) no total{% if lc.rewards %} · <b class="gift">{{ lc.rewards }} grátis para usar</b>{% endif %}</p>{% endfor %}
-  {% if c.street %}<p class="addr">{{ c.street }}, {{ c.number }}{% if c.complement %} · {{ c.complement }}{% endif %} · {{ c.neighborhood }}</p>{% endif %}
+  {% if c.street %}<p class="addr">{% if c.residence in ('apartamento', 'condominio') %}{{ 'Apartamento' if c.residence == 'apartamento' else 'Condomínio' }}{% if c.building %} {{ c.building }}{% endif %} · {% endif %}{{ c.street }}, {{ c.number }}{% if c.complement %} · {{ c.complement }}{% endif %} · {{ c.neighborhood }}</p>{% endif %}
   <div class="cust-stats">
     <span><b>{{ row.orders }}</b> pedido(s)</span>
     <span><b>{{ row.spent|brl }}</b> gasto</span>

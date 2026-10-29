@@ -9,6 +9,37 @@
 {% block content %}
 <h1>Aparência do site</h1>
 
+<form method="post" action="{{ url_for('admin.visual_site') }}" class="card" id="site" data-track>
+  {{ csrf() }}
+  <h2>Como o site funciona</h2>
+  <p class="hint">Mude e salve: o site muda na hora. <a href="{{ url_for('public.menu', slug=tenant.slug) }}" target="_blank" rel="noopener">Ver o site ›</a></p>
+
+  <h3>Cor principal</h3>
+  <div class="row">
+    <label class="color-pick">Cor dos botões e destaques<input type="color" name="color" value="{{ site.color }}"></label>
+    <span class="hint">Escolha uma cor forte: o fundo do site é escuro.</span>
+  </div>
+
+  <h3>Cardápio</h3>
+  <div class="kind-choices">
+    <label class="kind-choice"><input type="radio" name="layout" value="grade" {{ 'checked' if site.layout == 'grade' }}><span class="kind-icon" aria-hidden="true">▦</span><b>Em grade</b><small>Dois itens por linha no computador.</small></label>
+    <label class="kind-choice"><input type="radio" name="layout" value="lista" {{ 'checked' if site.layout == 'lista' }}><span class="kind-icon" aria-hidden="true">☰</span><b>Em lista</b><small>Um item por linha, mais largo.</small></label>
+  </div>
+  <label class="check"><input type="checkbox" name="show_filter" {{ 'checked' if site.show_filter }}> mostrar a caixa <b>“Filtrar cardápio”</b> em cima das categorias</label>
+
+  <h3>Pizza de 2 sabores ou mais</h3>
+  <div class="kind-choices">
+    <label class="kind-choice"><input type="radio" name="flavors" value="one" {{ 'checked' if site.flavors_one_page }}><span class="kind-icon" aria-hidden="true">☑</span><b>Todos numa tela</b><small>O cliente marca os sabores na mesma lista.</small></label>
+    <label class="kind-choice"><input type="radio" name="flavors" value="steps" {{ 'checked' if not site.flavors_one_page }}><span class="kind-icon" aria-hidden="true">➜</span><b>Um sabor por tela</b><small>Escolhe o 1º, avança, escolhe o 2º.</small></label>
+  </div>
+
+  <h3>Bordas recheadas</h3>
+  <label class="check"><input type="checkbox" name="borders_grouped" {{ 'checked' if site.borders_grouped }}> separar por tipo (Tradicional, Caracol, Vulcão…): o cliente toca no tipo para ver os sabores</label>
+
+  <div class="savebar"><button class="primary">Salvar como o site funciona</button>
+    <button class="ghost" name="reset" value="1" onclick="return confirm('Voltar todas estas opções ao padrão?')">Voltar ao padrão</button></div>
+</form>
+
 <section class="card">
   <h2>Ícone do app no celular</h2>
   <p class="hint">É o ícone que aparece na tela do celular de quem instala o site como app. Use o logo em quadrado, de preferência com 512 × 512 pixels ou mais.</p>
