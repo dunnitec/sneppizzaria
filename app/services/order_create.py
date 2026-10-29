@@ -64,14 +64,15 @@ def _manual_fee(value):
     return fee.quantize(Decimal("0.01"))
 
 
-def _foreign_account(tenant, key, account, from_site):
-    """Pedido do site, sem entrar na conta, com o telefone de quem tem cadastro com senha: o pedido vale,
-    mas não muda o nome/endereço do cadastro nem entra no histórico, nos selos e nos avisos dele
+def _order_customer(tenant, key, info, account, from_site):
+    """Cliente do pedido pelo telefone. Pedido do site sem entrar na conta, com o telefone de quem tem
+    cadastro com senha, entra no histórico e nos selos dele, mas não muda o nome/endereço guardados
     (o telefone digitado não é verificado)."""
-    if not from_site:
-        return False  # quem atende no balcão/telefone conhece o cliente
-    owner = Customer.query.filter_by(tenant_id=tenant.id, phone_key=key).first()
-    return bool(owner and owner.pin_hash and (not account or account.id != owner.id))
+    if from_site:  # quem atende no balcão/telefone conhece o cliente e pode atualizar o cadastro
+        owner = Customer.query.filter_by(tenant_id=tenant.id, phone_key=key).first()
+        if owner and owner.pin_hash and (not account or account.id != owner.id):
+            return owner
+    return upsert_customer(tenant, key, info)
 
 
 def _fee_of(order):
@@ -193,7 +194,7 @@ def place_order(tenant, p, channel="site", account=None):
         "discount_note": discount_note,
     }
 
-    customer = upsert_customer(tenant, key, info) if key and not _foreign_account(tenant, key, account, from_site) else None
+    customer = _order_customer(tenant, key, info, account, from_site) if key else None
     db.session.flush()
     order = Order(
         tenant_id=tenant.id,

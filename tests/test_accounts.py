@@ -134,7 +134,8 @@ def test_register_on_phone_with_orders_does_not_reveal_address(client, open_stor
 
 
 def test_anonymous_order_does_not_touch_registered_customer(client, open_store):
-    """Relatório item 2: pedido sem entrar na conta, com o telefone de quem tem senha, não mexe no cadastro."""
+    """Relatório item 2: pedido sem entrar na conta, com o telefone de quem tem senha, não mexe no cadastro,
+    mas entra no histórico (e nos selos) dele."""
     register(client)
     order(client, withdraw=False, street="Rua Certa", number="1", neighborhood="Centro")
     stranger = client.application.test_client()
@@ -143,8 +144,8 @@ def test_anonymous_order_does_not_touch_registered_customer(client, open_store):
     c = Customer.query.one()
     assert (c.name, c.street) == ("Mariana", "Rua Certa")
     from app.models import Order
-    assert db.session.get(Order, r["order_id"]).customer_id is None
-    assert len(client.get("/snep/api/conta").get_json()["orders"]) == 1
+    assert db.session.get(Order, r["order_id"]).customer_id == c.id
+    assert len(client.get("/snep/api/conta").get_json()["orders"]) == 2
 
 
 def test_logout(client, tenant):
