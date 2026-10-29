@@ -142,7 +142,9 @@ def test_receipt_roll_80mm_page_follows_the_receipt_height(panel, tenant, client
     html = panel.get(f"/snep/admin/pedidos/{o.id}/etiqueta").get_data(as_text=True)
     # sem altura fixa no CSS: o script mede o cupom e põe a página do tamanho dele (sai numa página só)
     assert "@page { margin: 0; }" in html and '"@page { size: 72mm " + mm + "mm; margin: 0; }"' in html
-    assert "width: 60mm" in html  # folga na bobina de 80 mm (a MP-4200 TH cortava a borda direita)
+    # folga na bobina de 80 mm (a MP-4200 TH cortava a borda direita); “html body” faz a regra de impressão
+    # vencer o .sheet {width:100%} geral — antes o cupom saía com a largura da página inteira
+    assert "@media print { html body .sheet { width: 60mm;" in html
     assert "Rua A, 10" in html
 
 

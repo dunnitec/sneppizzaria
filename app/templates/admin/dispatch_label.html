@@ -8,7 +8,7 @@
      etiqueta: tamanho fixo, pedido comprido continua na etiqueta seguinte */
   {% if tenant.label_height_mm %}@page { size: {{ tenant.label_width_mm }}mm {{ tenant.label_height_mm }}mm; margin: 3mm; }
   {% else %}@page { margin: 0; }
-  @media print { .sheet { width: {{ sheet_width(tenant) }}; padding: 0 1mm; } }{% endif %}
+  @media print { html body .sheet { width: {{ sheet_width(tenant) }}; padding: 0 1mm; } }{# html body: vence o .sheet {width:100%} de baixo #}{% endif %}
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 13pt; color: #000; background: #fff; }
   .head { border-bottom: 2px solid #000; padding-bottom: 2mm; }

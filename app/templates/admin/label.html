@@ -8,11 +8,13 @@
      etiqueta: tamanho fixo, pedido comprido continua na etiqueta seguinte */
   {% if tenant.label_height_mm %}@page { size: {{ tenant.label_width_mm }}mm {{ tenant.label_height_mm }}mm; margin: 3mm; }
   {% else %}@page { margin: 0; }
-  @media print { .sheet { width: {{ sheet_width(tenant) }}; padding: 0 1mm; } }{% endif %}
+  @media print { html body .sheet { width: {{ sheet_width(tenant) }}; padding: 0 1mm; } }{# html body: vence o .sheet {width:100%} de baixo #}{% endif %}
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 13pt; color: #000; background: #fff; }
   .sheet { width: 100%; }
-  .head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #000; padding-bottom: 2mm; }
+  /* nada pode passar da largura do cupom: o que não cabe desce para a linha de baixo (a impressora corta a borda) */
+  .sheet { overflow-wrap: anywhere; }
+  .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 1mm; border-bottom: 2px solid #000; padding-bottom: 2mm; }
   .num { font-size: 30pt; font-weight: 900; }
   .kind { font-size: 16pt; font-weight: 900; border: 2px solid #000; padding: 0 2mm; }
   .meta { font-size: 11pt; margin: 1mm 0 2mm; }
@@ -27,10 +29,10 @@
   .items .names { flex: 1; min-width: 0; }
   .items .type { font-size: 11pt; font-weight: 900; border: 2px solid #000; border-radius: 2mm; padding: 0 1.5mm; }
   .items small { display: block; font-size: 13pt; }
-  .tot { display: flex; justify-content: space-between; gap: 2mm; font-size: 13pt; }
-  .tot span:last-child { white-space: nowrap; }
+  .tot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 2mm; font-size: 13pt; }
+  .tot span:last-child { white-space: nowrap; margin-left: auto; }
   .head, .eta, .tot, .pay { break-inside: avoid; page-break-inside: avoid; }
-  .tot.big { font-size: 18pt; font-weight: 900; }
+  .tot.big { font-size: 17pt; font-weight: 900; }
   .pay { margin-top: 2mm; font-size: 15pt; font-weight: 700; border: 2px solid #000; padding: 1.5mm; }
   .foot { margin-top: 2mm; font-size: 10pt; text-align: center; }
   @media screen { body { background: #ddd; } .sheet { width: {{ sheet_width(tenant) if not tenant.label_height_mm else tenant.label_width_mm ~ 'mm' }}; margin: 10px auto; background: #fff; padding: 3mm; }
@@ -50,7 +52,7 @@
   {% if o.eta_at %}<div class="eta">PREVISÃO {{ (o.eta_at|local_time).strftime('%H:%M') }}</div>{% endif %}
   {% if o.customer_name %}<div class="who">{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</div>{% endif %}
   {% if o.delivery %}
-  <div class="addr">{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}<br><b>{{ o.neighborhood_name }}</b>{% if o.cep %} · CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}{% endif %}{% if o.reference %}<br>Ref.: {{ o.reference }}{% endif %}</div>
+  <div class="addr">{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}<br><b>{{ o.neighborhood_name }}</b>{% if o.cep %} · <span style="white-space:nowrap">CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}</span>{% endif %}{% if o.reference %}<br>Ref.: {{ o.reference }}{% endif %}</div>
   {% endif %}
 
   <ul class="items">
