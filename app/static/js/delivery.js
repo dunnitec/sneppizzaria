@@ -254,7 +254,7 @@ function renderCart(){
 }
 function qty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);renderCart();}
 function openCart(){
-  if(!cart.length){toast("Sua cesta ainda está vazia.");return;}
+  if(!cart.length){closeModal();toast("Sua cesta ainda está vazia.");return;}
   const md=document.getElementById("md");
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Sua cesta</h2></div><div class="body" style="padding:0"><div class="withdraw" style="margin:10px 16px;border:1px solid #ddd"><div>Retirar na loja<small>${esc(DATA.tenant.address)}</small></div><input type="checkbox" ${document.getElementById("withdraw").checked?"checked":""} onchange="document.getElementById('withdraw').checked=this.checked;renderCart()"></div>
     ${cart.map((i,idx)=>`<div class="ci"><div><b>${esc(i.title)}</b><small>${esc(i.variant)}${i.border?" · Borda "+esc(i.border):""}${i.addons?" · "+esc(i.addons):""}${i.extras?" · Acompanha: "+esc(i.extras):""}</small><span class="lt">${money(i.price*i.qty)}</span></div><div class="q"><button class="m" onclick="qty(${idx},-1);openCart()">−</button>${i.qty}<button class="p" onclick="qty(${idx},1);openCart()">+</button></div></div>`).join("")}

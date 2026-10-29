@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0c">
 <meta name="robots" content="noindex">
-{% if o.status not in ('entregue', 'cancelado') %}<meta http-equiv="refresh" content="30">{% endif %}
 <title>Pedido #{{ o.id }} · {{ tenant.name }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,6 +57,7 @@ h1{font:900 26px var(--display);margin:0}
   <h1>Pedido #{{ o.id }}</h1>
   <p class="sub">Feito {{ 'por ' ~ first_name ~ ' ' if first_name }}em {{ created.strftime('%d/%m às %H:%M') }}{% if channel %} · {{ channel }}{% endif %}</p>
 
+  <div id="live" data-final="{{ 1 if o.status in ('entregue', 'cancelado') else 0 }}">
   {% if o.status == 'cancelado' %}
   <section class="card cancel"><b>Este pedido foi cancelado.</b><p class="note">Dúvidas? Fale com a pizzaria pelo WhatsApp.</p></section>
   {% else %}
@@ -72,6 +72,7 @@ h1{font:900 26px var(--display);margin:0}
     </ul>
   </section>
   {% endif %}
+  </div>
 
   {% if pix %}
   <section class="card pix">
@@ -101,5 +102,21 @@ h1{font:900 26px var(--display);margin:0}
   <a class="btn btn-wa" href="https://wa.me/{{ tenant.whatsapp }}" target="_blank" rel="noopener">Falar com a pizzaria no WhatsApp</a>
   {% if o.status not in ('entregue', 'cancelado') %}<p class="note">Esta página se atualiza sozinha a cada 30 segundos.</p>{% endif %}
 </div>
+<script>
+  // atualiza só a situação do pedido, sem recarregar a página (não atrapalha quem está copiando o Pix)
+  (function () {
+    const live = document.getElementById("live");
+    if (live.dataset.final === "1") return;
+    const timer = setInterval(async () => {
+      try {
+        const html = await (await fetch(location.href, { cache: "no-store" })).text();
+        const fresh = new DOMParser().parseFromString(html, "text/html").getElementById("live");
+        if (!fresh) return;
+        live.innerHTML = fresh.innerHTML;
+        if (fresh.dataset.final === "1") clearInterval(timer);
+      } catch (e) { /* sem conexão: tenta de novo em 30 s */ }
+    }, 30000);
+  })();
+</script>
 </body>
 </html>

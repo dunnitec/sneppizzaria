@@ -253,7 +253,7 @@ def test_stamps_count_only_confirmed_pizzas_after_signup(client, open_store):
     assert client.get("/snep/api/conta").get_json()["loyalty"][0]["rewards"] == 1
     set_status(order(client, items=[promo_item(1)])["order_id"], "confirmado")
     lc = card(prog, c)
-    assert (lc["filled"], lc["full"], lc["rewards"]) == (1, False, 1)  # novo cartão começa, prêmio continua
+    assert (lc["filled"], lc["full"], lc["rewards"]) == (3, True, 1)  # continua cheio até o prêmio ser usado
 
 
 def test_pending_reward_order_does_not_count_as_stamp(client, open_store):
