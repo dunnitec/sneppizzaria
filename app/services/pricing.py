@@ -19,7 +19,9 @@ from app.services.promotions import best_price, running
 
 MAX_ADDONS = 5
 MAX_QUANTITY = 50
-WHOLE_PIZZA = re.compile(r"inteira|grande", re.I)
+# adicional tem preço de pizza pequena (price_half) e de inteira (price_whole); qualquer tamanho que não
+# seja pequeno (Broto, Pequena, Mini, Individual) paga o de inteira — Grande, Gigante, Família...
+SMALL_PIZZA = re.compile(r"broto|pequen|mini|individual|meia", re.I)
 
 
 class OrderError(ValueError):
@@ -103,9 +105,9 @@ def price_item(tenant, raw):
 
     if category.kind == "metro":
         combo = next((p for p in category.products if p.active and p.variants), None)
-        if not combo:
-            raise OrderError("Este item não está mais disponível.")
-        variant = combo.variants[0]
+        variant = next((v for v in combo.variants if v.active), None) if combo else None
+        if not variant:  # desligado no estoque com o site já aberto no celular do cliente
+            raise OrderError("Este item não está mais disponível. Atualize a página.")
         settings = category.combo_settings()
         pool = Product.query.join(Category).filter(
             Product.tenant_id == tenant.id,
@@ -156,7 +158,7 @@ def price_item(tenant, raw):
         price += _money(border.price)
 
     addons = _addons(tenant, category, raw)
-    whole = bool(WHOLE_PIZZA.search(label))
+    whole = not SMALL_PIZZA.search(label)
     for addon, qty in addons:
         price += qty * _money(addon.price_whole if whole else addon.price_half)
 

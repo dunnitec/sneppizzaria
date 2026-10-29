@@ -16,6 +16,7 @@ from app.models import (
     Banner,
     Border,
     Category,
+    LoyaltyProgram,
     Neighborhood,
     OrderItemFlavor,
     Product,
@@ -151,11 +152,55 @@ def line_save(category_id):
                 elif variant.label in renames:  # renames: nome antigo -> tamanho novo
                     size = renames[variant.label]
                     variant.label, variant.max_flavors = size["label"], size["max_flavors"]
+        _rename_size_everywhere(category, {old: size["label"] for old, size in renames.items() if old != size["label"]})
         category.sizes_json = json.dumps(new_sizes, ensure_ascii=False)
         _save(f"Configurações de “{category.name}” salvas.")
     except FormError as e:
         _reject(e)
     return _back(category.id)
+
+
+def _rename_size_everywhere(category, renames):
+    """Tamanho renomeado: promoções, cartões fidelidade e bordas que citavam o nome antigo passam a usar o novo
+    (senão a promoção sai do ar sem aviso, o prêmio fica impossível de usar e a borda volta a aparecer)."""
+    if not renames:
+        return
+    for promo in Promotion.query.filter_by(tenant_id=g.tenant.id, category_id=category.id):
+        promo.size_label = renames.get(promo.size_label, promo.size_label)
+    for program in LoyaltyProgram.query.filter_by(tenant_id=g.tenant.id, reward_category_id=category.id):
+        program.reward_size = renames.get(program.reward_size, program.reward_size)
+    still_used = {v.label for c in Category.query.filter(Category.tenant_id == g.tenant.id, Category.id != category.id)
+                  for p in c.products for v in p.variants}
+    for border in Border.query.filter_by(tenant_id=g.tenant.id):
+        rules = border.rules()
+        sizes = list(rules["no_sizes"])
+        for old, new in renames.items():
+            if old in sizes:
+                if old not in still_used:
+                    sizes.remove(old)
+                if new not in sizes:
+                    sizes.append(new)
+        if sizes != rules["no_sizes"]:
+            border.rules_json = json.dumps({**rules, "no_sizes": sizes}, ensure_ascii=False)
+
+
+def _forget_in_loyalty(category_id=None, product_id=None):
+    """Categoria ou sabor excluído: tira dos cartões fidelidade. Cartão sem categoria que vale selo,
+    sem a categoria do prêmio ou sem sabor para o prêmio é desligado. Devolve os nomes desligados."""
+    off = []
+    for program in LoyaltyProgram.query.filter_by(tenant_id=g.tenant.id):
+        counted = [c for c in program.counted() if c != category_id]
+        products = [p for p in program.reward_products() if p != product_id]
+        if category_id is not None and program.reward_category_id == category_id:
+            program.reward_category_id, products = None, []
+        if counted == program.counted() and products == program.reward_products() and program.reward_category_id:
+            continue  # cartão não usava o que foi excluído
+        program.count_category_ids = json.dumps(counted)
+        program.reward_product_ids = json.dumps(products)
+        if program.active and (not counted or not program.reward_category_id or not products):
+            program.active = False
+            off.append(program.name)
+    return off
 
 
 @admin_bp.route("/cardapio/<int:category_id>/mover", methods=["POST"])
@@ -179,6 +224,7 @@ def line_delete(category_id):
     for promo in Promotion.query.filter_by(tenant_id=g.tenant.id, category_id=category.id):
         delete_photo(promo.image)
         db.session.delete(promo)
+    cards_off = _forget_in_loyalty(category_id=category.id)  # antes dos sabores, para avisar quais cartões
     for product in list(category.products):
         _delete_product(product)
     for combo in Category.query.filter_by(tenant_id=g.tenant.id, kind="metro"):
@@ -187,7 +233,8 @@ def line_delete(category_id):
             combo.combo_sources = json.dumps([s for s in sources if s != slug])
     db.session.delete(category)
     db.session.commit()
-    flash(f"Categoria “{name}” e os itens dela foram excluídos.", "ok")
+    flash(f"Categoria “{name}” e os itens dela foram excluídos."
+          + (f" O cartão fidelidade {', '.join(cards_off)} foi desligado: confira em Fidelidade." if cards_off else ""), "ok")
     return _back()
 
 
@@ -196,6 +243,7 @@ def line_delete(category_id):
 def _delete_product(product):
     OrderItemFlavor.query.filter_by(product_id=product.id).update({"product_id": None})
     forget_product(product.tenant_id, product.id)
+    _forget_in_loyalty(product_id=product.id)
     image = product.image
     db.session.delete(product)
     delete_photo(image)

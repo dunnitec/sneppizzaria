@@ -9,6 +9,7 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const token = document.querySelector('meta[name="csrf-token"]').content;
   const cart = [];
+  const SMALL_PIZZA = /broto|pequen|mini|individual|meia/i; // adicional com preço de pequena (igual ao servidor)
   let B = null; // item sendo montado: {cat, size, n, flavors[], border, addons{}, choice, qty, notes}
 
   /* ---------- origem do pedido ---------- */
@@ -50,7 +51,7 @@
     let p = Math.max(...chosen.map((f) => f.price));
     const border = D.borders.find((b) => b.id === B.border);
     if (border) p += border.price;
-    const whole = /inteira|grande/i.test(B.size);
+    const whole = !SMALL_PIZZA.test(B.size);
     Object.entries(B.addons).forEach(([id, q]) => { const a = D.addons.find((x) => x.id === Number(id)); if (a) p += q * (whole ? a.price_whole : a.price_half); });
     return p;
   }
@@ -100,7 +101,7 @@
     const borders = combo ? [] : borderOptions();
     if (borders.length) html += `<label class="grow">Borda<select data-border><option value="">Sem borda</option>${borders.map((b) => `<option value="${b.id}" ${B.border === b.id ? "selected" : ""}>${esc(b.group)} — ${esc(b.name)} (+${money(b.price)})</option>`).join("")}</select></label>`;
     if (!combo && B.cat.allows_addons) {
-      const whole = /inteira|grande/i.test(B.size);
+      const whole = !SMALL_PIZZA.test(B.size);
       const chosen = Object.entries(B.addons).map(([id, q]) => { const a = D.addons.find((x) => x.id === Number(id)); return `<button type="button" class="chip-btn on" data-addon-del="${id}" aria-label="Tirar ${esc(a.name)}">${q}x ${esc(a.name)} ✕</button>`; }).join("");
       html += `<div class="addons"><span class="where-label">Adicionais</span><select data-addon-pick><option value="">Escolha um adicional…</option>${D.addons.map((a) => `<option value="${a.id}">${esc(a.name)} (+${money(whole ? a.price_whole : a.price_half)})</option>`).join("")}</select>
         <button type="button" class="ghost small" data-addon-add>+ Adicionar</button>${chosen}<small class="hint">até 5 por pizza</small></div>`;

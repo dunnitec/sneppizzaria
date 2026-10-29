@@ -2,6 +2,8 @@ const DATA=window.DELIVERY_DATA;
 const money=v=>"R$ "+v.toFixed(2).replace(".",",");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let cart=[];
+// adicional: preço de pizza pequena só nos tamanhos pequenos; os outros pagam o de inteira (igual ao servidor)
+const SMALL_PIZZA=/broto|pequen|mini|individual|meia/i;
 
 /* ---------- banner ---------- */
 let bi=0;const bimgs=[...document.querySelectorAll("#banner .sl")];
@@ -176,7 +178,7 @@ function unitPrice(){
   const k=F.card; let p;
   if(k.cat.kind==="metro") p=k.fixed; else p=Math.max(...F.flavors.map(f=>f.price));
   if(F.border!=null) p+=DATA.borders[F.border].price;
-  const whole=/inteira|grande/i.test(k.label);
+  const whole=!SMALL_PIZZA.test(k.label);
   Object.entries(F.addons).forEach(([i,q])=>{const a=DATA.addons[i];p+=q*(whole?a.price_whole:a.price_half);});
   return p;
 }
@@ -200,7 +202,7 @@ function renderStep(){
       borderOptions().map(({b,i})=>`<div class="opt" onclick="F.border=${i};renderStep()"><input type="radio" ${F.border===i?"checked":""}><div class="grow" style="font-weight:400">${esc(b.group)} — ${esc(b.name)}</div><span class="pr">${money(b.price)}</span></div>`).join("");
   } else if(st.type==="addons"){
     t="Adicionais"; sub=`Escolha entre 0 e 5 opções para a pizza.`;
-    const whole=/inteira/i.test(F.card.label);
+    const whole=!SMALL_PIZZA.test(F.card.label);
     body=DATA.addons.map((a,i)=>`<div class="opt" style="cursor:default"><div class="cnt"><button class="m" onclick="addon(${i},-1)">−</button><span>${F.addons[i]||0}</span><button class="p" onclick="addon(${i},1)">+</button></div><div class="grow" style="font-weight:400">${esc(a.name)}</div><span class="pr">${money(whole?a.price_whole:a.price_half)}</span></div>`).join("");
   } else {
     t="Confirmação"; sub="Escolha a quantidade do item"; nextLbl="Adicionar";
@@ -450,7 +452,7 @@ function accDiscount(){
     const opts=rewardItems(l).filter(({i,idx})=>(free[idx]||0)<i.qty);if(!opts.length)return;
     const best=opts.reduce((a,b)=>(b.i.base||0)>(a.i.base||0)?b:a);free[best.idx]=(free[best.idx]||0)+1;v+=best.i.base||0;notes.push(`${l.name} grátis`);
   });
-  if(ACC.first_order&&DATA.first_order){const rest=s-v;const off=DATA.first_order.type==="percent"?Math.round(rest*DATA.first_order.value)/100:Math.min(rest,DATA.first_order.value);if(off>0){v+=off;notes.push("1º pedido");}}
+  if(ACC.first_order&&DATA.first_order){const rest=s-v;const cents=Math.round(rest*100);/* em centavos inteiros, arredondando meio centavo para cima como o servidor */const off=DATA.first_order.type==="percent"?Math.round(cents*DATA.first_order.value/100+1e-9)/100:Math.min(rest,DATA.first_order.value);if(off>0){v+=off;notes.push("1º pedido");}}
   return {value:Math.min(v,s),note:notes.join(" + ")};
 }
 accApi("").then(setAcc);

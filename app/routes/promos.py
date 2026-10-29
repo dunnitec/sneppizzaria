@@ -91,6 +91,10 @@ def _fill(promo, form):
     elif kind == "price":
         if len(sizes) > 1 and not promo.size_label:
             raise FormError("Preço fixo vale para um tamanho só: escolha o tamanho (ex.: Grande).")
+        if not promo.size_label and sizes:
+            # categoria de um tamanho só: grava esse tamanho, senão um tamanho criado depois (mais caro)
+            # entraria na promoção com o mesmo preço fixo
+            promo.size_label = sizes[0]
         promo.value = _price(form.get("price"), "o preço promocional", positive=True)
     else:
         raise FormError("Escolha o tipo de desconto: porcentagem ou preço fixo.")
