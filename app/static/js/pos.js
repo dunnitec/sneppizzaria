@@ -69,9 +69,9 @@
       return D.categories.filter((c) => c.kind !== "metro" && c.kind !== "bebida" && src.includes(c.slug))
         .flatMap((c) => c.products.map((p) => ({ id: p.id, name: p.name, price: null })));
     }
-    return B.cat.products.map((p) => { const v = p.variants.find((x) => x.label === B.size); return v ? { id: p.id, name: p.name, price: v.price, promo: v.promo } : null; }).filter(Boolean);
+    return B.cat.products.map((p) => { const v = p.variants.find((x) => x.label === B.size); return v ? { id: p.id, name: p.name, price: v.price, promo: v.promo, no_border: p.no_border } : null; }).filter(Boolean);
   }
-  const borderOptions = () => D.borders.filter((b) => !(b.no_sizes || []).includes(B.size) && !(b.no_categories || []).includes(B.cat.slug));
+  const borderOptions = () => B.flavors.some((f) => f && f.no_border) ? [] : D.borders.filter((b) => !(b.no_sizes || []).includes(B.size) && !(b.no_categories || []).includes(B.cat.slug));
   function unitPrice() {
     if (isCombo()) return B.cat.products[0].variants[0].price;
     const chosen = B.flavors.filter(Boolean);
@@ -143,7 +143,13 @@
   }
   builder.addEventListener("change", (e) => {
     const t = e.target;
-    if (t.dataset.flavor !== undefined) { const f = flavorPool().find((x) => x.id === Number(t.value)); B.flavors[Number(t.dataset.flavor)] = f || null; }
+    if (t.dataset.flavor !== undefined) {
+      const f = flavorPool().find((x) => x.id === Number(t.value));
+      B.flavors[Number(t.dataset.flavor)] = f || null;
+      if (!borderOptions().some((b) => b.id === B.border)) B.border = null;
+      renderBuilder();  // calzone esconde a borda
+      return;
+    }
     else if (t.hasAttribute("data-border")) B.border = t.value ? Number(t.value) : null;
     else if (t.hasAttribute("data-choice")) B.choice = t.value;
     else if (t.hasAttribute("data-qty")) B.qty = Math.max(1, Math.min(50, Number(t.value) || 1));

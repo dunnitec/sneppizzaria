@@ -396,6 +396,8 @@ def menu_save(category_id):
             product.name = _name(form[f"name-{product.id}"], "o nome do sabor")
             product.description = form.get(f"desc-{product.id}", "").strip()[:500]
             product.active = f"active-{product.id}" in form
+            if "border_field" in form:
+                product.accepts_border = f"border-{product.id}" in form
             for variant in list(product.variants):
                 if f"price-{variant.id}" not in form:
                     continue
@@ -440,6 +442,7 @@ def product_new(category_id):
                 category_id=category.id,
                 name=name,
                 description=form.get("desc", "").strip()[:500],
+                accepts_border="border" in form if "border_field" in form else True,
                 variants=variants,
             )
         )

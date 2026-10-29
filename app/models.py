@@ -201,6 +201,8 @@ class Product(db.Model):
     description = db.Column(db.Text)  # ingredientes
     image = db.Column(db.String(255))  # arquivo da foto em UPLOAD_FOLDER (services/photos.py)
     active = db.Column(db.Boolean, default=True)
+    # calzone, esfiha...: o cliente não escolhe borda; numa meio a meio com este sabor também não
+    accepts_border = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
 
     variants = db.relationship(
         "ProductVariant", backref="product", lazy=True, cascade="all, delete-orphan", order_by="ProductVariant.id"

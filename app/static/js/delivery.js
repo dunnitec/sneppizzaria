@@ -165,7 +165,8 @@ function flavorPool(){
 function isPremium(){return !!F.card.cat.allows_addons;}
 function borderLabel(b){return b.group.replace(/^Borda /,"")+" - "+b.name;}
 // bordas que valem para a pizza escolhida (o dono define em Bordas e adicionais → Onde aparece)
-function borderOptions(){const k=F.card;return DATA.borders.map((b,i)=>({b,i})).filter(({b})=>!(b.no_sizes||[]).includes(k.label)&&!(b.no_categories||[]).includes(k.cat.slug));}
+function borderOptions(){const k=F.card;if(F.flavors.some(f=>f&&f.no_border))return []; // calzone etc.
+  return DATA.borders.map((b,i)=>({b,i})).filter(({b})=>!(b.no_sizes||[]).includes(k.label)&&!(b.no_categories||[]).includes(k.cat.slug));}
 // combo (kind "metro"): preço fixo, sabores das linhas escolhidas no painel, brindes e uma pergunta opcional ao cliente
 function comboOf(c){const x=c.combo||{};return {sources:x.sources||[],extras:x.extras||[],choice_label:x.choice_label||"",choice_options:x.choice_options||[]};}
 function lineName(slug){const c=DATA.categories.find(c=>c.slug===slug);return c?c.name.replace(/^Pizzas? /i,""):slug;}
@@ -228,7 +229,7 @@ function renderStep(){
   const b=md.querySelector(".body"); if(b)b.scrollTop=keepTop;
 }
 function fl(q){q=q.toLowerCase();document.querySelectorAll("#fl .opt").forEach(o=>o.style.display=o.dataset.n.includes(q)?"":"none");}
-function pickFlavor(pi){F.flavors[steps()[F.step].i]=flavorPool()[pi];renderStep();}
+function pickFlavor(pi){F.flavors[steps()[F.step].i]=flavorPool()[pi];if(!borderOptions().length)F.border=null;renderStep();}
 function addon(i,d){const tot=Object.values(F.addons).reduce((s,q)=>s+q,0);const cur=F.addons[i]||0;if(d>0&&tot>=5)return;F.addons[i]=Math.max(0,cur+d);if(!F.addons[i])delete F.addons[i];renderStep();}
 function next(){
   const s=steps();

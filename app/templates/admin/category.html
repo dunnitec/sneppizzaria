@@ -96,6 +96,8 @@
       {% endfor %}
       <button class="primary">Adicionar</button>
     </div>
+    {% if not drink %}<input type="hidden" name="border_field" value="1">
+    <label class="check"><input type="checkbox" name="border" checked> aceita borda recheada <span class="hint">— desmarque para calzone e outros itens sem borda</span></label>{% endif %}
     <p class="hint">Preencha o preço de cada tamanho. Se a {{ word }} não tiver algum tamanho, deixe aquele preço em branco.</p>
   </form>
 </section>
@@ -108,7 +110,7 @@
   </div>
   <div class="search-bar inline-search"><label class="grow">Procurar<input id="search" type="search" autocomplete="off" data-items=".flavor" data-sections=".none"></label><span id="search-count" class="hint" aria-live="polite"></span></div>
   <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}" data-track>
-    {{ csrf() }}
+    {{ csrf() }}{% if not drink %}<input type="hidden" name="border_field" value="1">{% endif %}
     {% for p in c.products %}
     <div class="item-row flavor {{ 'off' if not p.active }}" data-name="{{ p.name }} {{ p.description or '' }}">
       <div class="thumb">
@@ -127,6 +129,7 @@
           {% else %}<label class="money">Preço {{ label }}<input name="newv-{{ p.id }}-{{ loop.index0 }}" inputmode="decimal" placeholder="não tem"></label>{% endif %}
           {% endfor %}
           <label class="check"><input type="checkbox" name="active-{{ p.id }}" {{ 'checked' if p.active }}> à venda</label>
+          {% if not drink %}<label class="check"><input type="checkbox" name="border-{{ p.id }}" {{ 'checked' if p.accepts_border }}> aceita borda</label>{% endif %}
           <button class="ghost small danger icon" form="del-{{ p.id }}">Excluir</button>
         </div>
       </div>

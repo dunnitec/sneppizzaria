@@ -152,6 +152,9 @@ def price_item(tenant, raw):
 
     base_price = price  # sabor/tamanho já com promoção, sem borda e adicionais (prêmio da fidelidade)
     border = _border(tenant, raw)
+    no_border = next((p for p in flavors if not p.accepts_border), None)
+    if border and no_border:
+        raise OrderError(f"{no_border.name} não aceita borda. Tire a borda e envie de novo.")
     if border and not border.allowed_for(category.slug, label):
         raise OrderError(f"A borda {border.group_name} não está disponível para {label}. Escolha outra borda.")
     if border:

@@ -116,6 +116,7 @@ def data_from_db(tenant, order_url, assets):
                         "name": p.name,
                         "image": photo_url(p.image),
                         "description": p.description or "",
+                        **({} if p.accepts_border else {"no_border": True}),
                         "variants": [variant_data(c, p, v) for v in p.variants if v.active],
                     }
                     for p in products
