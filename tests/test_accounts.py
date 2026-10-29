@@ -13,7 +13,7 @@ from tests.test_admin import admin, login, make_admin, panel  # noqa: F401
 PHONE = "(11) 98888-1234"
 
 
-def register(client, phone=PHONE, pin="1234", name="Mariana Alves"):
+def register(client, phone=PHONE, pin="482913", name="Mariana Alves"):
     return client.post("/snep/api/conta/cadastro", json={"name": name, "phone": phone, "pin": pin})
 
 
@@ -50,21 +50,23 @@ def test_register_logs_in_and_shows_account(client, tenant):
     r = register(client)
     assert r.status_code == 200 and r.get_json()["logged"]
     c = Customer.query.filter_by(phone_key="11988881234").one()
-    assert c.registered_at and c.pin_hash and c.pin_hash != "1234"
+    assert c.registered_at and c.pin_hash and c.pin_hash != "482913"
     me = client.get("/snep/api/conta").get_json()
     assert me["logged"] and me["name"] == "Mariana Alves" and me["phone"] == "(11) 98888-1234"
 
 
-@pytest.mark.parametrize("over, msg", [({"pin": "12"}, "4 a 6 números"), ({"pin": "abcd"}, "4 a 6 números"),
+@pytest.mark.parametrize("over, msg", [({"pin": "12"}, "6 números"), ({"pin": "abcdef"}, "6 números"),
+                                       ({"pin": "4829"}, "6 números"), ({"pin": "123456"}, "fácil de adivinhar"),
+                                       ({"pin": "777777"}, "fácil de adivinhar"), ({"pin": "987654"}, "fácil de adivinhar"),
                                        ({"phone": "123"}, "telefone válido"), ({"name": ""}, "seu nome")])
 def test_register_validation(client, tenant, over, msg):
-    data = {"name": "Ana", "phone": PHONE, "pin": "1234", **over}
+    data = {"name": "Ana", "phone": PHONE, "pin": "482913", **over}
     r = client.post("/snep/api/conta/cadastro", json=data)
     assert r.status_code == 400 and msg in r.get_json()["error"]
 
 
 def test_register_needs_json(client, tenant):
-    r = client.post("/snep/api/conta/cadastro", data={"name": "Ana", "phone": PHONE, "pin": "1234"})
+    r = client.post("/snep/api/conta/cadastro", data={"name": "Ana", "phone": PHONE, "pin": "482913"})
     assert r.status_code == 400
 
 
@@ -85,23 +87,64 @@ def test_old_customer_registers_but_history_starts_now(client, open_store):
     assert len(client.get("/snep/api/conta").get_json()["orders"]) == 1
 
 
-def test_login_wrong_pin_and_lock(client, tenant):
+def test_login_lock_is_per_connection_not_per_account(client, tenant):
+    """Relatório item 3: errar a senha tranca quem errou (a conexão), não o dono da conta."""
     register(client)
-    other = client.application.test_client()
-    assert other.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "9999"}).status_code == 401
-    for _ in range(4):
-        other.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "9999"})
-    r = other.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "1234"})
-    assert r.status_code == 429  # bloqueado mesmo com a senha certa
+    attacker = client.application.test_client()
+    for _ in range(5):
+        assert attacker.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "999999"}).status_code == 401
+    r = attacker.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "482913"})
+    assert r.status_code == 429  # quem errou fica bloqueado, mesmo acertando depois
+    owner = client.application.test_client()
+    r = owner.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "482913"},
+                   environ_base={"REMOTE_ADDR": "10.0.0.2"})
+    assert r.status_code == 200  # o cliente, de outra conexão, entra normalmente
+
+
+def test_many_phones_from_one_connection_get_blocked(client, tenant):
+    for i in range(20):
+        client.post("/snep/api/conta/entrar", json={"phone": f"119880000{i:02d}", "pin": "111111"})
+    assert client.post("/snep/api/conta/entrar", json={"phone": "11988000099", "pin": "111111"}).status_code == 429
+
+
+def test_login_unknown_phone_looks_like_wrong_pin(client, tenant):
+    register(client)
+    unknown = client.application.test_client().post("/snep/api/conta/entrar", json={"phone": "11977770000", "pin": "482913"})
+    wrong = client.application.test_client().post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "999999"})
+    assert unknown.status_code == wrong.status_code == 401
+    assert unknown.get_json()["error"] == wrong.get_json()["error"]
+
+
+def test_old_pin_with_4_digits_still_logs_in(client, tenant):
+    register(client)
     c = Customer.query.one()
-    c.locked_until = None
+    c.set_pin("4829")
     db.session.commit()
-    assert other.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "1234"}).status_code == 200
+    assert client.application.test_client().post("/snep/api/conta/entrar",
+                                                 json={"phone": PHONE, "pin": "4829"}).status_code == 200
 
 
-def test_login_unknown_phone(client, tenant):
-    r = client.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "1234"})
-    assert r.status_code == 404 and "Criar cadastro" in r.get_json()["error"]
+def test_register_on_phone_with_orders_does_not_reveal_address(client, open_store):
+    """Relatório item 1: o número não é verificado, então o cadastro não herda o endereço de quem já pediu."""
+    victim = client.application.test_client()
+    order(victim, withdraw=False, street="Rua Ficticia", number="10", neighborhood="Centro")
+    assert Customer.query.one().street == "Rua Ficticia"
+    me = register(client).get_json()
+    assert me["address"] == {"rua": "", "num": "", "comp": "", "bairro": "", "ref": ""} and me["orders"] == []
+
+
+def test_anonymous_order_does_not_touch_registered_customer(client, open_store):
+    """Relatório item 2: pedido sem entrar na conta, com o telefone de quem tem senha, não mexe no cadastro."""
+    register(client)
+    order(client, withdraw=False, street="Rua Certa", number="1", neighborhood="Centro")
+    stranger = client.application.test_client()
+    r = order(stranger, customer_name="Fulano", withdraw=False, street="Rua Falsa", number="99", neighborhood="Centro")
+    assert r["ok"]
+    c = Customer.query.one()
+    assert (c.name, c.street) == ("Mariana", "Rua Certa")
+    from app.models import Order
+    assert db.session.get(Order, r["order_id"]).customer_id is None
+    assert len(client.get("/snep/api/conta").get_json()["orders"]) == 1
 
 
 def test_logout(client, tenant):
@@ -113,9 +156,9 @@ def test_logout(client, tenant):
 def test_change_pin_logs_out_other_devices(client, tenant):
     register(client)
     other = client.application.test_client()
-    other.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "1234"})
-    assert client.post("/snep/api/conta/senha", json={"pin": "0000", "new_pin": "5678"}).status_code == 401
-    assert client.post("/snep/api/conta/senha", json={"pin": "1234", "new_pin": "5678"}).status_code == 200
+    other.post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": "482913"})
+    assert client.post("/snep/api/conta/senha", json={"pin": "000001", "new_pin": "739104"}).status_code == 401
+    assert client.post("/snep/api/conta/senha", json={"pin": "482913", "new_pin": "739104"}).status_code == 200
     assert client.get("/snep/api/conta").get_json()["logged"] is True
     assert other.get("/snep/api/conta").get_json()["logged"] is False
 
@@ -395,7 +438,8 @@ def test_owner_generates_new_pin(client, tenant):
     r = staff.post(f"/snep/admin/clientes/{c.id}/senha", follow_redirects=True)
     text = r.get_data(as_text=True)
     assert "Senha nova de Mariana Alves:" in text
-    pin = text.split("Senha nova de Mariana Alves: ")[1][:4]
+    pin = text.split("Senha nova de Mariana Alves: ")[1][:6]
+    assert pin.isdigit()
     assert client.application.test_client().post("/snep/api/conta/entrar", json={"phone": PHONE, "pin": pin}).status_code == 200
 
 

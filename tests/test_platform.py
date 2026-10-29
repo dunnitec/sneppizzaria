@@ -166,7 +166,7 @@ def test_essential_plan_hides_complete_features(platform, panel, tenant, app):
         d = data_from_db(tenant, "/x", {})
     assert d["promotions"] == [] and d["loyalty"] == [] and d["first_order"] is None
     assert d["account_url"] == "" and d["app"] is False and d["push_key"] == ""
-    assert panel.post("/snep/api/conta/cadastro", json={"name": "Ana", "phone": "11999990000", "pin": "1234"}).status_code == 404
+    assert panel.post("/snep/api/conta/cadastro", json={"name": "Ana", "phone": "11999990000", "pin": "482913"}).status_code == 404
     assert push.send(tenant, [object()], "t", "b", "/") == 0
 
     # volta para o Completo: tudo reaparece (nada foi apagado)

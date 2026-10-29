@@ -19,7 +19,7 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from app.extensions import db
-from app.models import CHANNELS, Order, OrderItem, OrderItemFlavor, utcnow
+from app.models import CHANNELS, Customer, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.hours import is_open, local_time
@@ -55,6 +55,16 @@ def _manual_fee(value):
     if not fee.is_finite() or not 0 <= fee <= MAX_MANUAL_FEE:
         raise OrderError("Taxa de entrega inválida.")
     return fee.quantize(Decimal("0.01"))
+
+
+def _foreign_account(tenant, key, account, from_site):
+    """Pedido do site, sem entrar na conta, com o telefone de quem tem cadastro com senha: o pedido vale,
+    mas não muda o nome/endereço do cadastro nem entra no histórico, nos selos e nos avisos dele
+    (o telefone digitado não é verificado)."""
+    if not from_site:
+        return False  # quem atende no balcão/telefone conhece o cliente
+    owner = Customer.query.filter_by(tenant_id=tenant.id, phone_key=key).first()
+    return bool(owner and owner.pin_hash and (not account or account.id != owner.id))
 
 
 def _text(p, key, limit):
@@ -136,7 +146,7 @@ def place_order(tenant, p, channel="site", account=None):
         "discount_note": discount_note,
     }
 
-    customer = upsert_customer(tenant, key, info) if key else None
+    customer = upsert_customer(tenant, key, info) if key and not _foreign_account(tenant, key, account, from_site) else None
     db.session.flush()
     order = Order(
         tenant_id=tenant.id,

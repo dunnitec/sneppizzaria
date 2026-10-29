@@ -381,13 +381,13 @@ function openAccount(tab){
 }
 function authView(tab){
   const reg=tab==="cadastro";
-  return `<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>${reg?"Criar cadastro":"Entrar"}</h2><p>Só com seu telefone e uma senha de 4 a 6 números.</p></div>
+  return `<button class="x" onclick="closeModal()" aria-label="Fechar">×</button><div class="t"><h2>${reg?"Criar cadastro":"Entrar"}</h2><p>Só com seu telefone e uma senha de números.</p></div>
   <form class="body ck" id="accf" onsubmit="return accSubmit(event,'${reg?"cadastro":"entrar"}')">
     ${reg&&perks().length?`<div class="perks">🎁 ${perks().map(esc).join("<br>🍕 ")}</div>`:""}
     ${reg?`<label>Nome<input name="name" required autocomplete="name"></label>`:""}
     <label>Telefone / WhatsApp<input name="phone" type="tel" required autocomplete="tel"></label>
-    <label>${reg?"Crie uma senha (4 a 6 números)":"Senha"}<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required autocomplete="${reg?"new-password":"current-password"}"></label>
-    ${reg?`<label>Repita a senha<input name="pin2" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required autocomplete="new-password"></label>`:""}
+    <label>${reg?"Crie uma senha (6 números)":"Senha"}<input name="pin" type="password" inputmode="numeric" pattern="${reg?"[0-9]{6}":"[0-9]{4,6}"}" maxlength="6" required autocomplete="${reg?"new-password":"current-password"}"></label>
+    ${reg?`<label>Repita a senha<input name="pin2" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="new-password"></label>`:""}
     <p class="acc-err" id="acc-err" role="alert"></p>
     <p class="acc-switch">${reg?`Já tem cadastro? <a href="#" onclick="openAccount('entrar');return false">Entrar</a>`:`Ainda não tem? <a href="#" onclick="openAccount('cadastro');return false">Criar cadastro</a>`}</p>
     ${reg?`<p class="privacy">Usamos seu nome e telefone só para os seus pedidos e a fidelidade.</p>`:`<p class="privacy">Esqueceu a senha? Peça uma nova para a pizzaria pelo WhatsApp.</p>`}
@@ -413,7 +413,7 @@ function accountView(){
     <h3>Meus pedidos</h3>
     ${a.orders.length?a.orders.map(o=>`<div class="hist"><div class="hl"><b>#${o.id}</b> · ${esc(o.date)}<small>${o.items.map(esc).join(", ")}</small></div><div class="hr"><span class="st st-${esc(o.status_code)}">${esc(o.status)}</span><b>${money(o.total)}</b>${o.track_url?`<a href="${o.track_url}">Acompanhar ›</a>`:""}</div></div>`).join(""):`<p class="empty-h">Seus pedidos vão aparecer aqui.</p>`}
     ${pushAccountHtml()}
-    <details class="pinchg"><summary>Trocar senha</summary><form onsubmit="return pinChange(event)"><label>Senha atual<input name="pin" type="password" inputmode="numeric" maxlength="6" required></label><label>Senha nova (4 a 6 números)<input name="new_pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" required></label><button class="btn-red">Trocar senha</button></form></details>
+    <details class="pinchg"><summary>Trocar senha</summary><form onsubmit="return pinChange(event)"><label>Senha atual<input name="pin" type="password" inputmode="numeric" maxlength="6" required></label><label>Senha nova (6 números)<input name="new_pin" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></label><button class="btn-red">Trocar senha</button></form></details>
   </div><div class="ft"><button class="bk" onclick="accLogout()">Sair</button><button class="nx" onclick="closeModal()">Ver cardápio</button></div>`;
 }
 async function pinChange(ev){ev.preventDefault();const f=ev.target;const j=await accApi("/senha",{pin:f.pin.value,new_pin:f.new_pin.value});if(!j.ok){toast(j.error);return false;}setAcc(j);toast("Senha trocada.");openAccount();return false;}

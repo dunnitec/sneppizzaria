@@ -76,18 +76,23 @@ def test_unknown_user_is_refused(client, admin):
     assert client.get("/snep/admin/cardapio").status_code == 302
 
 
-def test_account_locks_after_five_wrong_passwords(client, admin):
+def test_wrong_passwords_lock_the_connection_not_the_owner(client, admin):
+    """Relatório item 13: quem errou fica bloqueado; o dono, de outra conexão, entra."""
     for _ in range(5):
         login(client, password="errada")
-    login(client)  # senha certa, mas a conta está bloqueada
+    login(client)  # senha certa, mas esta conexão está bloqueada
     assert client.get("/snep/admin/cardapio").status_code == 302
+    owner = client.application.test_client()
+    owner.post("/snep/admin/login", data={"username": "dono", "password": PASSWORD},
+               environ_base={"REMOTE_ADDR": "10.0.0.2"})
+    assert owner.get("/snep/admin/cardapio", environ_base={"REMOTE_ADDR": "10.0.0.2"}).status_code == 200
 
 
-def test_lock_expires(client, admin):
-    admin.locked_until = utcnow() - timedelta(minutes=1)
-    db.session.commit()
-    login(client)
-    assert client.get("/snep/admin/cardapio").status_code == 200
+def test_unknown_user_also_gets_blocked(client, admin):
+    for _ in range(5):
+        login(client, username="naoexiste", password="errada")
+    html = login(client, username="naoexiste", password="errada").get_data(as_text=True)
+    assert "Muitas tentativas" in html
 
 
 def test_admin_of_one_store_cannot_open_another(client, admin, cardapio, tmp_path):

@@ -127,12 +127,16 @@ def loyalty_first_order():
 
 @admin_bp.route("/clientes/<int:customer_id>/senha", methods=["POST"])
 def customer_new_pin(customer_id):
-    """Cliente esqueceu a senha: gera uma de 4 números para o dono mandar pelo WhatsApp."""
+    """Cliente esqueceu a senha: gera uma de 6 números para o dono mandar pelo WhatsApp."""
     c = Customer.query.filter_by(tenant_id=g.tenant.id, id=customer_id).first_or_404()
     if not c.registered_at:
         flash(f"{c.name} ainda não tem cadastro no site.", "error")
         return redirect(url_for("admin.customers"))
-    pin = f"{secrets.randbelow(10000):04d}"
+    from app.routes.account import weak_pin
+
+    pin = f"{secrets.randbelow(10 ** 6):06d}"
+    while weak_pin(pin):
+        pin = f"{secrets.randbelow(10 ** 6):06d}"
     c.set_pin(pin)
     c.failed_attempts, c.locked_until = 0, None
     db.session.commit()

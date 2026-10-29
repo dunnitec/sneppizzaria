@@ -7,7 +7,6 @@ cadastro, e o dono pode gerar uma senha nova em Clientes quando o cliente esquec
 """
 
 import re
-from datetime import timedelta
 
 from flask import Blueprint, current_app, jsonify, render_template, request, url_for
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -21,13 +20,28 @@ from app.services.loyalty import cards, first_order_eligible, first_order_text
 from app.services.order_display import item_view
 from app.services.pix import for_order
 from app.services.plans import has as has_feature
+from app.services.throttle import customer_logins
 
 account_bp = Blueprint("account", __name__)
 
 COOKIE_DAYS = 90
-MAX_FAILED = 5
-LOCK_TIME = timedelta(minutes=15)
-PIN = re.compile(r"\d{4,6}")
+PIN = re.compile(r"\d{4,6}")  # senhas antigas podem ter 4 ou 5 números; as novas têm 6 (new_pin_error)
+NEW_PIN = re.compile(r"\d{6}")
+LOGIN_FAILED = "Telefone ou senha incorretos. Esqueceu a senha? Peça uma nova para a pizzaria pelo WhatsApp."
+
+
+def weak_pin(pin):
+    """Senha fácil de adivinhar: tudo igual (111111) ou em sequência (123456, 654321)."""
+    steps = {int(b) - int(a) for a, b in zip(pin, pin[1:])}
+    return len(steps) == 1 and steps <= {-1, 0, 1}
+
+
+def new_pin_error(pin):
+    if not NEW_PIN.fullmatch(pin):
+        return "A senha precisa ter 6 números."
+    if weak_pin(pin):
+        return "Essa senha é fácil de adivinhar. Evite números repetidos ou em sequência (ex.: 111111, 123456)."
+    return None
 
 
 # rotas que dependem do plano da loja (services/plans.py); o acompanhamento do pedido vale em todos
@@ -136,14 +150,19 @@ def register(slug):
         return _error("Informe seu nome.")
     if not key:
         return _error("Informe um telefone válido, com DDD.")
-    if not PIN.fullmatch(pin):
-        return _error("A senha precisa ter de 4 a 6 números.")
+    if new_pin_error(pin):
+        return _error(new_pin_error(pin))
     c = Customer.query.filter_by(tenant_id=tenant.id, phone_key=key).first()
     if c and c.pin_hash:
         return _error("Este telefone já tem cadastro. Use “Entrar” com a sua senha.", 409)
-    if not c:  # quem já pediu antes ganha o cadastro no mesmo cliente (o telefone é o mesmo)
+    if not c:
         c = Customer(tenant_id=tenant.id, phone_key=key, created_at=utcnow())
         db.session.add(c)
+    else:
+        # quem já pediu antes ganha o cadastro no mesmo cliente, mas sem o endereço guardado: o número
+        # não é verificado, então quem cadastra o telefone de outra pessoa não pode ver onde ela mora
+        # (os pedidos e selos de antes do cadastro também não aparecem: registered_at)
+        c.street = c.number = c.complement = c.neighborhood = c.reference = None
     c.name, c.phone = name, format_phone(key)
     c.set_pin(pin)
     c.registered_at = utcnow()
@@ -160,20 +179,16 @@ def login(slug):
         return _error("Pedido inválido.")
     key = phone_key(data.get("phone"))
     pin = str(data.get("pin") or "")
+    ip, account = request.remote_addr or "?", f"{tenant.id}:{key}"
+    # mesma resposta para telefone sem cadastro e senha errada: não revela quem é cliente
+    if customer_logins.blocked(ip, account):
+        return _error("Muitas tentativas seguidas. Espere 15 minutos ou peça uma senha nova para a pizzaria "
+                      "pelo WhatsApp.", 429)
     c = Customer.query.filter_by(tenant_id=tenant.id, phone_key=key).first() if key else None
-    if not c or not c.pin_hash:
-        return _error("Não achamos cadastro com este telefone. Toque em “Criar cadastro”.", 404)
-    now = utcnow()
-    if c.locked_until and c.locked_until > now:
-        return _error("Muitas tentativas. Espere 15 minutos ou peça uma senha nova para a pizzaria pelo WhatsApp.", 429)
-    if not c.check_pin(pin):
-        c.failed_attempts = (c.failed_attempts or 0) + 1
-        if c.failed_attempts >= MAX_FAILED:
-            c.failed_attempts, c.locked_until = 0, now + LOCK_TIME
-        db.session.commit()
-        return _error("Senha errada. Esqueceu? Peça uma senha nova para a pizzaria pelo WhatsApp.", 401)
-    c.failed_attempts, c.locked_until = 0, None
-    db.session.commit()
+    if not c or not c.pin_hash or not c.check_pin(pin):
+        customer_logins.fail(ip, account)
+        return _error(LOGIN_FAILED, 401)
+    customer_logins.success(ip, account)
     return _login_response(tenant, c, account_data(tenant, c))
 
 
@@ -195,8 +210,8 @@ def change_pin(slug):
     if not c.check_pin(str(data.get("pin") or "")):
         return _error("A senha atual está errada.", 401)
     new = str(data.get("new_pin") or "")
-    if not PIN.fullmatch(new):
-        return _error("A senha nova precisa ter de 4 a 6 números.")
+    if new_pin_error(new):
+        return _error(new_pin_error(new))
     c.set_pin(new)
     db.session.commit()
     return _login_response(tenant, c, {**account_data(tenant, c), "message": "Senha trocada."})

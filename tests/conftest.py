@@ -68,3 +68,12 @@ def open_store(tenant):
     tenant.is_open_override = True
     db.session.commit()
     return tenant
+
+
+@pytest.fixture(autouse=True)
+def _clear_login_limits():
+    """Bloqueios de login ficam em memória (services/throttle.py): cada teste começa limpo."""
+    from app.services.throttle import admin_logins, customer_logins
+
+    admin_logins.clear()
+    customer_logins.clear()

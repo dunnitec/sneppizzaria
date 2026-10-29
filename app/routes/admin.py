@@ -46,11 +46,10 @@ from app.services.pix import normalize_key as normalize_pix_key
 from app.services.promotions import running_count
 from app.services.push import notify_loyalty, notify_order
 from app.services.reports import month_calendar, sales_report
+from app.services.throttle import admin_logins
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/<slug>/admin")
 
-MAX_FAILED_LOGINS = 5
-LOCK_TIME = timedelta(minutes=15)
 # etapas e origens: ver app/models.py (ORDER_STATUSES, CHANNELS)
 STORE_STATUS = {"auto": None, "open": True, "closed": False}
 # o que um usuário "funcionario" pode abrir; o "dono" abre tudo
@@ -161,28 +160,23 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
-        user = AdminUser.query.filter_by(tenant_id=g.tenant.id, username=username).first()
-        now = utcnow()
-        if user is None:
-            check_password_hash(_DUMMY_HASH, password)
-        elif user.locked_until and user.locked_until > now:
+        ip, account = request.remote_addr or "?", f"{g.tenant.id}:{username}"
+        # o bloqueio é da conexão que errou, não do usuário: ninguém consegue trancar o dono por fora,
+        # e usuário inexistente recebe as mesmas respostas (não dá para descobrir quais existem)
+        if admin_logins.blocked(ip, account):
             flash("Muitas tentativas seguidas. Aguarde 15 minutos e tente de novo.", "error")
             return render_template("admin/login.html")
+        user = AdminUser.query.filter_by(tenant_id=g.tenant.id, username=username).first()
+        if user is None:
+            check_password_hash(_DUMMY_HASH, password)
         elif user.check_password(password):
-            user.failed_attempts = 0
-            user.locked_until = None
-            db.session.commit()
+            admin_logins.success(ip, account)
             session.clear()
             session.permanent = True
             session["admin_id"] = user.id
             session["admin_key"] = _session_key(user)
             return redirect(url_for("admin.index"))
-        else:
-            user.failed_attempts += 1
-            if user.failed_attempts >= MAX_FAILED_LOGINS:
-                user.failed_attempts = 0
-                user.locked_until = now + LOCK_TIME
-            db.session.commit()
+        admin_logins.fail(ip, account)
         flash("Usuário ou senha incorretos.", "error")
     return render_template("admin/login.html")
 

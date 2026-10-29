@@ -13,11 +13,10 @@ from app.extensions import db
 from app.models import MIN_PASSWORD_LENGTH, SOLD_STATUSES, AdminUser, Order, PlatformAdmin, Tenant, utcnow
 from app.services.plans import FEATURES, PLANS
 from app.services.tenant_setup import SetupError, create_tenant, reset_owner_password
+from app.services.throttle import admin_logins
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/plataforma")
 
-MAX_FAILED_LOGINS = 5
-LOCK_TIME = timedelta(minutes=15)
 _DUMMY_HASH = generate_password_hash("usuario-inexistente")
 
 
@@ -62,26 +61,21 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
-        user = PlatformAdmin.query.filter_by(username=username).first()
-        now = utcnow()
-        if user is None:
-            check_password_hash(_DUMMY_HASH, password)
-        elif user.locked_until and user.locked_until > now:
+        ip, account = request.remote_addr or "?", f"plataforma:{username}"
+        if admin_logins.blocked(ip, account):  # bloqueio da conexão, não do usuário (services/throttle.py)
             flash("Muitas tentativas seguidas. Aguarde 15 minutos e tente de novo.", "error")
             return render_template("platform/login.html")
+        user = PlatformAdmin.query.filter_by(username=username).first()
+        if user is None:
+            check_password_hash(_DUMMY_HASH, password)
         elif user.check_password(password):
-            user.failed_attempts, user.locked_until = 0, None
-            db.session.commit()
+            admin_logins.success(ip, account)
             # não usa session.clear(): quem estiver também logado no painel de uma loja continua logado lá
             session.permanent = True
             session["platform_id"] = user.id
             session["platform_key"] = _session_key(user)
             return redirect(url_for("platform.index"))
-        else:
-            user.failed_attempts += 1
-            if user.failed_attempts >= MAX_FAILED_LOGINS:
-                user.failed_attempts, user.locked_until = 0, now + LOCK_TIME
-            db.session.commit()
+        admin_logins.fail(ip, account)
         flash("Usuário ou senha incorretos.", "error")
     return render_template("platform/login.html")
 
