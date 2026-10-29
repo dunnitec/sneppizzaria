@@ -1,12 +1,15 @@
 {# Cupom na bobina (Loja → Impressora com altura 0): partes comuns ao pedido e à comanda.
 
-   - Largura com folga de 14 mm: a área que a impressora imprime numa bobina de 80 mm é
-     menor que 72 mm e fica deslocada; com 72 mm a borda direita saía cortada.
+   - Largura com folga: a área que a impressora imprime numa bobina de 80 mm é menor que
+     72 mm e fica deslocada. Com 66 mm a Bematech MP-4200 TH ainda cortava a borda direita e
+     repetia pedaços das linhas que encostavam nela (quadro ENTREGA, valores dos totais):
+     o cupom tem 60 mm e a página 72 mm, para nada passar da área de impressão.
    - A página ganha a altura do próprio cupom, para sair numa página só. Com uma folha
      curta no driver da impressora, o navegador quebrava o cupom em duas páginas no meio
      dos totais e as linhas saíam cortadas e dobradas.
 #}
-{% macro sheet_width(tenant) %}{{ (tenant.label_width_mm or 80) - 14 }}mm{% endmacro %}
+{% macro sheet_width(tenant) %}{{ (tenant.label_width_mm or 80) - 20 }}mm{% endmacro %}
+{% macro page_width(tenant) %}{{ (tenant.label_width_mm or 80) - 8 }}mm{% endmacro %}
 
 {% macro fit_page_script(tenant) %}
 {% if not tenant.label_height_mm %}
@@ -17,7 +20,7 @@
       const mm = Math.ceil(sheet.getBoundingClientRect().height * 25.4 / 96) + 8;
       let st = document.getElementById("page-size");
       if (!st) { st = document.createElement("style"); st.id = "page-size"; document.head.appendChild(st); }
-      st.textContent = "@page { size: {{ tenant.label_width_mm or 80 }}mm " + mm + "mm; margin: 0; }";
+      st.textContent = "@page { size: {{ page_width(tenant) }} " + mm + "mm; margin: 0; }";
     }
     fit();
     window.addEventListener("load", fit);

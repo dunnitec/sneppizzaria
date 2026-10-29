@@ -322,6 +322,7 @@ class Customer(db.Model):
 
 class Order(db.Model):
     __tablename__ = "orders"
+    __table_args__ = (db.UniqueConstraint("tenant_id", "client_ref", name="uq_orders_client_ref"),)
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
@@ -338,6 +339,8 @@ class Order(db.Model):
     cep = db.Column(db.String(8))
     distance_km = db.Column(db.Numeric(6, 1))  # frete por distância (services/geo.py)
     fee_pending = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # entrega a combinar
+    # código que o site gera ao abrir “Finalizar pedido”: reenviar (internet caiu) não cria pedido repetido
+    client_ref = db.Column(db.String(40))
 
     payment_method = db.Column(db.String(30))  # Dinheiro | Pix | Débito | Crédito
     change_for = db.Column(db.Numeric(8, 2))  # troco para quanto (se dinheiro)

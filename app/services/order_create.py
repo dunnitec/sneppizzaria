@@ -22,6 +22,8 @@ import secrets
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy.exc import IntegrityError
+
 from app.extensions import db
 from app.models import CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
@@ -72,6 +74,11 @@ def _foreign_account(tenant, key, account, from_site):
     return bool(owner and owner.pin_hash and (not account or account.id != owner.id))
 
 
+def _fee_of(order):
+    """Taxa de entrega como place_order devolve: None = a combinar."""
+    return None if order.fee_pending else order.delivery_fee
+
+
 def _km(value):
     return f"{Decimal(str(value)):.1f}".replace(".", ",")
 
@@ -85,6 +92,11 @@ def place_order(tenant, p, channel="site", account=None):
     if channel not in CHANNELS:
         raise OrderError("Origem do pedido inválida.")
     from_site = channel == "site"
+    client_ref = _text(p, "client_ref", 40) if from_site else ""
+    if client_ref:
+        again = Order.query.filter_by(tenant_id=tenant.id, client_ref=client_ref).first()
+        if again:  # o mesmo pedido chegou de novo (a internet caiu depois de gravar): devolve o que já existe
+            return again, _fee_of(again)
     if from_site and not is_open(tenant):
         raise OrderError("Estamos fechados no momento. Confira nossos horários de atendimento.")
 
@@ -196,6 +208,7 @@ def place_order(tenant, p, channel="site", account=None):
         cep=cep,
         distance_km=distance,
         fee_pending=not withdraw and delivery_fee is None,
+        client_ref=client_ref or None,
         payment_method=info["payment_method"],
         change_for=info["change_for"],
         subtotal=subtotal,
@@ -216,7 +229,14 @@ def place_order(tenant, p, channel="site", account=None):
         loyalty_programs="," + ",".join(map(str, used_programs)) + "," if used_programs else None,
     )
     db.session.add(order)
-    db.session.flush()  # gera o número do pedido usado na mensagem
+    try:
+        db.session.flush()  # gera o número do pedido usado na mensagem
+    except IntegrityError:  # o mesmo pedido chegou duas vezes ao mesmo tempo (client_ref): fica o primeiro
+        db.session.rollback()
+        again = Order.query.filter_by(tenant_id=tenant.id, client_ref=client_ref).first() if client_ref else None
+        if not again:
+            raise
+        return again, _fee_of(again)
     for line in cart:
         item = OrderItem(
             order_id=order.id,

@@ -141,11 +141,28 @@ def test_receipt_roll_80mm_page_follows_the_receipt_height(panel, tenant, client
     o = site_order(client, withdraw=False)
     html = panel.get(f"/snep/admin/pedidos/{o.id}/etiqueta").get_data(as_text=True)
     # sem altura fixa no CSS: o script mede o cupom e põe a página do tamanho dele (sai numa página só)
-    assert "@page { margin: 0; }" in html and '"@page { size: 80mm " + mm + "mm; margin: 0; }"' in html
-    assert "width: 66mm" in html  # folga na bobina de 80 mm: a borda direita saía cortada
+    assert "@page { margin: 0; }" in html and '"@page { size: 72mm " + mm + "mm; margin: 0; }"' in html
+    assert "width: 60mm" in html  # folga na bobina de 80 mm (a MP-4200 TH cortava a borda direita)
     assert "Rua A, 10" in html
 
 
 def test_store_page_offers_receipt_rolls(panel):
     html = panel.get("/snep/admin/loja").get_data(as_text=True)
     assert "Bobina 80 mm (cupom)" in html and "MP-4200" in html
+
+
+def test_same_checkout_sent_twice_creates_one_order(client, open_store):
+    """Relatório item 4: a internet cai depois de gravar e o cliente envia de novo: não duplica."""
+    from app.models import Category, Order, Product
+
+    c = Category.query.filter_by(slug="promocionais").one()
+    p = Product.query.filter_by(category_id=c.id).first()
+    body = {"withdraw": True, "customer_name": "Ana", "customer_phone": "11977776666", "payment_method": "Dinheiro",
+            "client_ref": "abc-123", "items": [{"category_id": c.id, "variant": p.variants[0].label,
+                                                "flavors": [p.id], "quantity": 1}]}
+    first = client.post("/snep/api/pedido", json=body).get_json()
+    again = client.post("/snep/api/pedido", json=body).get_json()
+    assert first["ok"] and again["ok"] and first["order_id"] == again["order_id"]
+    assert Order.query.count() == 1
+    body["client_ref"] = "outro"
+    assert client.post("/snep/api/pedido", json=body).get_json()["order_id"] != first["order_id"]

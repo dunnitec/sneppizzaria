@@ -2,6 +2,13 @@ const DATA=window.DELIVERY_DATA;
 const money=v=>"R$ "+v.toFixed(2).replace(".",",");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let cart=[];
+// código do envio: a mesma cesta reenviada (internet caiu depois do servidor gravar) não vira pedido repetido
+let CHECKOUT_REF="", REF_CART="";
+function checkoutRef(){
+  const sig=JSON.stringify(cart.map(i=>[i.sel,i.qty,i.notes]));
+  if(sig!==REF_CART){REF_CART=sig;CHECKOUT_REF=(crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2));}
+  return CHECKOUT_REF;
+}
 // adicional: preço de pizza pequena só nos tamanhos pequenos; os outros pagam o de inteira (igual ao servidor)
 const SMALL_PIZZA=/broto|pequen|mini|individual|meia/i;
 
@@ -376,14 +383,14 @@ async function sendOrder(f){
   const total=subtotal()-accDiscount().value+(fee()||0);
   if(troco!==null&&troco<total-0.004){toast(`O troco tem que ser para um valor maior que o total (${money(total)}).`);f.troco.focus();return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,cep:wd||!DATA.km?"":f.cep.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
-    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,client_ref:checkoutRef(),
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
       document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.order_id}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.discount?`<p class="disc-ok">Desconto de ${money(r.discount)} (${esc(r.discount_note)}) ✓</p>`:""}${r.track_url?`<a class="btn-track" href="${r.track_url}">Acompanhar pedido ›</a>`:""}${pushAskHtml((r.track_url||"").split("/").pop())}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
-      remember(payload);cart=[];renderCart();accApi("").then(setAcc);
+      remember(payload);cart=[];REF_CART="";renderCart();accApi("").then(setAcc);
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
   return false;
 }
