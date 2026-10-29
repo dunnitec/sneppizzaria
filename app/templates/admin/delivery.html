@@ -39,13 +39,18 @@
   <div id="map-fields">
     <h3>Onde fica a pizzaria no mapa</h3>
     <p class="hint" id="map-why" {{ 'hidden' if km }}>Opcional na entrega por bairro: com a pizzaria no mapa, o cupom mostra quantos km o motoboy vai rodar até o cliente.</p>
+    <div class="row">
+      <label class="money">CEP da pizzaria<input name="store_cep" value="{{ (t.store_cep[:5] ~ '-' ~ t.store_cep[5:]) if t.store_cep else '' }}" inputmode="numeric" maxlength="9" placeholder="00000-000"></label>
+      <label class="money">Número<input name="store_number" value="{{ t.store_number or '' }}" maxlength="20" placeholder="ex.: 134"></label>
+      <p class="hint grow2">Com o CEP e o número achamos a pizzaria no mapa com mais exatidão.</p>
+    </div>
     {% if t.store_lat is not none %}
     <p>📍 Localizada{% if t.store_city %} em <b>{{ t.store_city }}{% if t.store_uf %} - {{ t.store_uf }}{% endif %}</b>{% endif %}.
       <a href="https://www.google.com/maps?q={{ t.store_lat }},{{ t.store_lng }}" target="_blank" rel="noopener">Conferir no mapa ›</a></p>
-    <label class="check"><input type="checkbox" name="relocate"> procurar de novo pelo endereço da aba Loja ({{ t.address or 'sem endereço' }})</label>
+    <label class="check"><input type="checkbox" name="relocate"> procurar de novo (pelo CEP e número)</label>
     {% else %}
-    <p class="hint" id="map-auto" {{ 'hidden' if not km }}>Ao salvar, procuramos a pizzaria no mapa pelo endereço da aba Loja: <b>{{ t.address or 'sem endereço — preencha na aba Loja' }}</b>.</p>
-    <label class="check" id="map-find" {{ 'hidden' if km }}><input type="checkbox" name="relocate"> pôr a pizzaria no mapa pelo endereço da aba Loja ({{ t.address or 'sem endereço' }})</label>
+    <p class="hint" id="map-auto" {{ 'hidden' if not km }}>Ao salvar, procuramos a pizzaria no mapa pelo CEP e número (ou pelo endereço da aba Loja: <b>{{ t.address or 'sem endereço' }}</b>).</p>
+    <label class="check" id="map-find" {{ 'hidden' if km }}><input type="checkbox" name="relocate"> pôr a pizzaria no mapa (pelo CEP e número)</label>
     {% endif %}
     <details class="coords"><summary>O mapa errou o lugar? Colar a localização do Google Maps</summary>
       <p class="hint">No Google Maps, toque e segure em cima da pizzaria. Aparecem dois números, ex.: <b>-23.2641, -47.2995</b>. Copie e cole aqui.</p>

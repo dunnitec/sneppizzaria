@@ -45,7 +45,7 @@
     info.textContent = "Calculando…";
     quoted = null;
     try {
-      const qs = new URLSearchParams({ cep, street: $('[name="street"]').value.trim(), neighborhood: $('[name="neighborhood"]').value.trim() });
+      const qs = new URLSearchParams({ cep, street: $('[name="street"]').value.trim(), number: $('[name="number"]').value.trim(), neighborhood: $('[name="neighborhood"]').value.trim() });
       const r = await (await fetch(cepEl.dataset.url + "?" + qs, { credentials: "same-origin" })).json();
       if (r.street && !$('[name="street"]').value) $('[name="street"]').value = r.street;
       if (r.neighborhood && !$('[name="neighborhood"]').value) $('[name="neighborhood"]').value = r.neighborhood;
@@ -64,6 +64,7 @@
       if (d.length === 8) { $('[name="street"]').value = ""; $('[name="neighborhood"]').value = ""; kmQuote(); }
     });
     $('[name="street"]').addEventListener("change", () => { if (!$('[name="cep"]').value) kmQuote(); });
+    $('[name="number"]').addEventListener("change", kmQuote);  // com o número o ponto no mapa fica mais exato
   }
   $('[name="payment_method"]').addEventListener("change", (e) => { $("#pos-change").hidden = e.target.value !== "Dinheiro"; });
   $('[name="split_people"]').addEventListener("change", renderTotal);

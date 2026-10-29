@@ -127,6 +127,8 @@ class Tenant(db.Model):
     delivery_mode = db.Column(db.String(10), nullable=False, default="bairro", server_default="bairro")
     store_lat = db.Column(db.Float)  # ponto da loja no mapa (aba Entrega → Localizar a pizzaria)
     store_lng = db.Column(db.Float)
+    store_cep = db.Column(db.String(8))  # CEP e número da loja, para achar no mapa (aba Entrega)
+    store_number = db.Column(db.String(20))
     store_city = db.Column(db.String(80))  # cidade/UF da loja: usadas quando o cliente não sabe o CEP
     store_uf = db.Column(db.String(2))
     km_price = db.Column(db.Numeric(8, 2))  # R$ por km

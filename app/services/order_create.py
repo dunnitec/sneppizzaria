@@ -142,7 +142,7 @@ def place_order(tenant, p, channel="site", account=None):
     if withdraw:
         delivery_fee = Decimal("0")
     elif by_km:
-        q = quote(tenant, cep or "", _text(p, "street", 200), neighborhood)
+        q = quote(tenant, cep or "", _text(p, "street", 200), neighborhood, _text(p, "number", 20))
         distance = q["km"]
         if q["status"] == "far" and manual is None:
             raise OrderError(f"Este endereço fica a cerca de {_km(q['km'])} km e entregamos até {_km(tenant.km_max)} km."
@@ -154,7 +154,7 @@ def place_order(tenant, p, channel="site", account=None):
         delivery_fee = fee if found else manual
         if tenant.store_lat is not None:  # a taxa é do bairro, mas o cupom mostra os km até o cliente
             try:
-                distance = quote(tenant, cep or "", _text(p, "street", 200), neighborhood)["km"]
+                distance = quote(tenant, cep or "", _text(p, "street", 200), neighborhood, _text(p, "number", 20))["km"]
             except Exception:  # sem mapa agora: o pedido vai sem a distância
                 distance = None
     residence = None if withdraw else (p.get("residence") if p.get("residence") in RESIDENCES else None)

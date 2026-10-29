@@ -764,9 +764,9 @@ def _optional_km(text, what):
     return km.quantize(Decimal("0.1"))
 
 
-def _locate_store(tenant, coords_text):
-    """Põe a loja no mapa: coordenadas coladas do Google Maps ou o endereço da aba Loja."""
-    from app.services.geo import geocode, parse_coords
+def _locate_store(tenant, coords_text, cep_text="", number_text=""):
+    """Põe a loja no mapa: coordenadas coladas do Google Maps, o CEP + número ou o endereço da aba Loja."""
+    from app.services.geo import cep_digits, find_point, geocode, lookup_cep, parse_coords, photon
 
     if coords_text.strip():
         coords = parse_coords(coords_text)
@@ -776,14 +776,35 @@ def _locate_store(tenant, coords_text):
         tenant.store_lat, tenant.store_lng = coords
         return
     address = (tenant.address or "").strip()
-    if not address:
-        raise FormError("Preencha o endereço da pizzaria na aba Loja para acharmos ela no mapa.")
-    point = geocode(q=address) or geocode(q=re.sub(r"\d+", " ", address))
+    cep = cep_digits(cep_text) if str(cep_text or "").strip() else None
+    if str(cep_text or "").strip() and not cep:
+        raise FormError("CEP da pizzaria inválido: são 8 números, ex.: 13310-530.")
+    number = str(number_text or "").strip()[:20] or (re.search(r",\s*(\d+)", address) or [None, ""])[1]
+    point, info = None, {}
+    if cep:
+        info = lookup_cep(cep) or {}
+        if not info:
+            raise FormError("Não achamos este CEP. Confira os números ou cole as coordenadas do Google Maps abaixo.")
+        point = find_point(info["street"], number, info["city"], info["uf"], cep)
+    elif address:
+        point = geocode(q=address) or photon(address) or geocode(q=re.sub(r"\d+", " ", address))
+    else:
+        raise FormError("Digite o CEP e o número da pizzaria para acharmos ela no mapa.")
     if not point:
-        raise FormError(f"Não achamos “{address}” no mapa. Confira o endereço na aba Loja (rua, número, cidade e "
-                        "estado) ou cole as coordenadas do Google Maps no campo abaixo.")
+        raise FormError("Não achamos a pizzaria no mapa. Confira o CEP e o número, ou cole as coordenadas do "
+                        "Google Maps no campo abaixo.")
+    tenant.store_cep, tenant.store_number = cep or tenant.store_cep, number or tenant.store_number
     tenant.store_lat, tenant.store_lng = point["lat"], point["lng"]
-    tenant.store_city, tenant.store_uf = point["city"] or tenant.store_city, point["uf"] or tenant.store_uf
+    tenant.store_city = info.get("city") or point["city"] or tenant.store_city
+    tenant.store_uf = info.get("uf") or point["uf"] or tenant.store_uf
+
+
+def _new_place(tenant, form):
+    """O dono mudou o CEP ou o número da pizzaria: procura no mapa de novo."""
+    from app.services.geo import cep_digits
+
+    cep, number = cep_digits(form.get("store_cep")), (form.get("store_number") or "").strip()
+    return bool(cep and (cep != tenant.store_cep or number != (tenant.store_number or "")))
 
 
 @admin_bp.route("/entrega/modo", methods=["POST"])
@@ -802,10 +823,11 @@ def delivery_mode():
                 raise FormError("Para a taxa fixa de perto, preencha os dois campos: até quantos km e o valor. "
                                 "Para cobrar só pelo km, deixe os dois em branco.")
             tenant.km_max = _optional_km(form.get("km_max"), "na distância máxima")
-            if form.get("store_coords", "").strip() or form.get("relocate") or tenant.store_lat is None:
-                _locate_store(tenant, form.get("store_coords", ""))
-        elif form.get("store_coords", "").strip() or form.get("relocate"):
-            _locate_store(tenant, form.get("store_coords", ""))  # por bairro: só para o cupom mostrar os km
+            if form.get("store_coords", "").strip() or form.get("relocate") or tenant.store_lat is None or _new_place(tenant, form):
+                _locate_store(tenant, form.get("store_coords", ""), form.get("store_cep", ""), form.get("store_number", ""))
+        elif form.get("store_coords", "").strip() or form.get("relocate") or _new_place(tenant, form):
+            # por bairro: só para o cupom mostrar os km
+            _locate_store(tenant, form.get("store_coords", ""), form.get("store_cep", ""), form.get("store_number", ""))
         tenant.delivery_mode = mode
         _save("Entrega pela distância salva." if mode == "km" else "Entrega por bairro salva.")
     except FormError as e:

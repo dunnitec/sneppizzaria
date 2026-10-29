@@ -1,5 +1,8 @@
 """Frete por distância: CEP → endereço → ponto no mapa → km × preço (services/geo.py). Sem internet: _get_json é trocado."""
+import re
 from decimal import Decimal
+
+import requests
 
 import pytest
 
@@ -32,8 +35,13 @@ def net(monkeypatch):
         if "viacep" in url:
             cep = url.rstrip("/").split("/")[-2]
             return CEPS.get(cep, {"erro": True})
+        if "awesomeapi" in url:  # ponto do CEP: os testes usam o mapa pela rua
+            raise requests.HTTPError("404")
+        if "photon" in url:
+            calls["photon"] = calls.get("photon", 0) + 1
+            return {"features": []}
         calls["map"] += 1
-        text = (params.get("street") or params.get("q") or "").lower()
+        text = re.sub(r"^\d+ ", "", (params.get("street") or params.get("q") or "").lower())
         place = PLACES.get(text)
         return [{**place, "display_name": text, "address": {"city": "Itu", "ISO3166-2-lvl4": "BR-SP"}}] if place else []
 
@@ -104,7 +112,7 @@ def test_quote_falls_back_to_neighborhood(client, km_store, net):
 def test_map_lookups_are_cached(client, km_store, net):
     client.get("/snep/api/frete?cep=13300000")
     client.get("/snep/api/frete?cep=13300000")
-    assert net["map"] == 1 and GeoCache.query.count() == 1
+    assert net["map"] == 1 and GeoCache.query.count() == 2  # a rua e o CEP (sem ponto), cada um consultado uma vez
 
 
 def test_quote_only_when_store_charges_by_km(client, open_store, net):
@@ -301,3 +309,51 @@ def test_neighborhood_mode_can_put_store_on_map(panel, open_store):
     assert r.status_code == 302
     db.session.refresh(open_store)
     assert open_store.delivery_mode == "bairro" and (open_store.store_lat, open_store.store_lng) == (-23.2641, -47.2995)
+
+
+def test_abbreviations_are_expanded():
+    assert geo.expand_street("R. Joaquim Antônio") == "Rua Joaquim Antônio"
+    assert geo.expand_street("Av Brasil") == "Avenida Brasil"
+    assert geo.expand_street("Rua Rio Branco") == "Rua Rio Branco"
+
+
+def test_photon_finds_street_written_differently(app, monkeypatch):
+    """Nominatim não acha (nome no mapa sem o “de”); o Photon acha, mas só na cidade pedida."""
+    def fake(url, params=None):
+        if "photon" in url:
+            other = {"countrycode": "BR", "city": "Salto", "state": "São Paulo", "name": "Rua Joaquim Antonio Freitas Júnior"}
+            right = {**other, "city": "Itu"}
+            return {"features": [{"geometry": {"coordinates": [-47.0, -23.0]}, "properties": other},
+                                 {"geometry": {"coordinates": [-47.3, -23.28]}, "properties": right}]}
+        if "awesomeapi" in url:
+            raise requests.HTTPError("404")
+        return []
+
+    monkeypatch.setattr(geo, "_get_json", fake)
+    monkeypatch.setattr(geo, "_last_call", [0.0])
+    monkeypatch.setattr(geo.time, "sleep", lambda s: None)
+    point = geo.find_point("R. Joaquim Antônio de Freitas Júnior", "134", "Itu", "SP")
+    assert (point["lat"], point["lng"]) == (-23.28, -47.3)
+
+
+def test_store_found_by_cep_and_number(panel, open_store, monkeypatch):
+    def fake(url, params=None):
+        if "viacep" in url:
+            return {"logradouro": "Rua Joaquim Antônio de Freitas Júnior", "bairro": "Parque das Rosas",
+                    "localidade": "Itu", "uf": "SP"}
+        if "awesomeapi" in url:
+            return {"lat": "-23.2820547", "lng": "-47.30034", "city": "Itu", "state": "SP"}
+        if "photon" in url:
+            return {"features": []}
+        return []
+
+    monkeypatch.setattr(geo, "_get_json", fake)
+    monkeypatch.setattr(geo, "_last_call", [0.0])
+    monkeypatch.setattr(geo.time, "sleep", lambda s: None)
+    geo._ceps.clear()
+    panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "km", "km_price": "2,00",
+                                                 "store_cep": "13310-530", "store_number": "134"})
+    db.session.refresh(open_store)
+    assert open_store.delivery_mode == "km"
+    assert (open_store.store_lat, open_store.store_lng, open_store.store_city) == (-23.2820547, -47.30034, "Itu")
+    assert (open_store.store_cep, open_store.store_number) == ("13310530", "134")

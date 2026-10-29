@@ -314,7 +314,7 @@ function openCheckout(){
       ${DATA.km?`<label>CEP<input name="cep" id="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" oninput="cepInput(this)"></label>
       <p class="km-info" id="km-info" aria-live="polite">Digite o CEP para calcular a entrega.</p>`:""}
       <label>Rua<input name="rua"${DATA.km?` onchange="kmQuote()"`:""}></label>
-      <div class="r2"><label>Número<input name="num"></label><label>Complemento<input name="comp"></label></div>
+      <div class="r2"><label>Número<input name="num"${DATA.km?` onchange="kmQuote()"`:""}></label><label>Complemento<input name="comp"></label></div>
       ${DATA.km?`<label>Bairro<input name="bairro" id="bairro" onchange="kmQuote()"></label>`:`<label>Bairro<select name="bairro" id="bairro" onchange="totals()"><option value="">Selecione…</option>${DATA.neighborhoods.map(n=>`<option value="${esc(n.name)}">${esc(n.name)} — ${money(n.fee)}</option>`).join("")}<option value="__outro__">Outro bairro (taxa a confirmar)</option></select></label>`}
       <label>Ponto de referência<input name="ref"></label>
     </div>
@@ -365,7 +365,7 @@ function fillRemembered(){
 }
 /* ---------- frete por distância (painel → Entrega → Por distância) ---------- */
 let KMQ=null, KMQ_KEY="", KMQ_RUN=null; // última consulta: {status: ok|far|unknown|store, km, fee}
-const kmKey=()=>{const f=document.getElementById("ckf");return [f.cep.value.replace(/\D/g,""),f.rua.value.trim(),f.bairro.value.trim()].join("|");};
+const kmKey=()=>{const f=document.getElementById("ckf");return [f.cep.value.replace(/\D/g,""),f.rua.value.trim(),f.num.value.trim(),f.bairro.value.trim()].join("|");};
 const kmText=v=>Number(v).toFixed(1).replace(".",",");
 function cepInput(el){
   const d=el.value.replace(/\D/g,"").slice(0,8);el.value=d.length>5?d.slice(0,5)+"-"+d.slice(5):d;
@@ -378,7 +378,7 @@ function kmQuote(){
   const cep=f.cep.value.replace(/\D/g,"");
   if(cep.length!==8&&!f.rua.value.trim()){KMQ=null;KMQ_KEY="";KMQ_RUN=null;info.textContent="Digite o CEP para calcular a entrega.";totals();return Promise.resolve();}
   info.textContent="Calculando a entrega…";info.className="km-info";KMQ_KEY=key;
-  const qs=new URLSearchParams({cep,street:f.rua.value.trim(),neighborhood:f.bairro.value.trim()});
+  const qs=new URLSearchParams({cep,street:f.rua.value.trim(),number:f.num.value.trim(),neighborhood:f.bairro.value.trim()});
   KMQ_RUN=fetch(DATA.km.quote_url+"?"+qs).then(r=>r.json()).then(r=>{
     if(KMQ_KEY!==key)return;
     if(!r.ok){KMQ=null;info.textContent=r.error||"Não deu para calcular agora. A pizzaria confirma a taxa.";totals();return;}

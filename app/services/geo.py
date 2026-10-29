@@ -1,11 +1,14 @@
-"""Frete por distância: CEP → endereço (ViaCEP) → ponto no mapa (OpenStreetMap/Nominatim) → km até a loja.
+"""Frete por distância: CEP → endereço (ViaCEP) → ponto no mapa → km até a loja.
 
 Escolhas (pensadas para custo zero):
 - Distância em linha reta × ROAD_FACTOR, para compensar o desenho das ruas. Não usa serviço de rotas.
-- Localiza a rua (sem o número): basta para o frete e não guarda o endereço exato de ninguém.
-  Rua não achada → tenta o bairro; nada achado → frete "a combinar" (quem chama decide).
-- Toda consulta ao mapa fica guardada em GeoCache. O Nominatim pede no máximo 1 consulta por
-  segundo e um User-Agent identificando o sistema; _nominatim() respeita as duas regras.
+- Ponto no mapa por várias fontes grátis, da mais exata para a mais larga (find_point):
+  rua + número no Nominatim (OpenStreetMap) e no Photon (busca tolerante do OpenStreetMap, acha
+  "R. Joaquim Antônio de Freitas" mesmo cadastrada sem o "de"), o ponto do CEP (AwesomeAPI),
+  só a rua, e por último o bairro (só para cliente; a loja precisa de ponto exato).
+  Nada achado → frete "a combinar" (quem chama decide).
+- Toda consulta ao mapa fica guardada em GeoCache. Nominatim e Photon pedem no máximo 1 consulta
+  por segundo e um User-Agent identificando o sistema; _throttled() respeita as duas regras.
 """
 
 import math
@@ -24,6 +27,22 @@ TIMEOUT = 5
 USER_AGENT = "DunniDelivery/1.0 (frete por distancia; contato: suporte da plataforma)"
 VIACEP_URL = "https://viacep.com.br/ws/{cep}/json/"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+PHOTON_URL = "https://photon.komoot.io/api/"
+CEP_POINT_URL = "https://cep.awesomeapi.com.br/json/{cep}"
+UF_NAMES = {
+    "AC": "acre", "AL": "alagoas", "AP": "amapa", "AM": "amazonas", "BA": "bahia", "CE": "ceara",
+    "DF": "distrito federal", "ES": "espirito santo", "GO": "goias", "MA": "maranhao", "MT": "mato grosso",
+    "MS": "mato grosso do sul", "MG": "minas gerais", "PA": "para", "PB": "paraiba", "PR": "parana",
+    "PE": "pernambuco", "PI": "piaui", "RJ": "rio de janeiro", "RN": "rio grande do norte",
+    "RS": "rio grande do sul", "RO": "rondonia", "RR": "roraima", "SC": "santa catarina", "SP": "sao paulo",
+    "SE": "sergipe", "TO": "tocantins",
+}
+# abreviações comuns no endereço digitado → como o mapa conhece a rua
+ABBREVIATIONS = [
+    (r"r", "Rua"), (r"av", "Avenida"), (r"al", "Alameda"), (r"tv|trav", "Travessa"), (r"pca|pç|pça|praca", "Praça"),
+    (r"rod", "Rodovia"), (r"estr", "Estrada"), (r"lgo|lg", "Largo"), (r"vl", "Vila"), (r"jd", "Jardim"),
+    (r"pq", "Parque"), (r"dr", "Doutor"), (r"prof", "Professor"), (r"sto|sta", "Santo"), (r"cel", "Coronel"),
+]
 
 _lock = threading.Lock()
 _last_call = [0.0]
@@ -62,40 +81,135 @@ def lookup_cep(cep):
     return _ceps[cep]
 
 
-def _nominatim(params):
-    with _lock:  # 1 consulta por segundo, para o sistema todo
+def _throttled(url, params):
+    """Nominatim e Photon: 1 consulta por segundo, para o sistema todo. (dados, respondeu?)"""
+    with _lock:
         wait = 1.05 - (time.monotonic() - _last_call[0])
         if wait > 0:
             time.sleep(wait)
         try:
-            found = _get_json(NOMINATIM_URL, {**params, "format": "json", "limit": 1,
-                                              "countrycodes": "br", "addressdetails": 1})
+            return _get_json(url, params), True
         except (requests.RequestException, ValueError):
             return None, False  # fora do ar: não guarda, tenta de novo na próxima
         finally:
             _last_call[0] = time.monotonic()
-    return (found[0] if isinstance(found, list) and found else None), True
 
 
-def geocode(**params):
-    """Ponto no mapa: {lat, lng, label, city, uf} ou None. Guarda achados e não achados."""
-    key = "|".join(f"{k}={' '.join(str(v).lower().split())}" for k, v in sorted(params.items()) if v)[:255]
-    if not key:
-        return None
+def _cached(key, fetch):
+    """Consulta guardada em GeoCache (achados e não achados). fetch() → (ponto ou None, respondeu?)."""
+    key = key[:255]
     hit = GeoCache.query.filter_by(key=key).first()
     if hit:
         return hit.as_point()
-    place, answered = _nominatim(params)
+    place, answered = fetch()
     if not answered:
         return None
-    addr = (place or {}).get("address") or {}
-    hit = GeoCache(key=key, lat=float(place["lat"]) if place else None, lng=float(place["lon"]) if place else None,
-                   label=(place or {}).get("display_name", "")[:255] or None,
-                   city=(addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality") or "")[:80] or None,
-                   uf=_uf(addr.get("ISO3166-2-lvl4")))
+    place = place or {}
+    hit = GeoCache(key=key, lat=place.get("lat"), lng=place.get("lng"), label=(place.get("label") or "")[:255] or None,
+                   city=(place.get("city") or "")[:80] or None, uf=place.get("uf") or None)
     db.session.add(hit)
     db.session.commit()
     return hit.as_point()
+
+
+def _nominatim(params):
+    found, answered = _throttled(NOMINATIM_URL, {**params, "format": "json", "limit": 1,
+                                                 "countrycodes": "br", "addressdetails": 1})
+    place = found[0] if answered and isinstance(found, list) and found else None
+    if not place:
+        return None, answered
+    addr = place.get("address") or {}
+    return {"lat": float(place["lat"]), "lng": float(place["lon"]), "label": place.get("display_name", ""),
+            "city": addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality") or "",
+            "uf": _uf(addr.get("ISO3166-2-lvl4"))}, True
+
+
+def geocode(**params):
+    """Ponto no mapa pelo Nominatim: {lat, lng, label, city, uf} ou None."""
+    key = "|".join(f"{k}={' '.join(str(v).lower().split())}" for k, v in sorted(params.items()) if v)
+    return _cached(key, lambda: _nominatim(params)) if key else None
+
+
+def plain(text):
+    """'São Paulo' → 'sao paulo' (para comparar nomes sem acento)."""
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", str(text or "")).encode("ascii", "ignore").decode()
+    return " ".join(text.lower().split())
+
+
+def photon(q, city="", uf=""):
+    """Busca tolerante (Photon/OpenStreetMap): acha nomes com pequenas diferenças. Só aceita na cidade/UF pedidas."""
+    def fetch():
+        found, answered = _throttled(PHOTON_URL, {"q": q, "limit": 5})
+        if not answered:
+            return None, False
+        for f in (found or {}).get("features") or []:
+            pr = f.get("properties") or {}
+            if (pr.get("countrycode") or "").upper() != "BR":
+                continue
+            if city and plain(city) not in {plain(pr.get(k)) for k in ("city", "county", "district", "locality", "name")}:
+                continue
+            if uf and UF_NAMES.get(uf.upper()) and plain(pr.get("state")) != UF_NAMES[uf.upper()]:
+                continue
+            lng, lat = f["geometry"]["coordinates"][:2]
+            label = ", ".join(str(pr[k]) for k in ("name", "street", "housenumber", "city") if pr.get(k))
+            return {"lat": float(lat), "lng": float(lng), "label": label, "city": pr.get("city") or city, "uf": uf}, True
+        return None, True
+
+    return _cached(f"photon|{plain(q)}|{plain(city)}|{uf.lower()}", fetch) if q else None
+
+
+def cep_point(cep):
+    """Ponto do CEP (AwesomeAPI, grátis): no Brasil o CEP costuma ser um trecho de rua."""
+    cep = cep_digits(cep)
+    if not cep:
+        return None
+
+    def fetch():
+        try:
+            d = _get_json(CEP_POINT_URL.format(cep=cep))
+        except requests.HTTPError:
+            return None, True  # CEP sem ponto
+        except (requests.RequestException, ValueError):
+            return None, False
+        try:
+            lat, lng = float(d["lat"]), float(d["lng"])
+        except (KeyError, TypeError, ValueError):
+            return None, True
+        return {"lat": lat, "lng": lng, "label": f"CEP {cep[:5]}-{cep[5:]} · {d.get('address') or ''}".strip(" ·"),
+                "city": d.get("city") or "", "uf": d.get("state") or ""}, True
+
+    return _cached(f"cep|{cep}", fetch)
+
+
+def expand_street(street):
+    """'R. Joaquim' → 'Rua Joaquim'; 'Av Brasil' → 'Avenida Brasil'."""
+    street = " ".join(str(street or "").split())
+    for short, full in ABBREVIATIONS:
+        street = re.sub(rf"(?i)(^|\s)(?:{short})\.?(?=\s)", lambda m: m.group(1) + full, street)
+    return street
+
+
+def find_point(street="", number="", city="", uf="", cep="", neighborhood=""):
+    """Ponto no mapa tentando várias fontes, da mais exata para a mais larga. None = não achou.
+    neighborhood: último recurso (cliente); a loja não passa o bairro, para não ficar num ponto aproximado."""
+    street, number = expand_street(street), re.sub(r"\D", "", str(number or ""))[:6]
+    if street and city:
+        if number:
+            point = geocode(street=f"{number} {street}", city=city, state=uf) or photon(f"{street}, {number}, {city}", city, uf)
+            if point:
+                return point
+    point = cep_point(cep) if cep else None
+    if point:
+        return point
+    if street and city:
+        point = geocode(street=street, city=city, state=uf) or photon(f"{street}, {city}", city, uf)
+        if point:
+            return point
+    if neighborhood and city:
+        return geocode(q=f"{neighborhood}, {city}, {uf}") or photon(f"{neighborhood}, {city}", city, uf)
+    return None
 
 
 def _uf(iso):
@@ -129,32 +243,26 @@ def km_fee(tenant, km):
     return (km * Decimal(str(tenant.km_price or 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def locate_customer(tenant, cep="", street="", neighborhood=""):
-    """Ponto do cliente: rua na cidade do CEP (ou da loja); senão o bairro. None = não achou."""
+def locate_customer(tenant, cep="", street="", neighborhood="", number=""):
+    """Ponto do cliente: rua e número na cidade do CEP (ou da loja), o CEP, a rua; senão o bairro."""
     info = lookup_cep(cep) if cep else None
     city = (info or {}).get("city") or tenant.store_city or ""
     uf = (info or {}).get("uf") or tenant.store_uf or ""
     street = street or (info or {}).get("street") or ""
     neighborhood = neighborhood or (info or {}).get("neighborhood") or ""
-    if not city:
+    if not city and not cep:
         return None
-    if street:
-        point = geocode(street=street, city=city, state=uf)
-        if point:
-            return point
-    if neighborhood:
-        return geocode(q=f"{neighborhood}, {city}, {uf}")
-    return None
+    return find_point(street, number, city, uf, cep, neighborhood)
 
 
-def quote(tenant, cep="", street="", neighborhood=""):
+def quote(tenant, cep="", street="", neighborhood="", number=""):
     """Frete por distância. Devolve dict:
     status: "ok" (fee e km), "far" (passou do limite, km), "unknown" (não achou: a combinar)
             ou "store" (loja ainda sem ponto no mapa: a combinar).
     """
     if tenant.store_lat is None or tenant.store_lng is None:
         return {"status": "store", "km": None, "fee": None}
-    point = locate_customer(tenant, cep, street, neighborhood)
+    point = locate_customer(tenant, cep, street, neighborhood, number)
     if not point:
         return {"status": "unknown", "km": None, "fee": None}
     km = km_between(tenant.store_lat, tenant.store_lng, point["lat"], point["lng"])
