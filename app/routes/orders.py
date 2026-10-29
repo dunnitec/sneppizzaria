@@ -48,5 +48,5 @@ def create_order(slug):
         discount=float(order.discount),
         discount_note=order.discount_note or "",
         track_url=url_for("account.track", slug=slug, token=order.track_token),
-        pix_pending=order.payment_method == "Pix" and bool(tenant.pix_key) and pix is None,
+        pix_pending=order.payment_method == "Pix" and bool(tenant.pix_key) and order.delivery and delivery_fee is None,
     )

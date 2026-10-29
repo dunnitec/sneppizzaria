@@ -154,8 +154,8 @@ footer .st.open{color:var(--ok)}
 .ovl{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;display:none;align-items:center;justify-content:center;padding:12px}
 .ovl.on{display:flex}
 .md{background:var(--surface);color:var(--text);width:100%;max-width:500px;max-height:92vh;border-radius:20px;border:1px solid var(--line-strong);display:flex;flex-direction:column;position:relative;overflow:hidden}
-.md .x{position:absolute;right:12px;top:10px;background:#222226;border:0;border-radius:50%;width:34px;height:34px;font-size:22px;color:#ddd;cursor:pointer;z-index:2}
-.md .t{padding:18px 54px 8px 18px}
+.md .x{position:absolute;right:12px;top:calc(10px + env(safe-area-inset-top));background:#222226;border:0;border-radius:50%;width:34px;height:34px;font-size:22px;color:#ddd;cursor:pointer;z-index:2}
+.md .t{padding:calc(18px + env(safe-area-inset-top)) 54px 8px 18px}
 .md .t h2{margin:0;font:800 20px var(--display);color:#fff}
 .md .t p{margin:4px 0 0;font-size:13px;color:var(--muted)}
 .md .body{overflow-y:auto;padding:0 18px;flex:1}
@@ -170,7 +170,7 @@ footer .st.open{color:var(--ok)}
 .opt .cnt{display:flex;align-items:center;gap:8px}
 .opt .cnt button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line-strong);background:#202024;color:#fff;font-weight:800;cursor:pointer;line-height:24px}
 .opt .cnt .p{background:var(--red);border-color:var(--red)}
-.md .ft{padding:12px 18px 16px;display:flex;gap:10px;border-top:1px solid var(--line);background:var(--surface)}
+.md .ft{padding:12px 18px calc(16px + env(safe-area-inset-bottom));display:flex;gap:10px;border-top:1px solid var(--line);background:var(--surface)}
 .md .ft button{flex:1;height:50px;border-radius:12px;font:800 16px var(--display);cursor:pointer}
 .md .ft .bk{background:transparent;border:1.5px solid var(--line-strong);color:#ddd;flex:0 0 116px}
 .md .ft .nx{background:linear-gradient(180deg,#f0232a,#b10f14);border:0;color:#fff}
@@ -252,7 +252,8 @@ footer .st.open{color:var(--ok)}
   .hero-in{display:flex;flex-direction:column;justify-content:flex-end;min-height:calc(38vw + 40px);padding:0 0 12px}
   .brand{width:100%;align-items:stretch}
   .brand-hat,.brand-name,.brand-sub{display:none}
-  .brand-slogan{display:flex;align-items:center;margin:0;white-space:nowrap;font:800 12px var(--display);letter-spacing:4px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+  /* frase longa quebra em duas linhas em vez de sumir na borda (o dono pode escrever até 120 letras) */
+  .brand-slogan{display:flex;align-items:center;justify-content:center;text-align:center;flex-wrap:wrap;margin:0;font:800 clamp(10px,3.1vw,12px)/1.4 var(--display);letter-spacing:2px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8)}
   .brand-slogan::before,.brand-slogan::after{content:"";flex:1;height:3px;background:var(--red);min-width:16px;margin:0 14px 0 8px}
   .brand-slogan::after{margin:0 8px 0 14px}
   .brand-slogan b{margin-left:.5em;color:var(--red);font-weight:800}

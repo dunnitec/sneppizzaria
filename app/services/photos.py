@@ -14,6 +14,7 @@ from flask import current_app, url_for
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 MAX_SIDE = 800
+MAX_PIXELS = 30_000_000  # PNG/WebP acima disso: recusado (JPEG é reduzido na leitura)
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
@@ -35,6 +36,12 @@ def save_photo(stream, slug, max_side=MAX_SIDE):
     """Lê a imagem enviada, ajusta a orientação, reduz e grava como WebP. Devolve o nome do arquivo."""
     try:
         with Image.open(stream) as im:
+            # foto de celular de 50-108 MP aberta inteira estoura a memória do servidor (512 MB):
+            # JPEG é lido já reduzido (draft); outros formatos muito grandes são recusados
+            if im.format == "JPEG":
+                im.draft("RGB", (max_side * 2, max_side * 2))
+            elif im.width * im.height > MAX_PIXELS:
+                raise PhotoError("Foto grande demais. Mande em JPG, ou tire um print da foto e envie o print.")
             im = ImageOps.exif_transpose(im).convert("RGB")
             im.thumbnail((max_side, max_side))
             name = f"{slug}-{secrets.token_hex(6)}.webp"

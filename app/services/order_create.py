@@ -19,11 +19,11 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from app.extensions import db
-from app.models import CHANNELS, Customer, Order, OrderItem, OrderItemFlavor, utcnow
+from app.models import CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.hours import is_open, local_time
-from app.services.loyalty import discounts
+from app.services.loyalty import card, discounts
 from app.services.money import brl
 from app.services.pricing import OrderError, price_item
 from app.services.whatsapp import build_order_message
@@ -112,8 +112,20 @@ def place_order(tenant, p, channel="site", account=None):
         delivery_fee = _manual_fee(p.get("delivery_fee"))
     discount, discount_note, first_order, used_programs = Decimal("0"), "", False, []
     if from_site and account and account.phone_key == key:
+        # trava o cadastro até o pedido ser gravado: dois pedidos ao mesmo tempo (dois celulares na mesma
+        # conta) não usam o mesmo brinde nem o desconto do 1º pedido duas vezes. O UPDATE segura a linha
+        # no PostgreSQL e o banco inteiro no SQLite; o segundo pedido espera e já vê o primeiro.
+        Customer.query.filter_by(id=account.id).update({"updated_at": utcnow()}, synchronize_session=False)
         wanted = p.get("use_rewards") if isinstance(p.get("use_rewards"), list) else []
         discount, discount_note, first_order, used_programs = discounts(tenant, account, cart, wanted)
+        lost = [prog for prog in LoyaltyProgram.query.filter(
+                    LoyaltyProgram.tenant_id == tenant.id,
+                    LoyaltyProgram.id.in_({int(x) for x in wanted if str(x).isdigit()} - set(used_programs)))
+                if not card(prog, account)["rewards"]]
+        if lost:  # o cliente viu o desconto na tela, mas o brinde já foi gasto (outro pedido ao mesmo tempo)
+            db.session.rollback()
+            raise OrderError(f"A pizza grátis do cartão {lost[0].name} já foi usada em outro pedido. "
+                             "Atualize a página, confira o total e envie de novo.")
     total = subtotal - discount + (delivery_fee or Decimal("0"))
 
     payment = _text(p, "payment_method", 30)

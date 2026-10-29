@@ -303,8 +303,8 @@ def test_reward_makes_one_pizza_free_and_is_used_once(client, open_store):
     assert o.loyalty_reward and o.discount == base_price()
     assert "Promocional grátis (fidelidade)" in o.discount_note
     assert card(prog, c)["rewards"] == 0  # pendente já segura o prêmio
-    again = db.session.get(Order, order(client, items=[promo_item(1)], use_rewards=[prog.id])["order_id"])
-    assert again.discount == 0
+    again = order(client, items=[promo_item(1)], use_rewards=[prog.id])
+    assert again["ok"] is False and "já foi usada" in again["error"]  # avisa em vez de cobrar cheio calado
     set_status(o.id, "cancelado")
     assert card(prog, c)["rewards"] == 1  # cancelou: prêmio volta
 
@@ -462,3 +462,13 @@ def test_receipt_shows_discount(client, open_store):
     staff = client.application.test_client()
     login(staff)
     assert "Desconto (1º pedido)" in staff.get(f"/snep/admin/pedidos/{oid}/etiqueta").get_data(as_text=True)
+
+
+def test_reward_already_used_is_refused_instead_of_charging_silently(client, open_store):
+    """Relatório item 26: o segundo pedido com o mesmo brinde avisa em vez de cobrar o valor cheio calado."""
+    prog = make_program(open_store, goal=2)
+    register(client)
+    set_status(order(client, items=[promo_item(2)])["order_id"], "confirmado")
+    assert order(client, items=[promo_item(1)], use_rewards=[prog.id])["ok"]
+    r = order(client, items=[promo_item(1)], use_rewards=[prog.id])
+    assert r["ok"] is False and "já foi usada" in r["error"]

@@ -295,6 +295,7 @@ function openCheckout(){
 const REMEMBER_KEY="snep_cliente_"+DATA.tenant.slug;
 /* ---------- Pix com QR Code (painel → Loja → Pix pelo site) ---------- */
 function pixBox(r){
+  if(r.total<=0)return `<div class="pix-box"><p>Nada a pagar: o desconto cobriu o pedido inteiro. 🎉</p></div>`;
   if(r.pix_pending)return `<div class="pix-box"><p>Pix: como a taxa de entrega do seu bairro ainda vai ser confirmada, a pizzaria te manda o valor final pelo WhatsApp.</p></div>`;
   if(!r.pix)return "";
   return `<div class="pix-box"><h4>Pague com Pix</h4><p class="pix-amount">${money(r.pix.amount)}</p>

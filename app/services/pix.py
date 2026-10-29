@@ -96,7 +96,7 @@ def qr_svg_data_uri(text):
 
 def for_order(tenant, order):
     """Dados do Pix para a tela de pedido feito; None se a loja não configurou a chave."""
-    if not tenant.pix_key:
+    if not tenant.pix_key or order.total <= 0:  # pedido de graça (brinde/desconto): nada a pagar
         return None
     code = payload(tenant.pix_key, tenant.pix_name or tenant.name, tenant.pix_city or "", order.total, f"PEDIDO{order.id}")
     return {"code": code, "qr": qr_svg_data_uri(code), "amount": float(order.total)}
