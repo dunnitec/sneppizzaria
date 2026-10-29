@@ -1,7 +1,7 @@
 """App no celular (PWA) e avisos (Web Push): manifesto, ícones, inscrição, avisos automáticos e do dono."""
 import io
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from PIL import Image
@@ -248,3 +248,49 @@ def test_staff_cannot_send_campaigns(client, tenant):
     db.session.commit()
     login(client, username="func")
     assert client.get("/snep/admin/avisos").status_code in (302, 403)
+
+
+def test_weekly_limit_counts_any_7_day_period(panel, tenant, sent, client):
+    """Relatório item 27: 3 agendados num dia e mais 3 no dia seguinte passavam do limite."""
+    for _ in range(MAX_PER_WEEK):
+        panel.post("/snep/admin/avisos", data=campaign_form(when="agendar", date="2099-01-06", time="18:00"))
+    r = panel.post("/snep/admin/avisos", data=campaign_form(when="agendar", date="2099-01-07", time="18:00"),
+                   follow_redirects=True)
+    assert "Mais que isso o cliente" in r.get_data(as_text=True)
+    r = panel.post("/snep/admin/avisos", data=campaign_form(when="agendar", date="2099-01-14", time="18:00"),
+                   follow_redirects=True)
+    assert "Mais que isso o cliente" not in r.get_data(as_text=True)  # 8 dias depois já é outra semana
+    assert PushCampaign.query.count() == MAX_PER_WEEK + 1
+
+
+def test_weekly_repeat_stops_when_next_week_is_full(panel, tenant, sent, client, app):
+    subscribe(client.application.test_client())
+    panel.post("/snep/admin/avisos", data=campaign_form(when="agendar", date="2099-01-06", time="18:00", repeat="on"))
+    c = PushCampaign.query.one()
+    for day in ("2099-01-12", "2099-01-13", "2099-01-14"):  # a semana seguinte já tem 3
+        db.session.add(PushCampaign(tenant_id=tenant.id, title="x", body="y", audience="todos",
+                                    scheduled_at=datetime.fromisoformat(day + " 21:00")))
+    db.session.commit()
+    c.scheduled_at = datetime(2099, 1, 6, 21)
+    db.session.commit()
+    from app.routes.push_admin import run_campaign
+    c.sent_at = c.scheduled_at
+    with app.test_request_context():
+        run_campaign(c)
+    assert PushCampaign.query.count() == 4  # não criou a repetição
+
+
+def test_inactive_audience_ignores_counter_orders_without_customer(panel, tenant, sent, client):
+    """Relatório item 8: um pedido de balcão sem cliente zerava “Quem não pede há mais de 30 dias”."""
+    from app.models import Customer, Order, PushSubscription
+    from app.routes.push_admin import audience_subs
+
+    c = Customer(tenant_id=tenant.id, phone_key="11977776666", phone="(11) 97777-6666", name="Sumida", created_at=utcnow())
+    db.session.add(c)
+    db.session.flush()
+    subscribe(client.application.test_client())
+    PushSubscription.query.one().customer_id = c.id
+    db.session.add(Order(tenant_id=tenant.id, customer_name="Balcão", customer_phone="", status="confirmado",
+                         created_at=utcnow()))
+    db.session.commit()
+    assert len(audience_subs(tenant, "sumidos")) == 1

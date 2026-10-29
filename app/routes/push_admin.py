@@ -24,18 +24,24 @@ def audience_subs(tenant, audience):
     elif audience == "sumidos":
         recent = db.session.query(Order.customer_id).filter(Order.tenant_id == tenant.id,
                                                             Order.created_at >= utcnow() - timedelta(days=30))
+        # sem o filtro de vazio, um pedido de balcão sem cliente (NULL) zerava a lista inteira
+        recent = recent.filter(Order.customer_id.isnot(None))
         q = q.filter(PushSubscription.customer_id.isnot(None), PushSubscription.customer_id.notin_(recent))
     return q.all()
 
 
-def _week_count(tenant, around):
-    """Avisos enviados ou agendados nos 7 dias antes e depois da data (limite por semana)."""
-    lo, hi = around - timedelta(days=7), around + timedelta(days=7)
-    sent = PushCampaign.query.filter(PushCampaign.tenant_id == tenant.id, PushCampaign.sent_at >= lo,
-                                     PushCampaign.sent_at <= around).count()
-    waiting = PushCampaign.query.filter(PushCampaign.tenant_id == tenant.id, PushCampaign.sent_at.is_(None),
-                                        PushCampaign.scheduled_at >= around, PushCampaign.scheduled_at <= hi).count()
-    return sent + waiting
+def _week_count(tenant, around, exclude_id=None):
+    """Maior número de avisos (enviados ou agendados) num período de 7 dias que inclua a data.
+    Um aviso novo nessa data só cabe se isso for menor que MAX_PER_WEEK."""
+    week = timedelta(days=7)
+    times = sorted(
+        c.sent_at or c.scheduled_at
+        for c in PushCampaign.query.filter(PushCampaign.tenant_id == tenant.id, PushCampaign.id != (exclude_id or 0))
+        if (c.sent_at or c.scheduled_at) and abs((c.sent_at or c.scheduled_at) - around) < week
+    )
+    # janelas de 7 dias que contêm a data: começam num aviso anterior (até 7 dias antes) ou na própria data
+    starts = [t for t in times if t <= around] + [around]
+    return max(sum(1 for t in times if start <= t < start + week) for start in starts)
 
 
 def run_campaign(campaign):
@@ -43,7 +49,7 @@ def run_campaign(campaign):
     tenant = db.session.get(Tenant, campaign.tenant_id)
     campaign.sent_count = send(tenant, audience_subs(tenant, campaign.audience), campaign.title, campaign.body,
                                campaign.url or f"/{tenant.slug}/", tag=f"aviso-{campaign.id}")
-    if campaign.repeat_weekly and campaign.scheduled_at:
+    if campaign.repeat_weekly and campaign.scheduled_at and             _week_count(tenant, campaign.scheduled_at + timedelta(days=7)) < MAX_PER_WEEK:
         db.session.add(PushCampaign(tenant_id=tenant.id, title=campaign.title, body=campaign.body, url=campaign.url,
                                     audience=campaign.audience, repeat_weekly=True,
                                     scheduled_at=campaign.scheduled_at + timedelta(days=7)))
