@@ -127,7 +127,21 @@ def test_logout_ends_session(panel):
 
 def test_post_without_csrf_token_is_blocked(csrf_app):
     make_admin(Tenant.query.filter_by(slug="snep").one())
-    assert login(csrf_app.test_client()).status_code == 400
+    client = csrf_app.test_client()
+    r = login(client)
+    assert r.status_code == 302 and "/admin/login" in r.headers["Location"]  # volta para o login, sem entrar
+    html = client.get("/snep/admin/login").get_data(as_text=True)
+    assert "sessão do painel expirou" in html
+    assert client.get("/snep/admin/cardapio").status_code == 302
+
+
+def test_expired_form_in_json_gets_portuguese_message(csrf_app):
+    r = csrf_app.test_client().post("/snep/admin/pedidos/novo", json={"items": []})
+    assert r.status_code == 400 and "sessão do painel expirou" in r.json["error"]
+
+
+def test_panel_form_does_not_expire_after_one_hour(app):
+    assert app.config["WTF_CSRF_TIME_LIMIT"] is None
 
 
 def test_public_order_api_does_not_need_csrf_token(csrf_app):

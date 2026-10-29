@@ -212,10 +212,12 @@
     if (fresh && current) current.replaceWith(fresh);
   }
 
+  let waiting = false; // há pedido novo esperando o toque em “toque para ver”
   async function poll() {
     try {
       const r = await fetch(`${live.dataset.poll}?desde=${latest}`, { credentials: "same-origin" });
-      if (r.redirected || !r.ok) { status.textContent = "Sessão expirada: entre de novo para continuar recebendo pedidos."; return; }
+      if (r.redirected) { status.textContent = "Sessão expirada: entre de novo para continuar recebendo pedidos."; return; }
+      if (!r.ok) { status.textContent = "Sem conexão com o servidor. Tentando de novo…"; return; } // ex.: site sendo atualizado
       const data = await r.json();
       document.querySelectorAll(".tabs .badge").forEach((b) => { b.textContent = data.pending; b.hidden = !data.pending; });
       if (data.new.length) {
@@ -225,8 +227,19 @@
         status.classList.add("alert");
         document.title = `(${data.new.length}) Novo pedido! · ${baseTitle}`;
         beep();
-        await refreshList();
-      } else {
+        // a lista só se troca sozinha com a tela no topo; rolada, um toque errado cairia em outro pedido
+        if (window.scrollY < 80) await refreshList();
+        else {
+          waiting = true;
+          status.innerHTML = "";
+          const see = document.createElement("button");
+          see.type = "button";
+          see.className = "primary small";
+          see.textContent = `${data.new.length > 1 ? data.new.length + " pedidos novos" : "Pedido novo #" + last.id} — toque para ver`;
+          see.addEventListener("click", async () => { waiting = false; await refreshList(); window.scrollTo({ top: 0 }); status.textContent = "Lista atualizada."; });
+          status.appendChild(see);
+        }
+      } else if (!waiting) {
         status.textContent = `Atualizado às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
       }
     } catch (e) {

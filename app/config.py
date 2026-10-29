@@ -16,6 +16,8 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
+    # o formulário do painel vale enquanto o login valer (antes vencia em 1 hora com a tela aberta)
+    WTF_CSRF_TIME_LIMIT = None
 
     _db_url = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(basedir, 'snep.db')}")
     # Fly.io/Heroku às vezes fornecem "postgres://", o SQLAlchemy exige "postgresql://"

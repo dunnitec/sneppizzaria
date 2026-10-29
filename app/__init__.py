@@ -46,5 +46,28 @@ def create_app(config_class=Config):
     app.cli.add_command(import_static_banners)
     app.jinja_env.filters.update(item_view=item_view, phone=format_phone, any_phone=lambda raw: format_phone(phone_key(raw)) or raw, brl=brl, money_input=money_input, local_time=local_time)
     app.jinja_env.globals.update(static_url=static_url)
+    _register_error_pages(app)
 
     return app
+
+
+def _register_error_pages(app):
+    """Erros comuns explicados em português, em vez das páginas em inglês do Flask."""
+    from flask import flash, jsonify, redirect, request
+    from flask_wtf.csrf import CSRFError
+
+    def answer(msg, code):
+        if request.is_json or request.accept_mimetypes.best == "application/json":
+            return jsonify(ok=False, error=msg), code
+        flash(msg, "error")
+        return redirect(request.referrer or request.path)
+
+    @app.errorhandler(CSRFError)
+    def csrf_error(e):
+        return answer("Sua sessão do painel expirou ou a página ficou aberta de outro login. Entre de novo; "
+                      "o que você estava fazendo não foi salvo.", 400)
+
+    @app.errorhandler(413)
+    def too_large(e):
+        return answer("Arquivo grande demais (máximo 15 MB). Tire a foto de novo com menos qualidade "
+                      "ou mande um print da foto.", 413)

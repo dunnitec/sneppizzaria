@@ -214,6 +214,9 @@
     try {
       const r = await fetch(location.pathname, { method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json", "X-CSRFToken": token }, body: JSON.stringify(payload) });
+      // sessão expirada: o servidor devolve a tela de login (HTML), não JSON
+      if (r.redirected || !(r.headers.get("content-type") || "").includes("json"))
+        throw new Error("Sua sessão do painel expirou. Entre de novo em outra aba e toque em “Lançar pedido” outra vez: o pedido ainda não foi lançado.");
       const data = await r.json();
       if (!data.ok) throw new Error(data.error || "Não deu para lançar.");
       form.removeAttribute("data-track");

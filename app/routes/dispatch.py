@@ -19,6 +19,8 @@ def money_summary(dispatch):
     """O que conferir com o motoboy: dinheiro a trazer, troco levado, maquininha, Pix e taxas de entrega."""
     s = {k: Decimal("0") for k in ("cash", "change", "card", "pix", "fees")}
     for o in dispatch.orders:
+        if o.status == "cancelado":
+            continue
         method = (o.payment_method or "").strip()
         if method == "Dinheiro":
             s["cash"] += o.total
@@ -99,7 +101,9 @@ def dispatch_remove_order(dispatch_id, order_id):
     """Pedido que não foi entregue (cliente não estava, endereço errado): volta para a fila de saída."""
     dispatch = _dispatch_or_404(dispatch_id)
     order = Order.query.filter_by(tenant_id=g.tenant.id, id=order_id, dispatch_id=dispatch.id).first_or_404()
-    order.dispatch_id, order.status = None, "confirmado"
+    order.dispatch_id = None
+    if order.status in ("saiu", "entregue"):  # cancelado continua cancelado
+        order.status = "confirmado"
     db.session.flush()
     if not Order.query.filter_by(dispatch_id=dispatch.id).count():
         # comanda sem nenhum pedido não aconteceu: some da lista em vez de ficar “na rua” vazia

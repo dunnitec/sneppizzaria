@@ -288,19 +288,25 @@ def order_status(order_id):
     status = request.form.get("status")
     if status not in ORDER_STATUSES:
         abort(400)
+    changed = status != order.status
+    # 1ª confirmação: avisa o cliente, conta os selos e imprime. Reabrir um pedido (“Voltar para
+    # confirmado”) não repete nada disso.
+    first_confirmation = status == "confirmado" and not order.confirmed_at
     order.status = status
-    if status == "confirmado" and not order.confirmed_at:
+    if first_confirmation:
         order.confirmed_at = utcnow()
     if status == "entregue" and not order.delivered_at:
         order.delivered_at = utcnow()
+    if status == "cancelado" and order.dispatch_id:  # sai da comanda do motoboy e da conta do dinheiro
+        order.dispatch_id = None
     db.session.commit()
-    if status in ("confirmado", "cancelado"):  # avisa no celular do cliente (se ele ativou os avisos)
+    if first_confirmation or (status == "cancelado" and changed):  # avisa no celular do cliente (se ele ativou)
         notify_order(g.tenant, order, status)
-        if status == "confirmado":
+        if first_confirmation:
             notify_loyalty(g.tenant, order)
     current_filter = request.form.get("filter")
     # confirmou: manda o cupom para a impressora (a página de pedidos imprime sozinha)
-    to_print = order.id if status == "confirmado" and g.tenant.auto_print else None
+    to_print = order.id if first_confirmation and g.tenant.auto_print else None
     return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None,
                             imprimir=to_print))
 

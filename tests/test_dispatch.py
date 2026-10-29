@@ -154,3 +154,48 @@ def test_dispatch_left_empty_is_removed(panel, tenant, joao):
     assert Dispatch.query.count() == 0
     db.session.expire_all()
     assert a.status == "confirmado"
+
+
+def test_cancel_takes_order_out_of_dispatch_and_cash(panel, tenant, joao):
+    """Relatório item 6: cancelado não fica na comanda nem soma no dinheiro a conferir."""
+    from app.routes.dispatch import money_summary
+
+    a, b = ready(tenant, total="60"), ready(tenant, total="40")
+    panel.post("/snep/admin/entregas/nova", data={"courier_id": joao.id, "orders": [a.id, b.id]})
+    d = Dispatch.query.one()
+    panel.post(f"/snep/admin/pedidos/{a.id}/status", data={"status": "cancelado"})
+    db.session.expire_all()
+    assert a.dispatch_id is None and a.status == "cancelado"
+    assert money_summary(d)["cash"] == Decimal("40.00")
+
+
+def test_cancelled_order_in_old_dispatch_is_not_counted_nor_reopened(panel, tenant, joao):
+    from app.routes.dispatch import money_summary
+
+    a = ready(tenant, total="60")
+    panel.post("/snep/admin/entregas/nova", data={"courier_id": joao.id, "orders": [a.id]})
+    d = Dispatch.query.one()
+    a.status = "cancelado"  # cancelado antes desta correção, ainda preso na comanda
+    db.session.commit()
+    assert money_summary(d)["cash"] == Decimal("0.00")
+    panel.post(f"/snep/admin/entregas/{d.id}/tirar/{a.id}")
+    db.session.expire_all()
+    assert a.status == "cancelado" and a.dispatch_id is None
+
+
+def test_reopening_cancelled_order_does_not_notify_nor_print_again(panel, tenant, monkeypatch):
+    """Relatório item 7: “Voltar para confirmado” não reenvia aviso nem imprime de novo."""
+    from app.routes import admin as admin_routes
+
+    sent = []
+    monkeypatch.setattr(admin_routes, "notify_order", lambda t, o, s: sent.append(s))
+    monkeypatch.setattr(admin_routes, "notify_loyalty", lambda t, o: sent.append("selos"))
+    o = ready(tenant)
+    o.status, o.confirmed_at = "pendente", None
+    db.session.commit()
+    r = panel.post(f"/snep/admin/pedidos/{o.id}/status", data={"status": "confirmado"})
+    assert "imprimir=" in r.headers["Location"] and sent == ["confirmado", "selos"]
+    panel.post(f"/snep/admin/pedidos/{o.id}/status", data={"status": "cancelado"})
+    r = panel.post(f"/snep/admin/pedidos/{o.id}/status", data={"status": "confirmado"})
+    assert "imprimir=" not in r.headers["Location"]
+    assert sent == ["confirmado", "selos", "cancelado"]
