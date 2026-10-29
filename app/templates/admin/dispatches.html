@@ -20,7 +20,7 @@
     <label class="ready-order">
       <input type="checkbox" name="orders" value="{{ o.id }}">
       <span class="ro-main"><b>#{{ o.id }}</b> · {{ o.neighborhood_name }} · {{ o.street }}, {{ o.number }}</span>
-      <span class="ro-side">{{ o.total|brl }} · {{ o.payment_method or '—' }}{% if o.change_for %} (troco p/ {{ o.change_for|brl }}){% endif %}</span>
+      <span class="ro-side">{{ o.total|brl }} · {{ o.payment_method or '—' }}{% if o.change_for %} (troco p/ {{ o.change_for|brl }}){% endif %}{% if o.split_people %} · dividir em {{ o.split_people }}{% endif %}</span>
     </label>
     {% endfor %}
     <div class="row">

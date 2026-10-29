@@ -39,6 +39,7 @@
       <small>{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</small>
       <small>{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</small>
       <small><b>{{ o.total|brl }} · {{ o.payment_method or '—' }}{% if o.change_for %} · troco p/ {{ o.change_for|brl }}{% endif %}</b></small>
+      {% if o.split_people %}<small><b>Dividir: {{ o.split_text() }}</b></small>{% endif %}
     </li>
     {% endfor %}
   </ol>

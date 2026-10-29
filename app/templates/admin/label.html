@@ -75,6 +75,8 @@
   {% if o.delivery %}<div class="tot"><span>Entrega{% if o.distance_km is not none %} ({{ '%.1f'|format(o.distance_km)|replace('.', ',') }} km){% endif %}</span><span>{{ 'a combinar' if o.fee_pending else o.delivery_fee|brl }}</span></div>{% endif %}
   <div class="tot big"><span>TOTAL</span><span>{{ o.total|brl }}</span></div>
   <div class="pay">{{ o.payment_method or 'Pagamento a combinar' }}{% if o.payment_method == 'Pix' and o.channel == 'site' %} · {{ 'PAGO' if o.pix_paid_at else 'CONFERIR PAGAMENTO' }}{% endif %}{% if o.change_for %} · Troco para {{ o.change_for|brl }} (levar {{ (o.change_for - o.total)|brl }}){% endif %}</div>
+  {% if o.split_people %}<div class="pay split">DIVIDIR EM {{ o.split_people }} PESSOAS{% for count, value in o.split_groups() %}
+    <div style="white-space:nowrap">{{ count }} x {{ value|brl }}</div>{% endfor %}{% if o.fee_pending %}<small>sem a entrega</small>{% endif %}</div>{% endif %}
   <div class="foot">{{ tenant.name }}</div>
 </div>
 {{ fit_page_script(tenant) }}

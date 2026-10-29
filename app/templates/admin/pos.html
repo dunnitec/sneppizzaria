@@ -70,6 +70,7 @@
     <div class="row">
       <label class="grow">Forma de pagamento<select name="payment_method" required><option value="">Escolha…</option>{% for p in payments %}<option>{{ p }}</option>{% endfor %}</select></label>
       <label class="money" id="pos-change" hidden>Troco para<input name="change_for" inputmode="decimal" placeholder="0,00"></label>
+      <label>Dividir a conta<select name="split_people"><option value="">Não dividir</option>{% for n in range(2, 11) %}<option value="{{ n }}">entre {{ n }} pessoas</option>{% endfor %}</select></label>
     </div>
     <div class="pos-total" id="pos-total"></div>
     <p class="flash error" id="pos-error" role="alert" hidden></p>

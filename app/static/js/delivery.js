@@ -295,6 +295,7 @@ function openCheckout(){
     </div>
     <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none';const pn=document.getElementById('pix-note');if(pn)pn.hidden=this.value!=='Pix'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").filter(p=>p.trim()).map(p=>`<option>${esc(p.trim())}</option>`).join("")}</select></label>${DATA.pix?`<p class="pix-note" id="pix-note" hidden>Pix: ao finalizar, aparece o QR Code e o “Pix copia e cola” com o valor do pedido para você pagar no app do banco.</p>`:""}
     <label id="troco" style="display:none">Troco para quanto? (opcional; maior que o total)<input name="troco" type="number" step="0.01" min="0" inputmode="decimal"></label>
+    <label>Dividir a conta?<select name="dividir" onchange="totals()"><option value="">Não, uma pessoa paga tudo</option>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">Dividir entre ${n} pessoas</option>`).join("")}</select></label>
     <div class="sum" id="sum"></div>
     <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>
   </form>
@@ -371,7 +372,10 @@ function fee(){
   const b=document.getElementById("bairro").value; if(!b||b==="__outro__") return null;
   const n=DATA.neighborhoods.find(x=>x.name===b); return n?n.fee:null;
 }
-function totals(){const f=fee(),s=subtotal(),d=accDiscount();document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega${f&&DATA.km&&KMQ?` (${kmText(KMQ.km)} km)`:""}</span><span>${f===null?(DATA.km&&KMQ&&KMQ.status==="far"?"fora da área":"a confirmar"):money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>`;}
+// mesma conta do servidor (services/split.py): partes iguais, os centavos que sobram nas primeiras
+function splitParts(total,n){const c=Math.round(total*100),b=Math.floor(c/n),x=c-b*n;return Array.from({length:n},(_,i)=>(b+(i<x?1:0))/100);}
+function splitText(total,n){const p=splitParts(total,n),x=p.filter(v=>v!==p[n-1]).length;return x?`${x} de ${money(p[0])} e ${n-x} de ${money(p[n-1])}`:`${money(p[0])} cada`;}
+function totals(){const f=fee(),s=subtotal(),d=accDiscount(),dv=document.querySelector("#md [name=dividir]"),n=dv?Number(dv.value):0;document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega${f&&DATA.km&&KMQ?` (${kmText(KMQ.km)} km)`:""}</span><span>${f===null?(DATA.km&&KMQ&&KMQ.status==="far"?"fora da área":"a confirmar"):money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>${n>1?`<div class="split"><span>Por pessoa (${n})</span><span>${splitText(s-d.value+(f||0),n)}</span></div>`:""}`;}
 function finish(ev){ev.preventDefault();sendOrder(ev.target);return false;}
 async function sendOrder(f){
   const wd=document.getElementById("ck-wd").checked;
@@ -384,7 +388,7 @@ async function sendOrder(f){
   const total=subtotal()-accDiscount().value+(fee()||0);
   if(troco!==null&&troco<total-0.004){toast(`O troco tem que ser para um valor maior que o total (${money(total)}).`);f.troco.focus();return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,cep:wd||!DATA.km?"":f.cep.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,
-    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,client_ref:checkoutRef(),
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,split_people:f.dividir.value?Number(f.dividir.value):null,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,client_ref:checkoutRef(),
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})

@@ -33,6 +33,7 @@ from app.services.hours import is_open, local_time
 from app.services.loyalty import card, discounts
 from app.services.money import brl
 from app.services.pricing import OrderError, price_item
+from app.services.split import people as split_people
 from app.services.whatsapp import build_order_message
 
 MAX_ITEMS = 30
@@ -187,6 +188,7 @@ def place_order(tenant, p, channel="site", account=None):
         "distance_km": distance,
         "payment_method": payment,
         "change_for": change_for,
+        "split_people": split_people(p.get("split_people")),
         "withdraw": withdraw,
         "eta": local_time(eta_at).strftime("%H:%M"),
         "from_site": from_site,
@@ -212,6 +214,7 @@ def place_order(tenant, p, channel="site", account=None):
         client_ref=client_ref or None,
         payment_method=info["payment_method"],
         change_for=info["change_for"],
+        split_people=info["split_people"],
         subtotal=subtotal,
         delivery_fee=delivery_fee or Decimal("0"),
         total=total,

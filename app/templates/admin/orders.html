@@ -46,7 +46,7 @@
     {% endfor %}
   </ul>
   {% if o.discount %}<p class="addr"><span class="tag tag-disc">{% if o.first_order %}1º pedido{% endif %}{% if o.first_order and o.loyalty_reward %} + {% endif %}{% if o.loyalty_reward %}🎁 Pizza grátis (fidelidade){% endif %}</span> Desconto de {{ o.discount|brl }} já descontado do total.</p>{% endif %}
-  <p class="addr">Pagamento: {{ o.payment_method or '—' }}{% if o.change_for %} · troco para {{ o.change_for|brl }}{% endif %} · Entrega: {% if o.fee_pending %}<b>a combinar</b>{% else %}{{ o.delivery_fee|brl }}{% endif %}{% if o.distance_km is not none %} ({{ '%.1f'|format(o.distance_km)|replace('.', ',') }} km){% endif %}</p>
+  <p class="addr">Pagamento: {{ o.payment_method or '—' }}{% if o.change_for %} · troco para {{ o.change_for|brl }}{% endif %}{% if o.split_people %} · <b>dividir a conta em {{ o.split_text() }}</b>{% endif %} · Entrega: {% if o.fee_pending %}<b>a combinar</b>{% else %}{{ o.delivery_fee|brl }}{% endif %}{% if o.distance_km is not none %} ({{ '%.1f'|format(o.distance_km)|replace('.', ',') }} km){% endif %}</p>
   {% if o.payment_method == 'Pix' and o.channel == 'site' and o.status != 'cancelado' %}
   <form method="post" action="{{ url_for('admin.order_pix', order_id=o.id) }}" class="pix-line">
     {{ csrf() }}<input type="hidden" name="filter" value="{{ status or '' }}">

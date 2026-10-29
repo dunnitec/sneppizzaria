@@ -346,6 +346,7 @@ class Order(db.Model):
 
     payment_method = db.Column(db.String(30))  # Dinheiro | Pix | Débito | Crédito
     change_for = db.Column(db.Numeric(8, 2))  # troco para quanto (se dinheiro)
+    split_people = db.Column(db.Integer)  # dividir a conta em partes iguais entre N pessoas (services/split.py)
 
     subtotal = db.Column(db.Numeric(8, 2), nullable=False, default=0)
     delivery_fee = db.Column(db.Numeric(8, 2), nullable=False, default=0)
@@ -358,6 +359,20 @@ class Order(db.Model):
     table_label = db.Column(db.String(20))  # mesa (pedido de comer na loja)
     dispatch_id = db.Column(db.Integer, db.ForeignKey("dispatches.id"), index=True)  # comanda de saída do motoboy
     printed_at = db.Column(db.DateTime)
+
+    def split_text(self):
+        """Como dividir a conta, para o cupom, o painel e o acompanhamento ('' = não divide)."""
+        if not self.split_people:
+            return ""
+        from app.services.split import describe
+
+        return describe(self.total, self.split_people) + (" (sem a entrega)" if self.fee_pending else "")
+
+    def split_groups(self):
+        """Partes agrupadas por valor, para o cupom: [(1, 33.34), (2, 33.33)]."""
+        from app.services.split import groups
+
+        return groups(self.total, self.split_people) if self.split_people else []
     delivered_at = db.Column(db.DateTime)
     pix_paid_at = db.Column(db.DateTime)  # dono confirmou que o Pix caiu na conta
     confirmed_at = db.Column(db.DateTime)  # quando a loja confirmou (acompanhamento do pedido)

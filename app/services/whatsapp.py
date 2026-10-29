@@ -64,6 +64,11 @@ def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, t
         lines.append("Vou pagar pelo Pix do site e mandar o comprovante aqui.")
     if order.get("change_for"):
         lines.append(f"Troco para: {brl(float(order['change_for']))}")
+    if order.get("split_people"):
+        from app.services.split import describe
+
+        lines.append(f"*Dividir a conta em {describe(total, order['split_people'])}*"
+                     + (" (sem a entrega)" if delivery_fee is None and not order.get("withdraw") else ""))
     if order.get("eta"):  # previsão, como no iFood: entrega chega às HH:MM; retirada fica pronta às HH:MM
         lines += ["", f"*Previsão de entrega: {order['eta']}*" if not order.get("withdraw")
                   else f"*Pronto para retirar às {order['eta']}*"]

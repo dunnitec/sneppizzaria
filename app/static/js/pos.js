@@ -57,6 +57,7 @@
     $('[name="street"]').addEventListener("change", () => { if (!$('[name="cep"]').value) kmQuote(); });
   }
   $('[name="payment_method"]').addEventListener("change", (e) => { $("#pos-change").hidden = e.target.value !== "Dinheiro"; });
+  $('[name="split_people"]').addEventListener("change", renderTotal);
 
   /* ---------- regras (as mesmas do site) ---------- */
   const comboOf = (c) => Object.assign({ sources: [], extras: [], choice_label: "", choice_options: [] }, c.combo || {});
@@ -208,8 +209,15 @@
   function renderTotal() {
     const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
     const total = sub + (fee() || 0);
-    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${delivery() ? `<div><span>Entrega</span><b>${fee() === null ? "a combinar" : money(fee())}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(total)}</b></div>`;
+    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${delivery() ? `<div><span>Entrega</span><b>${fee() === null ? "a combinar" : money(fee())}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(total)}</b></div>${splitLine(total)}`;
     return total;
+  }
+  // dividir a conta: mesma conta do servidor (services/split.py)
+  function splitLine(total) {
+    const n = Number(form.split_people.value);
+    if (!n) return "";
+    const c = Math.round(total * 100), b = Math.floor(c / n), x = c - b * n;
+    return `<div><span>Por pessoa (${n})</span><b>${x ? `${x} de ${money((b + 1) / 100)} e ${n - x} de ${money(b / 100)}` : `${money(b / 100)} cada`}</b></div>`;
   }
   // taxa da entrega: a do bairro da lista ou a digitada para "Outro bairro" (vazia = a combinar)
   function fee() {
@@ -242,7 +250,7 @@
       withdraw: !delivery(), street: f.get("street"), number: f.get("number"), complement: f.get("complement"),
       neighborhood: hood === "__outro__" ? (f.get("other_neighborhood") || "").trim() : hood, reference: f.get("reference"),
       delivery_fee: other() || D.km ? fee() : null, cep: D.km ? f.get("cep") : "",
-      payment_method: f.get("payment_method"), change_for: change,
+      payment_method: f.get("payment_method"), change_for: change, split_people: Number(f.get("split_people")) || null,
       items: cart.map((i) => Object.assign({}, i.sel, { quantity: i.qty })),
     };
     const btn = $("#pos-submit");
