@@ -1,0 +1,42 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis">
+  <div class="kpi"><span>Vendido</span><b>{{ pay.sold|brl }}</b></div>
+  <div class="kpi"><span>Taxa da maquininha</span><b class="neg">{{ pay.fees|brl }}</b><small>{% if not pay.rows|selectattr('rate')|list %}<a href="{{ url_for('admin.costs') }}#taxas">informar as taxas</a>{% else %}estimada pelas taxas informadas{% endif %}</small></div>
+  <div class="kpi"><span>Líquido</span><b>{{ pay.net|brl }}</b><small>o que fica depois da taxa</small></div>
+  <div class="kpi"><span>Descontos dados</span><b>{{ pay.discount_total|brl }}</b><small>{{ pay.discount_orders }} pedido{{ 's' if pay.discount_orders != 1 }}</small></div>
+</div>
+
+<section class="card">
+  <h2>Por forma de pagamento</h2>
+  {% if pay.rows %}
+  <div class="table-scroll">
+  <table class="list">
+    <thead><tr><th>Forma</th><th class="v">Pedidos</th><th class="v">Vendido</th><th class="v">%</th><th class="v">Taxa</th><th class="v">Líquido</th></tr></thead>
+    {% for r in pay.rows %}
+    <tr><td>{{ r.label }}</td><td class="v">{{ r.orders }}</td><td class="v">{{ r.total|brl }}</td><td class="v">{{ m.pct(r.share, 0) }}</td>
+      <td class="v">{% if r.rate %}{{ r.fee|brl }} <small class="hint">({{ m.pct(r.rate, 2) }})</small>{% else %}—{% endif %}</td><td class="v"><b>{{ r.net|brl }}</b></td></tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% else %}<p class="empty">Sem vendas no período.</p>{% endif %}
+</section>
+
+<div class="two">
+  <section class="card">
+    <h2>Descontos</h2>
+    <table class="list">
+      <tr><td>Desconto de 1º pedido</td><td class="v">{{ pay.first_orders }} pedido{{ 's' if pay.first_orders != 1 }}</td></tr>
+      <tr><td>Prêmio da fidelidade usado</td><td class="v">{{ pay.loyalty_rewards }}</td></tr>
+      <tr class="total"><td>Total descontado</td><td class="v">{{ pay.discount_total|brl }}</td></tr>
+    </table>
+    {% if pay.split_orders %}<p class="hint">{{ pay.split_orders }} pedido(s) com a conta dividida entre pessoas.</p>{% endif %}
+    {% if pay.pix_waiting %}<p class="hint"><b>{{ pay.pix_waiting }} Pix do site</b> sem a confirmação de que caiu na conta. Confira em <a href="{{ url_for('admin.orders') }}">Pedidos</a>.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Promoções que venderam</h2>
+    <table class="list">
+      {% for p in pay.promos %}<tr><td>{{ p.name }}</td><td class="v">{{ p.qty }} un.</td><td class="v">{{ p.total|brl }}</td></tr>
+      {% else %}<tr><td class="empty">Nenhuma venda com promoção no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>

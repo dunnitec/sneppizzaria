@@ -5,7 +5,7 @@
   <li><b>Motoboys:</b> escolha como paga cada um. O sistema soma as entregas do dia pelas comandas da aba <a href="{{ url_for('admin.dispatches') }}">Entregas</a> e mostra quanto pagar. Ao tocar em <b>Pagar</b>, o valor entra nos gastos da aba <a href="{{ url_for('admin.accounts') }}">Contas</a>.</li>
   <li><b>Funcionários diaristas:</b> marque quem trabalhou no dia. <b>Mensalistas:</b> o salário do mês aparece sozinho.</li>
   <li><b>Vale</b> é um adiantamento: entra nos gastos e desconta do que falta pagar no mês.</li>
-  <li>Use as setas ‹ › para ver ou acertar outro dia.</li>
+  <li>Use as setas ‹ › ou escolha a data para ver ou acertar outro dia.</li>
 </ul>
 {% endblock %}
 {% block content %}
@@ -16,6 +16,11 @@
   <h2 class="period-title">{{ title }}</h2>
   {% if next %}<a class="button ghost small" href="{{ url_for('admin.team', dia=next.isoformat() if next != today else None) }}" aria-label="Próximo dia">›</a>{% else %}<span class="button ghost small" aria-hidden="true" style="visibility:hidden">›</span>{% endif %}
 </div>
+<form method="get" class="day-pick center">
+  <label>Escolher o dia <input type="date" name="dia" value="{{ day.isoformat() }}" max="{{ today.isoformat() }}" onchange="this.form.submit()"></label>
+  <button class="ghost small">Ver</button>
+  <a class="hint" href="{{ url_for('admin.reports', tipo='gastos') }}">Quanto cada um recebeu no mês ›</a>
+</form>
 
 {# ---------- motoboys ---------- #}
 <section class="card" id="motoboys">

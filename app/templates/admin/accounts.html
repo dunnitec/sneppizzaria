@@ -6,6 +6,7 @@
   <li><b>Gastos</b> são o que você lança aqui (mercado, gás, aluguel...) e os pagamentos feitos na aba <a href="{{ url_for('admin.team') }}">Equipe</a> (motoboys e funcionários entram sozinhos).</li>
   <li><b>Sobrou</b> = vendido − gastos.</li>
   <li>Lançou errado? Toque em <b>Apagar</b> na linha do gasto.</li>
+  <li>Para ver outro dia, use as setas ‹ › ou escolha a data. Qualquer período (semana, ano...) e o lucro real ficam em <a href="{{ url_for('admin.reports', tipo='gastos') }}">Relatórios</a>.</li>
 </ul>
 {% endblock %}
 {% block content %}
@@ -22,6 +23,12 @@
   <h2 class="period-title">{{ title }}</h2>
   {% if next %}<a class="button ghost small" href="{{ url_for('admin.accounts', periodo='mes' if month else None, dia=next.isoformat()) }}" aria-label="Próximo">›</a>{% else %}<span class="button ghost small" aria-hidden="true" style="visibility:hidden">›</span>{% endif %}
 </div>
+<form method="get" class="day-pick center">
+  {% if month %}<input type="hidden" name="periodo" value="mes">{% endif %}
+  <label>{{ 'Mês de' if month else 'Escolher o dia' }} <input type="date" name="dia" value="{{ day.isoformat() }}" max="{{ today.isoformat() }}" onchange="this.form.submit()"></label>
+  <button class="ghost small">Ver</button>
+  <a class="hint" href="{{ url_for('admin.reports', tipo='lucro', inicio=s.start.isoformat(), fim=s.end.isoformat()) }}">Lucro real deste período ›</a>
+</form>
 
 <div class="kpis kpis-3">
   <div class="kpi"><span>Vendido</span><b>{{ s.sold|brl }}</b><small>{{ s.orders }} pedido{{ 's' if s.orders != 1 }}</small></div>

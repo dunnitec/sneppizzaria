@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% block title %}Custos{% endblock %}
+{% block help %}
+<ul>
+  <li>Aqui você diz <b>quanto custa fazer</b> cada item (ingredientes + caixa). Com isso o relatório <a href="{{ url_for('admin.reports', tipo='lucro') }}">Lucro real</a> mostra o lucro de verdade, a margem e o markup de cada pizza.</li>
+  <li><b>Não sabe o custo de cada sabor?</b> Comece pelo <b>% estimado da linha</b> (ex.: 35% = de uma pizza de R$ 60, R$ 21 é custo). Depois vá trocando pelo valor certo dos sabores que mais vendem.</li>
+  <li>Deixe em branco o que não souber. O relatório avisa quanto das vendas está sem custo.</li>
+  <li><b>Taxa da maquininha</b>: a % que a operadora desconta no débito, no crédito e no Pix (se o Pix cai pela maquininha).</li>
+</ul>
+{% endblock %}
+{% block content %}
+<h1>Custos</h1>
+<p class="hint">Preencha o que souber e toque em <b>Salvar custos</b> no fim da página. Vale para as vendas de agora em diante e para estimar as antigas.</p>
+
+<form method="post" class="costs-form">
+  {{ csrf() }}
+  <section class="card" id="taxas">
+    <h2>Taxa da maquininha</h2>
+    <div class="row">
+      {% for method in methods if method != 'Dinheiro' %}
+      <label class="money">{{ method }} (%)<input name="fee-{{ method }}" inputmode="decimal" placeholder="0,00" value="{{ ('%.2f'|format(fees[method]))|replace('.', ',') if method in fees else '' }}"></label>
+      {% endfor %}
+    </div>
+    <p class="hint">Ex.: débito 1,99 e crédito 3,49. Dinheiro não tem taxa.</p>
+  </section>
+
+  {% for c in categories %}
+  <section class="card cost-cat">
+    <div class="cost-cat-head">
+      <h2>{{ c.name }}</h2>
+      <label class="money">% estimado da linha<input name="pct-{{ c.id }}" inputmode="decimal" placeholder="ex.: 35" value="{{ ('%.2f'|format(c.cost_percent))|replace('.', ',')|replace(',00', '') if c.cost_percent is not none else '' }}"></label>
+    </div>
+    <div class="table-scroll">
+    <table class="list cost-table">
+      {% set labels = c.sizes()|map(attribute='label')|list %}
+      <thead><tr><th>Item</th>{% for label in labels %}<th class="v">{{ label }}</th>{% endfor %}</tr></thead>
+      {% for p in c.products %}
+      <tr>
+        <td>{{ p.name }}</td>
+        {% for label in labels %}{% set v = p.variants|selectattr('label', 'equalto', label)|first %}
+        <td class="v">{% if v %}
+          <input name="cost-{{ v.id }}" inputmode="decimal" aria-label="Custo de {{ p.name }} {{ v.label }}"
+                 value="{{ v.cost|money_input if v.cost is not none else '' }}"
+                 placeholder="{{ (v.price * c.cost_percent / 100)|money_input if c.cost_percent is not none else 'custo' }}">
+          <small class="hint">vende {{ v.price|brl }}{% if v.cost %} · {{ ('%.1f'|format(v.price / v.cost))|replace('.', ',') }}×{% endif %}</small>
+        {% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </section>
+  {% endfor %}
+
+  {% if borders %}
+  <section class="card">
+    <h2>Bordas</h2>
+    <p class="hint">Custo do recheio da borda. Em branco = usa o % estimado da linha da pizza.</p>
+    <div class="cost-borders">
+      {% for b in borders %}
+      <label class="money">{{ b.group_name }} · {{ b.name }}<input name="bcost-{{ b.id }}" inputmode="decimal" placeholder="custo" value="{{ b.cost|money_input if b.cost is not none else '' }}"><small class="hint">vende {{ b.price|brl }}</small></label>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="sticky-save"><button class="primary big">Salvar custos</button></div>
+</form>
+{% endblock %}

@@ -24,6 +24,7 @@ CEPS = {
     "13309999": {"logradouro": "Rua Longe", "bairro": "Pirapitingui", "localidade": "Itu", "uf": "SP"},
 }
 PLACES = {"rua perto": NEAR, "rua longe": FAR, "centro, itu, sp": NEAR}
+ROUTE = {}  # {"route": [metros, ...]} = rotas que o OSRM falso devolve
 
 
 @pytest.fixture
@@ -37,6 +38,11 @@ def net(monkeypatch):
             return CEPS.get(cep, {"erro": True})
         if "awesomeapi" in url:  # ponto do CEP: os testes usam o mapa pela rua
             raise requests.HTTPError("404")
+        if "osrm" in url:  # serviço de rotas: por padrão fora do ar (vale a linha reta); ver test_route_*
+            calls["route"] = calls.get("route", 0) + 1
+            if "route" in ROUTE:
+                return {"routes": [{"distance": m} for m in ROUTE["route"]]}
+            raise requests.ConnectionError("fora do ar")
         if "photon" in url:
             calls["photon"] = calls.get("photon", 0) + 1
             return {"features": []}
@@ -50,6 +56,7 @@ def net(monkeypatch):
     monkeypatch.setattr(geo.time, "sleep", lambda s: None)
     geo._ceps.clear()
     public._quotes.clear()
+    ROUTE.clear()
     return calls
 
 
@@ -357,3 +364,20 @@ def test_store_found_by_cep_and_number(panel, open_store, monkeypatch):
     assert open_store.delivery_mode == "km"
     assert (open_store.store_lat, open_store.store_lng, open_store.store_city) == (-23.2820547, -47.30034, "Itu")
     assert (open_store.store_cep, open_store.store_number) == ("13310530", "134")
+
+
+# ---------- distância pelas ruas ----------
+
+def test_route_uses_shortest_driving_route_and_is_cached(km_store, net):
+    ROUTE["route"] = [3950, 3720]  # duas rotas sugeridas: vale a mais curta
+    q = geo.quote(km_store, street="Rua Perto", number="10")
+    assert q["km"] == Decimal("3.7")  # e não 1,3 km da linha reta
+    assert q["fee"] == Decimal("7.40")
+    geo.quote(km_store, street="Rua Perto", number="10")
+    assert net["route"] == 1  # a segunda vez vem do GeoCache
+
+
+def test_route_service_down_falls_back_to_straight_line(km_store, net):
+    q = geo.quote(km_store, street="Rua Perto", number="10")
+    assert q["km"] == Decimal("1.3")
+    assert GeoCache.query.filter(GeoCache.key.like("rota:%")).count() == 0  # não guarda a falha

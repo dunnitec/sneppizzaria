@@ -1,0 +1,67 @@
+{% import "admin/reports/_macros.html" as m %}
+{# fechamento do dia: também aparece resumido no Início (admin/home.html) #}
+<div class="kpis">
+  <div class="kpi"><span>Vendido</span><b>{{ c.sold|brl }}</b><small>{{ c.orders }} pedido{{ 's' if c.orders != 1 }}</small></div>
+  <div class="kpi"><span>Ticket médio</span><b>{{ c.avg_ticket|brl }}</b><small>{{ c.pizzas }} pizza{{ 's' if c.pizzas != 1 }} · {{ c.deliveries }} entrega{{ 's' if c.deliveries != 1 }}</small></div>
+  <div class="kpi"><span>Dinheiro na gaveta</span><b>{{ c.cash_in|brl }}</b><small>vendas em dinheiro (fora o troco inicial)</small></div>
+  {% if c.with_expenses %}
+  <div class="kpi {{ 'kpi-ok' if c.net >= 0 else 'kpi-bad' }}"><span>Lucro real do dia</span><b>{{ c.net|brl }}</b><small>margem {{ m.pct(c.net_margin) }}</small></div>
+  {% else %}
+  <div class="kpi"><span>Lucro bruto</span><b>{{ c.gross_profit|brl }}</b><small>margem {{ m.pct(c.gross_margin) }}</small></div>
+  {% endif %}
+</div>
+<p class="hint">
+  {% if c.first %}Primeiro pedido às {{ c.first }}, último às {{ c.last }}.{% else %}Nenhum pedido confirmado neste dia.{% endif %}
+  {% if c.pending %}<b>{{ c.pending }} pendente(s)</b> ({{ c.pending_value|brl }}) ainda não entraram — <a href="{{ url_for('admin.orders', status='pendente') }}">confirmar</a>.{% endif %}
+  {% if c.cancelled %}{{ c.cancelled }} cancelado(s) ({{ c.cancelled_value|brl }}).{% endif %}
+</p>
+
+<div class="two">
+  <section class="card">
+    <h2>Recebido por forma de pagamento</h2>
+    {% if c.by_payment %}
+    <table class="list">
+      {% for r in c.by_payment %}<tr><td>{{ r.label }}</td><td class="v">{{ r.orders }} ped.</td><td class="v"><b>{{ r.total|brl }}</b></td></tr>{% endfor %}
+      <tr class="total"><td>Total</td><td class="v">{{ c.orders }} ped.</td><td class="v"><b>{{ c.sold|brl }}</b></td></tr>
+    </table>
+    {% else %}<p class="empty">Sem vendas.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Conta do dia</h2>
+    <table class="list dre">
+      <tr><td>Produtos vendidos</td><td class="v">{{ c.products|brl }}</td></tr>
+      <tr><td>+ Taxas de entrega</td><td class="v">{{ c.delivery|brl }}</td></tr>
+      {% if c.discounts %}<tr><td>− Descontos (1º pedido, fidelidade)</td><td class="v neg">-{{ c.discounts|brl }}</td></tr>{% endif %}
+      <tr class="total"><td>= Vendido</td><td class="v">{{ c.sold|brl }}</td></tr>
+      <tr><td>− Taxa da maquininha</td><td class="v neg">-{{ c.card_fees|brl }}</td></tr>
+      <tr><td>− Custo dos produtos</td><td class="v neg">-{{ c.cmv|brl }}</td></tr>
+      <tr class="total"><td>= Lucro bruto</td><td class="v">{{ c.gross_profit|brl }}</td></tr>
+      {% if c.with_expenses %}
+      <tr><td>− Gastos do dia{% if c.mode == 'ficha' and c.purchases %} (fora compras){% endif %}</td><td class="v neg">-{{ c.operating_total|brl }}</td></tr>
+      <tr class="total"><td>= Lucro real</td><td class="v"><b class="{{ 'neg' if c.net < 0 }}">{{ c.net|brl }}</b></td></tr>
+      {% endif %}
+    </table>
+    {% if c.covered_share < 100 and c.orders %}<p class="hint">{{ m.pct(100 - c.covered_share, 0) }} das vendas estão sem custo cadastrado. <a href="{{ url_for('admin.costs') }}">Preencher custos</a>.</p>{% endif %}
+  </section>
+</div>
+
+<div class="two">
+  <section class="card">
+    <h2>Por canal</h2>
+    <table class="list">
+      {% for r in c.by_channel %}<tr><td>{{ r.label }}</td><td class="v">{{ r.orders }} ped.</td><td class="v">{{ r.total|brl }}</td></tr>
+      {% else %}<tr><td class="empty">Sem vendas.</td></tr>{% endfor %}
+    </table>
+  </section>
+  {% if c.with_expenses %}
+  <section class="card">
+    <h2>Caixa</h2>
+    <table class="list">
+      <tr><td>Vendido</td><td class="v">{{ c.sold|brl }}</td></tr>
+      <tr><td>Pago no dia (gastos, motoboys, funcionários)</td><td class="v neg">-{{ c.paid_out|brl }}</td></tr>
+      <tr class="total"><td>Sobrou</td><td class="v"><b>{{ c.left|brl }}</b></td></tr>
+    </table>
+    <p class="hint">Lançar ou apagar gastos: aba <a href="{{ url_for('admin.accounts', dia=c.day.isoformat()) }}">Contas</a>.</p>
+  </section>
+  {% endif %}
+</div>

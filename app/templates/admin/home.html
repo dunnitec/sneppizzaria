@@ -22,6 +22,28 @@
   </form>
 </section>
 
+{% set c = closing %}
+<section class="card closing">
+  <div class="closing-head">
+    <h2>Fechamento de hoje</h2>
+    <a class="button ghost small" href="{{ url_for('admin.reports', tipo='fechamento') }}">Ver completo e imprimir ›</a>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><span>Vendido</span><b>{{ c.sold|brl }}</b><small>{{ c.orders }} pedido{{ 's' if c.orders != 1 }} · ticket {{ c.avg_ticket|brl }}</small></div>
+    <div class="kpi"><span>Dinheiro na gaveta</span><b>{{ c.cash_in|brl }}</b><small>vendas em dinheiro</small></div>
+    {% if c.with_expenses %}
+    <div class="kpi"><span>Gastos de hoje</span><b class="{{ 'neg' if c.paid_out }}">{{ c.paid_out|brl }}</b><small><a href="{{ url_for('admin.accounts') }}">lançar gasto</a></small></div>
+    <div class="kpi {{ 'kpi-ok' if c.net >= 0 else 'kpi-bad' }}"><span>Lucro real</span><b>{{ c.net|brl }}</b><small>depois de custos, taxas e gastos</small></div>
+    {% else %}
+    <div class="kpi"><span>Entregas</span><b>{{ c.deliveries }}</b><small>{{ c.pizzas }} pizza{{ 's' if c.pizzas != 1 }}</small></div>
+    <div class="kpi"><span>Lucro bruto</span><b>{{ c.gross_profit|brl }}</b><small>depois de custos e taxas</small></div>
+    {% endif %}
+  </div>
+  {% if c.by_payment %}
+  <p class="pay-line">{% for r in c.by_payment %}<span><b>{{ r.label }}</b> {{ r.total|brl }}</span>{% endfor %}</p>
+  {% endif %}
+</section>
+
 <section class="card times">
   <h2>Tempo agora</h2>
   <p class="hint">O cliente vê a previsão quando faz o pedido (ex.: pediu 20:00 com 50 min → chega 20:50). Numa noite cheia, aumente aqui.</p>
@@ -40,11 +62,6 @@
     <span class="tile-num">{{ pending_count }}</span>
     <span>{{ 'pedido esperando confirmação' if pending_count == 1 else 'pedidos esperando confirmação' }}</span>
     <span class="tile-link">Ver pedidos ›</span>
-  </a>
-  <a class="card tile" href="{{ url_for('admin.reports', inicio=today.isoformat(), fim=today.isoformat()) if has_feature('relatorios') else url_for('admin.orders') }}">
-    <span class="tile-num">{{ report.revenue|brl }}</span>
-    <span>vendido hoje · {{ report.orders }} pedido(s) · {{ report.pizzas }} pizza(s)</span>
-    <span class="tile-link">Ver relatório ›</span>
   </a>
   <a class="card tile {{ 'attention' if sold_out }}" href="{{ url_for('admin.stock') }}">
     <span class="tile-num">{{ sold_out }}</span>

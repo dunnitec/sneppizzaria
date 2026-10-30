@@ -439,3 +439,54 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
 .add-row{border-top:1px dashed var(--line);padding-top:14px;margin-top:6px}
 @media (max-width:700px){.kpis.kpis-3,.two-cols{grid-template-columns:1fr}}
 .kind-choice.disabled{cursor:not-allowed;opacity:.55;border-style:dashed}
+
+/* relatórios: escolha do relatório, cabeçalho, DRE, curva ABC, custos e fechamento no Início */
+.report-kinds{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin:0 0 16px}
+.report-kinds a{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-decoration:none}
+.report-kinds a b{display:block;font-size:14px}
+.report-kinds a small{display:block;font-size:12px;color:var(--muted);line-height:1.3;margin-top:2px}
+.report-kinds a.cur{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:#fafafa}
+.report-kinds a.locked{opacity:.55}
+.report-kinds a.locked b::after{content:" 🔒";font-size:12px}
+.report-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 10px}
+.report-head .period-title{margin:0}
+.report-actions{display:flex;gap:8px}
+.day-pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 14px}
+.day-pick.center{justify-content:center}
+.day-pick label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.day-pick input[type=date]{width:auto}
+.delta{display:block;font-size:12px;margin-top:2px;color:var(--muted)}
+.delta.good{color:#1f7a3a}
+.delta.bad{color:#b3121b}
+.kpis-mini .kpi b{font-size:18px}
+.list thead th{font-size:12px;color:var(--muted);text-align:left;font-weight:700;padding:4px}
+.list thead th.v{text-align:right}
+.list tr.total td{border-top:2px solid var(--line);font-weight:700}
+.list tr.big td{font-size:16px}
+.dre .pct{color:var(--muted);font-size:12px;width:60px}
+.notice{background:#fff7e6;border:1px solid #f1d39a;border-radius:10px;padding:10px 12px;font-size:14px;margin:0 0 14px}
+.explain dt{font-weight:800;margin-top:10px}
+.explain dd{margin:2px 0 0;color:var(--muted);font-size:14px}
+.table-scroll{overflow-x:auto}
+.abc td{white-space:nowrap}
+.abc td:nth-child(2){white-space:normal;min-width:140px}
+.abc-tag{display:inline-block;width:22px;text-align:center;border-radius:6px;font-weight:800;font-size:12px;padding:1px 0}
+.abc-a{background:#e6f5ea;color:#1f7a3a}
+.abc-b{background:#fff3dc;color:#8a5a00}
+.abc-c{background:#f3e6e6;color:#8f2a2a}
+.cost-cat-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:8px}
+.cost-cat-head h2{margin:0}
+.cost-table input{width:88px;text-align:right}
+.cost-table td.v small{display:block}
+.cost-borders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.sticky-save{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg,#f6f6f6) 35%);padding:14px 0 6px;text-align:center}
+.closing-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.closing-head h2{margin:0}
+.pay-line{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 0;font-size:14px}
+.pay-line span{font-variant-numeric:tabular-nums}
+@media (max-width:700px){.report-kinds{grid-template-columns:1fr 1fr}.report-kinds a small{display:none}}
+@media print{
+  .no-print,.report-kinds,header,nav,.tabs,.help,footer{display:none!important}
+  .card{break-inside:avoid;box-shadow:none}
+  body{background:#fff}
+}

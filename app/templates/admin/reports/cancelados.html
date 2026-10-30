@@ -1,0 +1,18 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis kpis-3">
+  <div class="kpi {{ 'kpi-bad' if ca.orders }}"><span>Cancelados</span><b>{{ ca.orders|length }}</b><small>{{ ca.value|brl }} · {{ m.pct(ca.rate, 0) }} dos pedidos</small></div>
+  <div class="kpi"><span>Ainda pendentes</span><b>{{ ca.pending }}</b><small>{{ ca.pending_value|brl }}</small></div>
+  <div class="kpi"><span>Por canal</span><b>{{ ca.by_channel[0][0] if ca.by_channel else '—' }}</b><small>{% for label, n in ca.by_channel %}{{ label }}: {{ n }}{{ ' · ' if not loop.last }}{% endfor %}</small></div>
+</div>
+{% if ca.pending %}<p class="hint">Pendente não entra em nenhum relatório. Confirme ou cancele em <a href="{{ url_for('admin.orders', status='pendente') }}">Pedidos</a>.</p>{% endif %}
+
+<section class="card">
+  <h2>Pedidos cancelados</h2>
+  {% if ca.orders %}
+  <table class="list">
+    {% for o in ca.orders %}
+    <tr><td>#{{ o.id }}</td><td>{{ (o.created_at|local_time).strftime('%d/%m %H:%M') if o.created_at else '' }}</td><td>{{ o.customer_name }}</td><td class="v">{{ o.total|brl }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="empty">Nenhum pedido cancelado no período.</p>{% endif %}
+</section>

@@ -1,0 +1,36 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis kpis-3">
+  <div class="kpi"><span>Gastos</span><b class="neg">{{ sp.total|brl }}</b><small>{{ sp.expenses|length }} lançamento{{ 's' if sp.expenses|length != 1 }}</small></div>
+  <div class="kpi"><span>Média por dia</span><b>{{ sp.avg_day|brl }}</b></div>
+  <div class="kpi"><span>Equipe</span><b>{{ sp.people|sum(attribute='paid')|brl }}</b><small>motoboys e funcionários</small></div>
+</div>
+
+<div class="two">
+  <section class="card">
+    <h2>Por tipo</h2>
+    <table class="list">
+      {% for r in sp.by_category %}<tr><td>{{ r.label }}</td><td class="v">{{ m.pct(r.share, 0) }}</td><td class="v"><b>{{ r.total|brl }}</b></td></tr>
+      {% else %}<tr><td class="empty">Nenhum gasto no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="card">
+    <h2>Quanto cada um recebeu</h2>
+    <table class="list">
+      {% for p in sp.people %}<tr><td>{{ p.name }} <small class="hint">{{ p.kind }}</small></td><td class="v">{% if p.advances %}<small class="hint">vales {{ p.advances|brl }}</small>{% endif %}</td><td class="v"><b>{{ p.paid|brl }}</b></td></tr>
+      {% else %}<tr><td class="empty">Nenhum pagamento de equipe no período.</td></tr>{% endfor %}
+    </table>
+    <p class="hint">Pagamentos feitos pelo botão Pagar da aba <a href="{{ url_for('admin.team') }}">Equipe</a>.</p>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Todos os gastos</h2>
+  {% if sp.expenses %}
+  <table class="list">
+    {% for e in sp.expenses %}
+    <tr><td>{{ e.day.strftime('%d/%m') }}</td><td><b>{{ e.category_name }}</b>{% if e.description %} · {{ e.description }}{% endif %}{% if e.is_advance %} <span class="tag">vale</span>{% endif %}</td><td class="v">{{ e.amount|brl }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="hint">Para lançar ou apagar: aba <a href="{{ url_for('admin.accounts') }}">Contas</a>.</p>
+  {% else %}<p class="empty">Nenhum gasto lançado no período.</p>{% endif %}
+</section>

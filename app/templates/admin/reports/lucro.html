@@ -1,0 +1,58 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis">
+  <div class="kpi"><span>Faturamento</span><b>{{ p.revenue|brl }}</b><small>produtos + entregas</small></div>
+  <div class="kpi"><span>Lucro bruto</span><b>{{ p.gross_profit|brl }}</b><small>margem {{ m.pct(p.gross_margin) }}</small></div>
+  {% if p.with_expenses %}
+  <div class="kpi {{ 'kpi-ok' if p.net >= 0 else 'kpi-bad' }}"><span>Lucro real</span><b>{{ p.net|brl }}</b><small>margem real {{ m.pct(p.net_margin) }}</small></div>
+  {% else %}
+  <div class="kpi"><span>Pedidos</span><b>{{ p.orders }}</b><small>ticket {{ p.avg_ticket|brl }}</small></div>
+  {% endif %}
+  <div class="kpi"><span>Markup médio</span><b>{{ m.x(p.markup) }}</b><small>preço ÷ custo</small></div>
+</div>
+
+{% if p.mode == 'ficha' and p.covered_share < 100 %}
+<p class="notice">{{ m.pct(100 - p.covered_share, 0) }} das vendas ({{ p.uncovered_sales|brl }}) são de itens <b>sem custo cadastrado</b> e contam como custo zero. O lucro real é menor do que aparece. <a href="{{ url_for('admin.costs') }}">Preencher custos</a></p>
+{% elif p.mode == 'compras' %}
+<p class="notice">Nenhum custo cadastrado ainda: o custo dos produtos é o que você lançou em Contas como <b>Mercado, Bebidas e Embalagens</b>. Para ver o lucro de cada pizza, preencha a aba <a href="{{ url_for('admin.costs') }}">Custos</a>.</p>
+{% endif %}
+
+<div class="two">
+  <section class="card">
+    <h2>De onde vem o lucro</h2>
+    <table class="list dre">
+      <tr><td>Produtos vendidos</td><td class="v">{{ p.products|brl }}</td><td class="v pct"></td></tr>
+      <tr><td>+ Taxas de entrega cobradas</td><td class="v">{{ p.delivery|brl }}</td><td class="v pct"></td></tr>
+      <tr class="total"><td>= Faturamento</td><td class="v">{{ p.revenue|brl }}</td><td class="v pct"></td></tr>
+      <tr><td>− Descontos (1º pedido, fidelidade)</td><td class="v neg">-{{ p.discounts|brl }}</td><td class="v pct"></td></tr>
+      <tr class="total"><td>= Vendido (o que entrou)</td><td class="v">{{ p.sold|brl }}</td><td class="v pct">100%</td></tr>
+      <tr><td>− Taxa da maquininha {% if not p.rates %}<a href="{{ url_for('admin.costs') }}#taxas" class="hint">(informar)</a>{% endif %}</td><td class="v neg">-{{ p.card_fees|brl }}</td><td class="v pct">{{ m.pct((p.card_fees / p.sold * 100) if p.sold else 0) }}</td></tr>
+      <tr><td>− Custo dos produtos (CMV){% if p.mode == 'compras' %} pelas compras{% endif %}</td><td class="v neg">-{{ p.cmv|brl }}</td><td class="v pct">{{ m.pct((p.cmv / p.sold * 100) if p.sold else 0) }}</td></tr>
+      <tr class="total"><td>= Lucro bruto</td><td class="v">{{ p.gross_profit|brl }}</td><td class="v pct">{{ m.pct(p.gross_margin) }}</td></tr>
+      {% if p.with_expenses %}
+      {% for o in p.operating %}<tr><td>− {{ o.label }}</td><td class="v neg">-{{ o.total|brl }}</td><td class="v pct">{{ m.pct((o.total / p.sold * 100) if p.sold else 0) }}</td></tr>{% endfor %}
+      <tr class="total big"><td>= Lucro real</td><td class="v"><b class="{{ 'neg' if p.net < 0 }}">{{ p.net|brl }}</b></td><td class="v pct">{{ m.pct(p.net_margin) }}</td></tr>
+      {% endif %}
+    </table>
+    {% if p.with_expenses and p.mode == 'ficha' and p.purchases %}
+    <p class="hint">Compras de mercado, bebidas e embalagens no período: <b>{{ p.purchases|brl }}</b>. Não entram de novo nos gastos porque o custo de cada pizza já está no CMV ({{ p.cost_ficha|brl }}). Se as compras estão bem acima do CMV, pode haver desperdício ou custo cadastrado baixo.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>O que esses números querem dizer</h2>
+    <dl class="explain">
+      <dt>CMV {{ m.pct(p.cmv_share) }}</dt>
+      <dd>De cada R$ 100 em produtos, R$ {{ '%.0f'|format(p.cmv_share) }} vão em ingrediente e embalagem. Em pizzaria, o comum é ficar entre 25% e 35%; acima de 40% o preço está baixo ou há desperdício.</dd>
+      <dt>Markup {{ m.x(p.markup) }}</dt>
+      <dd>Quantas vezes o preço de venda cobre o custo do produto. Markup 3× = vende por R$ 30 o que custa R$ 10.</dd>
+      <dt>Margem bruta {{ m.pct(p.gross_margin) }}</dt>
+      <dd>O que sobra de cada venda depois do produto e da maquininha, para pagar as contas da loja.</dd>
+      {% if p.with_expenses %}
+      <dt>Margem real {{ m.pct(p.net_margin) }}</dt>
+      <dd>O que sobra de verdade depois de todos os gastos lançados. Delivery saudável fica entre 10% e 20%.</dd>
+      <dt>Ponto de equilíbrio</dt>
+      <dd>{% if p.break_even %}Para pagar os gastos deste período era preciso vender <b>{{ p.break_even|brl }}</b>. Você vendeu {{ p.sold|brl }}{% if p.sold >= p.break_even %} — passou do ponto.{% else %} — faltaram {{ (p.break_even - p.sold)|brl }}.{% endif %}{% else %}Aparece quando houver vendas com lucro bruto e gastos lançados.{% endif %}</dd>
+      {% endif %}
+    </dl>
+  </section>
+</div>

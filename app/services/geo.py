@@ -1,7 +1,8 @@
 """Frete por distância: CEP → endereço (ViaCEP) → ponto no mapa → km até a loja.
 
 Escolhas (pensadas para custo zero):
-- Distância em linha reta × ROAD_FACTOR, para compensar o desenho das ruas. Não usa serviço de rotas.
+- Distância pelas ruas, de carro, no OSRM (rotas grátis sobre o OpenStreetMap); entre as rotas que ele
+  sugere, vale a mais curta (o motoboy pega o caminho mais curto). Fora do ar: linha reta × ROAD_FACTOR.
 - Ponto no mapa por várias fontes grátis, da mais exata para a mais larga (find_point):
   rua + número no Nominatim (OpenStreetMap) e no Photon (busca tolerante do OpenStreetMap, acha
   "R. Joaquim Antônio de Freitas" mesmo cadastrada sem o "de"), o ponto do CEP (AwesomeAPI),
@@ -29,6 +30,7 @@ VIACEP_URL = "https://viacep.com.br/ws/{cep}/json/"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 PHOTON_URL = "https://photon.komoot.io/api/"
 CEP_POINT_URL = "https://cep.awesomeapi.com.br/json/{cep}"
+ROUTE_URL = "https://router.project-osrm.org/route/v1/driving/{lng1},{lat1};{lng2},{lat2}"
 UF_NAMES = {
     "AC": "acre", "AL": "alagoas", "AP": "amapa", "AM": "amazonas", "BA": "bahia", "CE": "ceara",
     "DF": "distrito federal", "ES": "espirito santo", "GO": "goias", "MA": "maranhao", "MT": "mato grosso",
@@ -226,6 +228,30 @@ def parse_coords(text):
     return (lat, lng) if -90 <= lat <= 90 and -180 <= lng <= 180 else None
 
 
+def route_km(lat1, lng1, lat2, lng2):
+    """Km de carro pelas ruas (OSRM), 1 casa decimal. Guardado em GeoCache (o km fica em lat). None = fora do ar."""
+    a, b = f"{lat1:.5f},{lng1:.5f}", f"{lat2:.5f},{lng2:.5f}"
+    key = f"rota:{a};{b}"
+    hit = GeoCache.query.filter_by(key=key).first()
+    if hit is None:
+        found, answered = _throttled(ROUTE_URL.format(lat1=f"{lat1:.5f}", lng1=f"{lng1:.5f}",
+                                                      lat2=f"{lat2:.5f}", lng2=f"{lng2:.5f}"),
+                                     {"overview": "false", "alternatives": "true"})
+        routes = (found or {}).get("routes") if answered and isinstance(found, dict) else None
+        meters = [r["distance"] for r in routes or [] if isinstance(r, dict) and isinstance(r.get("distance"), (int, float))]
+        if not meters:
+            return None  # fora do ar ou sem rota: não guarda, tenta de novo na próxima
+        hit = GeoCache(key=key, lat=min(meters) / 1000, label="rota de carro (OSRM)")
+        db.session.add(hit)
+        db.session.commit()
+    return Decimal(str(hit.lat)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+
+
+def delivery_km(lat1, lng1, lat2, lng2):
+    """Km da entrega: pelas ruas; se o serviço de rotas não responder, linha reta com a margem das ruas."""
+    return route_km(lat1, lng1, lat2, lng2) or km_between(lat1, lng1, lat2, lng2)
+
+
 def km_between(lat1, lng1, lat2, lng2):
     """Distância de entrega estimada: linha reta (haversine) × ROAD_FACTOR, com 1 casa decimal."""
     r = 6371.0
@@ -272,7 +298,7 @@ def quote(tenant, cep="", street="", neighborhood="", number=""):
     point = locate_customer(tenant, cep, street, neighborhood, number)
     if not point:
         return {"status": "unknown", "km": None, "fee": None}
-    km = km_between(tenant.store_lat, tenant.store_lng, point["lat"], point["lng"])
+    km = delivery_km(tenant.store_lat, tenant.store_lng, point["lat"], point["lng"])
     if tenant.km_max and km > Decimal(str(tenant.km_max)):
         return {"status": "far", "km": km, "fee": None}
     return {"status": "ok", "km": km, "fee": km_fee(tenant, km)}

@@ -28,6 +28,7 @@ from app.extensions import db
 from app.models import RESIDENCES, CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
+from app.services.costs import Menu, cost_of
 from app.services.geo import cep_digits, quote, km_on
 from app.services.hours import is_open, local_time
 from app.services.loyalty import card, discounts
@@ -261,6 +262,7 @@ def place_order(tenant, p, channel="site", account=None):
         if not again:
             raise
         return again, _fee_of(again)
+    menu = Menu(tenant)  # custo de cada item na hora da venda (relatório de lucro)
     for line in cart:
         item = OrderItem(
             order_id=order.id,
@@ -277,6 +279,9 @@ def place_order(tenant, p, channel="site", account=None):
             unit_price=line["unit_price"],
             quantity=line["quantity"],
             line_total=line["line_total"],
+            unit_cost=cost_of(menu, line["category_id"], line["variant_label"],
+                              [(product.id, share) for product, share in line["flavors"]],
+                              line["border_name"], line["addon_names"]),
         )
         db.session.add(item)
         db.session.flush()

@@ -1,0 +1,40 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis">
+  <div class="kpi"><span>Entregas</span><b>{{ de.delivered }}</b><small>{{ de.pickup }} retirada/balcão/mesa</small></div>
+  <div class="kpi"><span>Tempo médio</span><b>{{ de.avg_minutes ~ ' min' if de.avg_minutes is not none else '—' }}</b><small>do pedido até a baixa da entrega</small></div>
+  <div class="kpi"><span>Km rodados</span><b>{{ m.qty(de.km_total) }} km</b><small>{% if de.km_avg %}média {{ m.qty(de.km_avg) }} km por entrega{% else %}frete por distância{% endif %}</small></div>
+  <div class="kpi"><span>Taxas cobradas</span><b>{{ de.fees|brl }}</b><small>pago aos motoboys {{ de.courier_paid|brl }}</small></div>
+</div>
+<p class="hint">
+  {% if de.courier_paid %}Saldo das entregas (taxas cobradas − pago aos motoboys): <b class="{{ 'neg' if de.fee_balance < 0 }}">{{ de.fee_balance|brl }}</b>.{% endif %}
+  {% if de.pending_fee %}{{ de.pending_fee }} entrega(s) com taxa a combinar.{% endif %}
+</p>
+
+<section class="card">
+  <h2>Por motoboy</h2>
+  {% if de.couriers %}
+  <table class="list">
+    <thead><tr><th>Motoboy</th><th class="v">Saídas</th><th class="v">Entregas</th><th class="v">Km</th><th class="v">Taxas</th></tr></thead>
+    {% for c in de.couriers %}<tr><td>{{ c.name }}</td><td class="v">{{ c.trips }}</td><td class="v">{{ c.deliveries }}</td><td class="v">{{ m.qty(c.km) }}</td><td class="v">{{ c.fees|brl }}</td></tr>{% endfor %}
+  </table>
+  <p class="hint">Contam as comandas que saíram no período. Pagamentos: aba <a href="{{ url_for('admin.team') }}">Equipe</a>.</p>
+  {% else %}<p class="empty">Nenhuma comanda de saída no período.</p>{% endif %}
+</section>
+
+<div class="two">
+  <section class="card">
+    <h2>Bairros</h2>
+    <table class="list">
+      {% for h in de.hoods %}<tr><td>{{ h.label }}</td><td class="v">{{ h.orders }} ent.</td><td class="v">{{ h.fees|brl }}</td></tr>
+      {% else %}<tr><td class="empty">Sem entregas.</td></tr>{% endfor %}
+    </table>
+    <p class="hint">Segunda coluna: taxas cobradas no bairro.</p>
+  </section>
+  <section class="card">
+    <h2>Tipo de endereço</h2>
+    <table class="list">
+      {% for label, n in de.residences %}<tr><td>{{ label }}</td><td class="v">{{ n }}</td></tr>
+      {% else %}<tr><td class="empty">Sem entregas.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>

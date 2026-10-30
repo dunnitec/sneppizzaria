@@ -132,6 +132,7 @@ class Tenant(db.Model):
     store_city = db.Column(db.String(80))  # cidade/UF da loja: usadas quando o cliente não sabe o CEP
     store_uf = db.Column(db.String(2))
     km_price = db.Column(db.Numeric(8, 2))  # R$ por km
+    payment_fees = db.Column(db.Text)  # JSON {"Débito": 1.99, "Crédito": 3.49}: taxa da maquininha em % (aba Custos)
     km_base_km = db.Column(db.Numeric(6, 1))  # até X km cobra a taxa fixa abaixo; acima, só km × km_price
     km_base_fee = db.Column(db.Numeric(8, 2))  # vazios = só km × km_price
     km_max = db.Column(db.Numeric(6, 1))  # entrega até X km; vazio = sem limite
@@ -172,6 +173,8 @@ class Category(db.Model):
     icon = db.Column(db.String(20), nullable=False, default="fatia", server_default="fatia")
     accent = db.Column(db.String(20), nullable=False, default="vermelho", server_default="vermelho")
     banner_image = db.Column(db.String(255))  # foto à direita do título (UPLOAD_FOLDER)
+    # custo estimado da linha em % do preço (aba Custos): vale para o sabor sem custo em R$, borda e adicionais
+    cost_percent = db.Column(db.Numeric(5, 2))
 
     def sizes(self):
         if self.sizes_json:
@@ -226,6 +229,7 @@ class ProductVariant(db.Model):
     max_flavors = db.Column(db.Integer, default=1)  # quantos sabores podem ser combinados nessa variante
     price = db.Column(db.Numeric(8, 2), nullable=False)
     active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())  # tamanho em estoque
+    cost = db.Column(db.Numeric(8, 2))  # quanto custa fazer (ingredientes + caixa), aba Custos; vazio = usa o % da linha
 
 
 class Addon(db.Model):
@@ -251,6 +255,7 @@ class Border(db.Model):
     group_name = db.Column(db.String(40), nullable=False)  # Tradicional | Caracol | Vulcão
     name = db.Column(db.String(60), nullable=False)  # Catupiry, Cheddar, Mussarela com Bacon...
     price = db.Column(db.Numeric(8, 2), nullable=False)
+    cost = db.Column(db.Numeric(8, 2))  # custo do recheio (aba Custos); vazio = usa o % da linha da pizza
     active = db.Column(db.Boolean, default=True)
     # onde a borda NÃO aparece: {"no_sizes": ["Broto"], "no_categories": ["premium"]}; vazio = em todas.
     # Guardar o que fica de fora faz um tamanho ou categoria criados depois já virem liberados.
@@ -429,6 +434,7 @@ class OrderItem(db.Model):
     flavor_rows = db.relationship("OrderItemFlavor", lazy=True, order_by="OrderItemFlavor.id")
 
     unit_price = db.Column(db.Numeric(8, 2), nullable=False)
+    unit_cost = db.Column(db.Numeric(8, 2))  # custo na hora da venda (services/costs.py); vazio = sem custo cadastrado
     quantity = db.Column(db.Integer, nullable=False, default=1)
     line_total = db.Column(db.Numeric(8, 2), nullable=False)
 

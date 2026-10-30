@@ -1,0 +1,24 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis">
+  <div class="kpi"><span>Clientes que compraram</span><b>{{ cu.buyers }}</b><small>gasto médio {{ cu.per_customer|brl }}</small></div>
+  <div class="kpi"><span>Novos</span><b>{{ cu.new }}</b><small>{{ cu.new_sales|brl }}</small></div>
+  <div class="kpi"><span>Voltaram</span><b>{{ cu.returning }}</b><small>{{ m.pct(cu.repeat_share, 0) }} dos clientes · {{ cu.returning_sales|brl }}</small></div>
+  <div class="kpi {{ 'kpi-bad' if cu.inactive }}"><span>Sumidos</span><b>{{ cu.inactive }}</b><small>sem pedir há {{ cu.inactive_days }}+ dias</small></div>
+</div>
+<p class="hint">
+  {{ cu.total_customers }} clientes já compraram até o fim do período.
+  {% if cu.anonymous %}{{ cu.anonymous }} pedido(s) ({{ cu.anonymous_sales|brl }}) sem telefone (balcão, mesa).{% endif %}
+  Os sumidos são bons para uma promoção pelo WhatsApp ou um aviso no celular.
+</p>
+
+<section class="card">
+  <h2>Quem mais comprou no período</h2>
+  {% if cu.top %}
+  <table class="list">
+    {% for r in cu.top %}
+    <tr><td class="n">{{ loop.index }}</td><td>{{ r.customer.name if r.customer else '—' }}{% if r.customer %} <small class="hint">{{ r.customer.phone }}</small>{% endif %}</td><td class="v">{{ r.orders }} ped.</td><td class="v"><b>{{ r.total|brl }}</b></td></tr>
+    {% endfor %}
+  </table>
+  <p class="hint">Todos os clientes e o histórico: aba <a href="{{ url_for('admin.customers') }}">Clientes</a>.</p>
+  {% else %}<p class="empty">Nenhum cliente com cadastro comprou no período.</p>{% endif %}
+</section>

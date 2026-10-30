@@ -1,152 +1,68 @@
 {% extends "admin/base.html" %}
+{% import "admin/reports/_macros.html" as m %}
 {% block title %}Relatórios{% endblock %}
 {% block help %}
 <ul>
-  <li>Escolha o período nos botões (Hoje, Este mês...) ou nas datas.</li>
-  <li>Só entram os pedidos que você <b>confirmou</b>. Pedidos pendentes aparecem num aviso à parte.</li>
-  <li>No calendário, toque em um dia para ver só aquele dia.</li>
+  <li>Escolha o <b>relatório</b> nos botões de cima e o <b>período</b> (Hoje, Este mês...) ou as datas.</li>
+  <li>Só entram os pedidos que você <b>confirmou</b>. Pendentes e cancelados aparecem à parte.</li>
+  <li><b>Lucro real</b> e <b>Produtos</b> ficam completos quando você preenche a aba <a href="{{ url_for('admin.costs') }}">Custos</a> (quanto custa fazer cada pizza e a taxa da maquininha).</li>
+  <li><b>Baixar planilha</b> abre no Excel. <b>Imprimir</b> sai na impressora ou vira PDF.</li>
 </ul>
 {% endblock %}
 {% block content %}
+{% set args = {'tipo': kind, 'inicio': start.isoformat(), 'fim': end.isoformat()} if kind != 'fechamento' else {'tipo': kind, 'dia': end.isoformat()} %}
 <h1>Relatórios</h1>
-<p class="hint">Contam só os pedidos <b>confirmados</b>. Pendentes e cancelados aparecem à parte.</p>
 
+<nav class="report-kinds no-print" aria-label="Qual relatório">
+  {% for k, name, hint, feature in kinds %}
+  <a href="{{ url_for('admin.reports', tipo=k, inicio=start.isoformat() if k != 'fechamento' else None, fim=end.isoformat() if k != 'fechamento' else None, dia=end.isoformat() if k == 'fechamento' else None) }}"
+     class="{{ 'cur' if k == kind }} {{ 'locked' if feature and not has_feature(feature) }}" {{ 'aria-current=page' if k == kind }}>
+    <b>{{ name }}</b><small>{{ hint }}</small>
+  </a>
+  {% endfor %}
+</nav>
+
+<div class="no-print">
+{% if kind == 'fechamento' %}
+<div class="day-nav">
+  <a class="button ghost small" href="{{ url_for('admin.reports', tipo='fechamento', dia=prev_day.isoformat()) }}" aria-label="Dia anterior">‹</a>
+  <form method="get" class="day-pick"><input type="hidden" name="tipo" value="fechamento">
+    <input type="date" name="dia" value="{{ end.isoformat() }}" max="{{ today.isoformat() }}" aria-label="Escolher o dia" onchange="this.form.submit()">
+    <button class="ghost small">Ver dia</button>
+  </form>
+  {% if next_day %}<a class="button ghost small" href="{{ url_for('admin.reports', tipo='fechamento', dia=next_day.isoformat()) }}" aria-label="Próximo dia">›</a>{% else %}<span class="button ghost small" aria-hidden="true" style="visibility:hidden">›</span>{% endif %}
+</div>
+{% else %}
 <div class="filters">
   {% for label, a, b in presets %}
-  <a href="{{ url_for('admin.reports', inicio=a.isoformat(), fim=b.isoformat()) }}" class="{{ 'cur' if a == r.start and b == r.end }}">{{ label }}</a>
+  <a href="{{ url_for('admin.reports', tipo=kind, inicio=a.isoformat(), fim=b.isoformat()) }}" class="{{ 'cur' if a == start and b == end }}">{{ label }}</a>
   {% endfor %}
 </div>
 <form method="get" class="card row period">
-  <label class="time">De<input type="date" name="inicio" value="{{ r.start.isoformat() }}"></label>
-  <label class="time">Até<input type="date" name="fim" value="{{ r.end.isoformat() }}"></label>
+  <input type="hidden" name="tipo" value="{{ kind }}">
+  <label class="time">De<input type="date" name="inicio" value="{{ start.isoformat() }}"></label>
+  <label class="time">Até<input type="date" name="fim" value="{{ end.isoformat() }}"></label>
   <button class="primary small">Ver período</button>
 </form>
-
-<h2 class="period-title">{{ period }}</h2>
-<div class="kpis">
-  <div class="kpi"><span>Faturamento</span><b>{{ r.revenue|brl }}</b></div>
-  <div class="kpi"><span>Pedidos</span><b>{{ r.orders }}</b></div>
-  <div class="kpi"><span>Pizzas</span><b>{{ r.pizzas }}</b></div>
-  <div class="kpi"><span>Ticket médio</span><b>{{ r.avg_ticket|brl }}</b></div>
+{% endif %}
 </div>
-<p class="hint">
-  Inclui {{ r.delivery_fees|brl }} de taxas de entrega.
-  {% if r.pending_orders %}<b>{{ r.pending_orders }} pedido(s) pendente(s)</b> somando {{ r.pending_value|brl }} ainda não entraram — confirme ou cancele em <a href="{{ url_for('admin.orders', status='pendente') }}">Pedidos</a>.{% endif %}
-  {% if r.cancelled_orders %}{{ r.cancelled_orders }} cancelado(s).{% endif %}
-</p>
 
-{% set max_day = r.by_day|map(attribute='revenue')|max if r.by_day else 0 %}
-{% if r.by_day|length > 1 %}
-<section class="card">
-  <h2>Faturamento por dia</h2>
-  <div class="bars" role="img" aria-label="Faturamento por dia no período; os valores estão no calendário abaixo">
-    {% for d in r.by_day %}
-    <div class="bar-col" tabindex="0" data-tip="{{ d.date.strftime('%d/%m') }}: {{ d.revenue|brl }} · {{ d.orders }} pedido(s)">
-      <div class="bar" style="height:{{ ((d.revenue / max_day * 100) if max_day else 0)|round(1) }}%"></div>
-      {% if r.by_day|length <= 16 or loop.first or loop.last or d.date.day in (1, 10, 20) %}<span class="tick">{{ d.date.strftime('%d/%m') }}</span>{% endif %}
-    </div>
-    {% endfor %}
+<div class="report-head">
+  <h2 class="period-title">{{ kind_name }} · {{ period }}</h2>
+  {% if not locked %}
+  <div class="no-print report-actions">
+    <a class="button ghost small" href="{{ url_for('admin.reports', formato='csv', **args) }}">Baixar planilha</a>
+    <button type="button" class="ghost small" onclick="print()">Imprimir</button>
   </div>
-</section>
-{% endif %}
-
-<div class="two">
-  <section class="card">
-    <h2>Sabores mais vendidos</h2>
-    {% if r.top_flavors %}
-    {% set max_q = r.top_flavors[0].qty %}
-    <table class="rank">
-      {% for f in r.top_flavors %}
-      <tr><td class="n">{{ loop.index }}</td><td>{{ f.name }}<div class="hbar" style="width:{{ (f.qty / max_q * 100)|round(1) }}%"></div></td><td class="v">{{ ('%.1f'|format(f.qty|float)).replace('.0', '').replace('.', ',') }}</td></tr>
-      {% endfor %}
-    </table>
-    <p class="hint">Em pizzas. Meio a meio conta meia para cada sabor.</p>
-    {% else %}<p class="empty">Nenhuma venda confirmada no período.</p>{% endif %}
-  </section>
-
-  <section class="card">
-    <h2>Horário dos pedidos</h2>
-    {% if r.by_hour %}
-    {% set max_h = r.by_hour|map(attribute='orders')|max %}
-    <table class="rank">
-      {% for h in r.by_hour %}
-      <tr><td class="n">{{ '%02d'|format(h.hour) }}h</td><td><div class="hbar" style="width:{{ (h.orders / max_h * 100)|round(1) }}%"></div></td><td class="v">{{ h.orders }}</td></tr>
-      {% endfor %}
-    </table>
-    {% else %}<p class="empty">Sem pedidos confirmados.</p>{% endif %}
-  </section>
+  {% endif %}
 </div>
 
-{% if r.top_drinks %}
+{% if locked %}
 <section class="card">
-  <h2>Bebidas mais vendidas</h2>
-  <table class="list">
-    {% for d in r.top_drinks %}<tr><td>{{ d.name }}</td><td class="v">{{ d.qty }} un.</td></tr>{% endfor %}
-  </table>
+  <p><b>Este relatório não faz parte do seu plano.</b></p>
+  <p class="hint">Ele aparece num plano maior. Os outros relatórios continuam liberados.</p>
 </section>
+{% else %}
+{% include "admin/reports/" ~ kind ~ ".html" %}
 {% endif %}
-
-<section class="card">
-  <h2>De onde vieram as vendas</h2>
-  {% if r.by_channel %}
-  <p class="hint"><b>{{ '%.0f'|format(r.online_share) }}%</b> do faturamento veio do site; o resto foi presencial ou por telefone.</p>
-  <table class="list">
-    {% for row in r.by_channel %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>{% endfor %}
-  </table>
-  {% else %}<p class="empty">Sem vendas confirmadas no período.</p>{% endif %}
-</section>
-
-{% if r.by_courier %}
-<section class="card">
-  <h2>Entregas por motoboy</h2>
-  <table class="list">
-    <tr><td></td><td class="v"><b>Entregas</b></td><td class="v"><b>Taxas de entrega</b></td></tr>
-    {% for c in r.by_courier %}<tr><td>{{ c.name }}</td><td class="v">{{ c.deliveries }}</td><td class="v">{{ c.fees|brl }}</td></tr>{% endfor %}
-  </table>
-  <p class="hint">Contam as comandas que saíram no período e já tiveram baixa.</p>
-</section>
-{% endif %}
-
-<div class="two">
-  <section class="card">
-    <h2>Formas de pagamento</h2>
-    <table class="list">
-      {% for row in r.by_payment %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>
-      {% else %}<tr><td class="empty">Sem dados no período.</td></tr>{% endfor %}
-    </table>
-  </section>
-  <section class="card">
-    <h2>Bairros que mais pedem</h2>
-    <table class="list">
-      {% for row in r.by_neighborhood %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>
-      {% else %}<tr><td class="empty">Sem dados no período.</td></tr>{% endfor %}
-    </table>
-  </section>
-</div>
-
-<section class="card">
-  <div class="cal-head">
-    <a href="{{ url_for('admin.reports', inicio=r.start.isoformat(), fim=r.end.isoformat(), mes=prev_month.strftime('%Y-%m')) }}" aria-label="Mês anterior">‹</a>
-    <h2>Calendário · {{ cal_label }}</h2>
-    <a href="{{ url_for('admin.reports', inicio=r.start.isoformat(), fim=r.end.isoformat(), mes=next_month.strftime('%Y-%m')) }}" aria-label="Próximo mês">›</a>
-  </div>
-  <p class="hint">Toque em um dia para ver o relatório dele.</p>
-  <table class="cal">
-    <tr>{% for w in ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] %}<th>{{ w }}</th>{% endfor %}</tr>
-    {% for week in weeks %}
-    <tr>
-      {% for d in week %}
-      <td class="{{ 'out' if not d.in_month }} {{ 'has' if d.orders }} {{ 'today' if d.date == today }}">
-        {% if d.in_month %}
-        <a href="{{ url_for('admin.reports', inicio=d.date.isoformat(), fim=d.date.isoformat(), mes=cal_month.strftime('%Y-%m')) }}">
-          <span class="day">{{ d.date.day }}</span>
-          {% if d.orders %}<span class="money">{{ d.revenue|brl }}</span><span class="cnt">{{ d.orders }} ped.</span>{% endif %}
-        </a>
-        {% endif %}
-      </td>
-      {% endfor %}
-    </tr>
-    {% endfor %}
-  </table>
-</section>
 {% endblock %}

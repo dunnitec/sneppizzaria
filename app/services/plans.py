@@ -29,7 +29,7 @@ ADMIN_ENDPOINTS = {
     "balcao": {"admin.order_new", "admin.order_fee_quote"},
     "motoboys": {"admin.dispatches", "admin.dispatch_new", "admin.dispatch_return", "admin.dispatch_remove_order",
                  "admin.dispatch_label", "admin.courier_new", "admin.courier_toggle"},
-    "relatorios": {"admin.reports"},
+    "relatorios": {"admin.reports", "admin.costs"},
     "clientes": {"admin.customers", "admin.customer_erase"},
     "promocoes": {"admin.promos", "admin.promo_edit", "admin.promo_toggle", "admin.promo_delete"},
     "fidelidade": {"admin.loyalty", "admin.loyalty_program_save", "admin.loyalty_program_delete",

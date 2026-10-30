@@ -5,6 +5,7 @@ Complementa app/routes/admin.py (mesmo blueprint, mesmas regras de login e CSRF)
 
 import json
 import re
+from decimal import Decimal
 
 from flask import abort, flash, g, jsonify, redirect, render_template, request, url_for
 
@@ -25,6 +26,7 @@ from app.models import (
 )
 from app.routes.admin import (FormError, _category_or_404, _category_url, _name, _price, _reject, _save, admin_bp,
                               save_category_look)
+from app.services.costs import MAX_FEE, PAY_METHODS, fee_rates
 from app.services.photos import PhotoError, delete_photo, normalize, save_photo
 from app.services.plans import has as has_feature
 from app.services.promotions import forget_product
@@ -585,3 +587,45 @@ def hero_remove():
     delete_photo(old)
     flash("Foto do topo removida.", "ok")
     return redirect(url_for("admin.visual"))
+
+
+# ---------- custos (relatório de lucro) ----------
+
+@admin_bp.route("/custos", methods=["GET", "POST"])
+def costs():
+    """Quanto custa fazer cada item, % estimado por linha e taxa da maquininha (services/costs.py)."""
+    categories = Category.query.filter_by(tenant_id=g.tenant.id).order_by(Category.sort_order, Category.id).all()
+    categories = [c for c in categories if c.products]
+    borders = Border.query.filter_by(tenant_id=g.tenant.id).order_by(Border.group_name, Border.id).all()
+    if request.method == "POST":
+        form = request.form
+        try:
+            fees = {}
+            for method in PAY_METHODS:
+                value = _cost_value(form.get(f"fee-{method}"), f"a taxa do {method}", MAX_FEE)
+                if value is not None:
+                    fees[method] = float(value)
+            g.tenant.payment_fees = json.dumps(fees, ensure_ascii=False) if fees else None
+            for c in categories:
+                c.cost_percent = _cost_value(form.get(f"pct-{c.id}"), f"o % de custo de {c.name}", Decimal("100"))
+                for p in c.products:
+                    for v in p.variants:
+                        v.cost = _cost_value(form.get(f"cost-{v.id}"), f"o custo de {p.name} {v.label}")
+            for b in borders:
+                b.cost = _cost_value(form.get(f"bcost-{b.id}"), f"o custo da borda {b.name}")
+            _save("Custos salvos. O relatório Lucro real já usa os valores novos.")
+            return redirect(url_for("admin.costs"))
+        except FormError as e:
+            _reject(e)
+    return render_template("admin/costs.html", categories=categories, borders=borders,
+                           fees=fee_rates(g.tenant), methods=PAY_METHODS)
+
+
+def _cost_value(text, what, limit=Decimal("10000")):
+    """Valor opcional (vazio = sem custo). Aceita 12,50."""
+    if not (text or "").strip():
+        return None
+    value = _price(text, what)
+    if value < 0 or value > limit:
+        raise FormError(f"Confira {what}: “{text}”.")
+    return value

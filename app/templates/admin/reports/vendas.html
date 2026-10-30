@@ -1,0 +1,72 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis">
+  <div class="kpi"><span>Vendido</span><b>{{ r.revenue|brl }}</b></div>
+  <div class="kpi"><span>Pedidos</span><b>{{ r.orders }}</b></div>
+  <div class="kpi"><span>Pizzas</span><b>{{ r.pizzas }}</b></div>
+  <div class="kpi"><span>Ticket médio</span><b>{{ r.avg_ticket|brl }}</b></div>
+</div>
+
+<div class="two">
+  <section class="card">
+    <h2>Horário dos pedidos</h2>
+    {% if r.by_hour %}
+    {% set max_h = r.by_hour|map(attribute='orders')|max %}
+    <table class="rank">
+      {% for h in r.by_hour %}
+      <tr><td class="n">{{ '%02d'|format(h.hour) }}h</td><td><div class="hbar" style="width:{{ (h.orders / max_h * 100)|round(1) }}%"></div></td><td class="v">{{ h.orders }}</td><td class="v">{{ h.revenue|brl }}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="hint">Use para escalar mais gente e motoboys no horário de pico.</p>
+    {% else %}<p class="empty">Sem pedidos confirmados.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Dia da semana</h2>
+    {% set max_w = weekdays|map(attribute='revenue')|max %}
+    <table class="rank">
+      {% for w in weekdays %}
+      <tr><td class="n">{{ w.label }}</td><td><div class="hbar" style="width:{{ ((w.revenue / max_w * 100) if max_w else 0)|round(1) }}%"></div></td><td class="v">{{ w.orders }} ped.</td><td class="v">{{ (w.revenue / w.days)|brl if w.days else '—' }}<small class="hint"> /dia</small></td></tr>
+      {% endfor %}
+    </table>
+    <p class="hint">Média vendida em cada dia da semana do período. Dia fraco é bom para promoção.</p>
+  </section>
+</div>
+
+<div class="two">
+  <section class="card">
+    <h2>De onde vieram as vendas</h2>
+    {% if r.by_channel %}
+    <p class="hint"><b>{{ m.pct(r.online_share, 0) }}</b> do vendido veio do site.</p>
+    <table class="list">
+      {% for row in r.by_channel %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<p class="empty">Sem vendas confirmadas no período.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Bairros que mais pedem</h2>
+    <table class="list">
+      {% for row in r.by_neighborhood %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>
+      {% else %}<tr><td class="empty">Sem dados no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>
+
+<div class="two">
+  <section class="card">
+    <h2>Sabores mais vendidos</h2>
+    {% if r.top_flavors %}
+    {% set max_q = r.top_flavors[0].qty %}
+    <table class="rank">
+      {% for f in r.top_flavors %}
+      <tr><td class="n">{{ loop.index }}</td><td>{{ f.name }}<div class="hbar" style="width:{{ (f.qty / max_q * 100)|round(1) }}%"></div></td><td class="v">{{ m.qty(f.qty) }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="empty">Nenhuma venda confirmada no período.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Bebidas mais vendidas</h2>
+    <table class="list">
+      {% for d in r.top_drinks %}<tr><td>{{ d.name }}</td><td class="v">{{ d.qty }} un.</td></tr>
+      {% else %}<tr><td class="empty">Nenhuma bebida no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>

@@ -33,7 +33,7 @@ from app.models import (
     utcnow,
 )
 from app.routes.public import get_tenant_or_404
-from app.services.hours import STORE_TZ, is_open, status_text
+from app.services.hours import STORE_TZ, is_open, local_time, status_text
 from app.services.plans import blocked_feature
 from app.services.plans import has as has_feature
 from app.services.menu_data import WEEKDAYS
@@ -210,8 +210,11 @@ def index():
         {"done": has_drinks, "text": "Cadastrar as bebidas (refrigerantes, sucos...)",
          "url": url_for("admin.category_new"), "action": "Cadastrar bebidas"},
     ]
+    from app.services.report_book import closing
+
     return render_template(
         "admin/home.html", today=today, report=sales_report(g.tenant, today, today), sold_out=sold_out,
+        closing=closing(g.tenant, today, has_feature(g.tenant, "financeiro")),
         steps=steps, status_line=status_text(g.tenant), promos_running=running_count(g.tenant),
     )
 
@@ -516,6 +519,114 @@ def _period_label(start, end):
     return f"{start.strftime('%d/%m/%Y')} a {end.strftime('%d/%m/%Y')}"
 
 
+# relatórios que o dono escolhe: (chave, nome, explicação, função do plano que precisa)
+REPORT_KINDS = [
+    ("resumo", "Resumo", "Vendido, pedidos, ticket médio e comparação com o período anterior", None),
+    ("fechamento", "Fechamento do dia", "Quanto vendeu no dia, em quê, dinheiro na gaveta e o que sobrou", None),
+    ("lucro", "Lucro real", "Faturamento, custo dos produtos, taxas, gastos, margem e markup", None),
+    ("produtos", "Produtos (curva ABC)", "O que mais vende e o que mais dá lucro", None),
+    ("vendas", "Vendas por horário e canal", "Horários, dias da semana, site × balcão, bairros", None),
+    ("pagamentos", "Pagamentos e descontos", "Pix, cartão, dinheiro, taxa da maquininha e promoções", None),
+    ("clientes", "Clientes", "Novos, que voltaram, os que mais compram e os sumidos", "clientes"),
+    ("entregas", "Entregas e motoboys", "Entregas, km, tempo médio, taxas cobradas × pagas", None),
+    ("gastos", "Gastos e equipe", "Gastos por tipo e o que cada motoboy e funcionário recebeu", "financeiro"),
+    ("cancelados", "Cancelados", "Pedidos cancelados e pendentes no período", None),
+]
+WEEKDAY_SHORT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+
+def _report_data(kind, tenant, start, end):
+    from app.services import report_book as book
+
+    money = has_feature(tenant, "financeiro")
+    if kind == "resumo":
+        span = (end - start).days + 1
+        b_start, b_end = start - timedelta(days=span), start - timedelta(days=1)
+        return {"r": sales_report(tenant, start, end), "before": sales_report(tenant, b_start, b_end),
+                "p": book.profit(tenant, start, end, money), "p_before": book.profit(tenant, b_start, b_end, money),
+                "compare": book.compare, "before_label": _period_label(b_start, b_end)}
+    if kind == "fechamento":
+        return {"c": book.closing(tenant, end, money)}
+    if kind == "lucro":
+        return {"p": book.profit(tenant, start, end, money)}
+    if kind == "produtos":
+        return {"pr": book.products(tenant, start, end)}
+    if kind == "vendas":
+        r = sales_report(tenant, start, end)
+        weekdays = {i: {"label": WEEKDAY_SHORT[i], "orders": 0, "revenue": Decimal("0"), "days": 0} for i in range(7)}
+        for d in r["by_day"]:
+            w = weekdays[d["date"].weekday()]
+            w["orders"] += d["orders"]
+            w["revenue"] += d["revenue"]
+            w["days"] += 1
+        return {"r": r, "weekdays": list(weekdays.values())}
+    if kind == "pagamentos":
+        return {"pay": book.payments(tenant, start, end)}
+    if kind == "clientes":
+        return {"cu": book.customers(tenant, start, end)}
+    if kind == "entregas":
+        return {"de": book.deliveries(tenant, start, end)}
+    if kind == "gastos":
+        return {"sp": book.spending(tenant, start, end)}
+    return {"ca": book.cancelled(tenant, start, end)}
+
+
+def _report_csv(kind, data):
+    """Tabela principal do relatório para abrir no Excel: (cabeçalho, linhas)."""
+    if kind == "produtos":
+        return (["Produto", "Classe", "Quantidade", "Vendido", "% do vendido", "Custo", "Lucro", "Margem %", "Markup"],
+                [[r["name"], r["cls"], r["qty"], r["sales"], round(r["share"], 1),
+                  "" if r["cost"] is None else r["cost"], "" if r["profit"] is None else r["profit"],
+                  "" if r["margin"] is None else round(r["margin"], 1),
+                  "" if r["markup"] is None else round(r["markup"], 2)] for r in data["pr"]["rows"]])
+    if kind == "lucro":
+        p = data["p"]
+        rows = [["Faturamento (produtos + entregas)", p["revenue"]], ["Descontos", -p["discounts"]],
+                ["Vendido", p["sold"]], ["Taxa da maquininha", -p["card_fees"]], ["Custo dos produtos", -p["cmv"]],
+                ["Lucro bruto", p["gross_profit"]]]
+        rows += [[f"Gasto: {o['label']}", -o["total"]] for o in p["operating"]]
+        rows += [["Lucro real", p["net"]], ["Margem real %", round(p["net_margin"], 1)]]
+        return ["Linha", "Valor"], rows
+    if kind == "pagamentos":
+        return (["Forma", "Pedidos", "Vendido", "Taxa", "Líquido"],
+                [[r["label"], r["orders"], r["total"], r["fee"], r["net"]] for r in data["pay"]["rows"]])
+    if kind == "clientes":
+        return (["Cliente", "Telefone", "Pedidos", "Gastou"],
+                [[r["customer"].name if r["customer"] else "", r["customer"].phone if r["customer"] else "",
+                  r["orders"], r["total"]] for r in data["cu"]["top"]])
+    if kind == "entregas":
+        return (["Motoboy", "Saídas", "Entregas", "Km", "Taxas"],
+                [[r["name"], r["trips"], r["deliveries"], r["km"], r["fees"]] for r in data["de"]["couriers"]])
+    if kind == "gastos":
+        return (["Dia", "Tipo", "Descrição", "Valor"],
+                [[e.day.strftime("%d/%m/%Y"), e.category_name, e.description or "", e.amount]
+                 for e in data["sp"]["expenses"]])
+    if kind == "cancelados":
+        return (["Pedido", "Quando", "Cliente", "Total"],
+                [[o.id, local_time(o.created_at).strftime("%d/%m/%Y %H:%M"), o.customer_name, o.total]
+                 for o in data["ca"]["orders"]])
+    if kind == "fechamento":
+        return ["Forma", "Pedidos", "Vendido"], [[r["label"], r["orders"], r["total"]] for r in data["c"]["by_payment"]]
+    return (["Dia", "Pedidos", "Vendido"],
+            [[d["date"].strftime("%d/%m/%Y"), d["orders"], d["revenue"]] for d in data["r"]["by_day"]])
+
+
+def _csv_response(name, header, rows):
+    """CSV com ; e vírgula decimal (o Excel em português abre direto)."""
+    import csv
+    import io
+
+    from flask import Response
+
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";")
+    writer.writerow(header)
+    for row in rows:
+        writer.writerow([str(v).replace(".", ",") if isinstance(v, (Decimal, float)) else v for v in row])
+    return Response("﻿" + out.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{name}.csv"'})
+
+
 @admin_bp.route("/relatorios")
 def reports():
     today = datetime.now(STORE_TZ).date()
@@ -524,30 +635,40 @@ def reports():
     presets = [
         ("Hoje", today, today),
         ("Ontem", today - timedelta(days=1), today - timedelta(days=1)),
+        ("Esta semana", today - timedelta(days=today.weekday()), today),
         ("Últimos 7 dias", today - timedelta(days=6), today),
+        ("Últimos 30 dias", today - timedelta(days=29), today),
         ("Este mês", month_start, today),
         ("Mês passado", last_month_end.replace(day=1), last_month_end),
+        ("Este ano", today.replace(month=1, day=1), today),
     ]
-    start = _date(request.args.get("inicio")) or month_start
-    end = _date(request.args.get("fim")) or today
-    if end < start:
-        start, end = end, start
-    end = min(end, start + timedelta(days=366))  # no máximo um ano por consulta
-    report = sales_report(g.tenant, start, end)
-    cal_month = _date((request.args.get("mes") or "") + "-01") or end.replace(day=1)
-    prev_month = (cal_month - timedelta(days=1)).replace(day=1)
-    next_month = (cal_month + timedelta(days=32)).replace(day=1)
+    kinds = {k: (name, hint, feature) for k, name, hint, feature in REPORT_KINDS}
+    kind = request.args.get("tipo") if request.args.get("tipo") in kinds else "resumo"
+    locked = bool(kinds[kind][2]) and not has_feature(g.tenant, kinds[kind][2])
+    if kind == "fechamento":  # um dia só
+        start = end = min(_date(request.args.get("dia") or request.args.get("fim")) or today, today)
+    else:
+        start = _date(request.args.get("inicio")) or month_start
+        end = _date(request.args.get("fim")) or today
+        if end < start:
+            start, end = end, start
+        end = min(end, start + timedelta(days=366))  # no máximo um ano por consulta
+    data = {} if locked else _report_data(kind, g.tenant, start, end)
+    if request.args.get("formato") == "csv" and not locked:
+        header, rows = _report_csv(kind, data)
+        return _csv_response(f"{kind}-{start.isoformat()}-a-{end.isoformat()}", header, rows)
+    cal = {}
+    if kind == "resumo":
+        cal_month = _date((request.args.get("mes") or "") + "-01") or end.replace(day=1)
+        cal = {"weeks": month_calendar(g.tenant, cal_month.year, cal_month.month),
+               "cal_label": f"{MONTHS[cal_month.month - 1]} de {cal_month.year}", "cal_month": cal_month,
+               "prev_month": (cal_month - timedelta(days=1)).replace(day=1),
+               "next_month": (cal_month + timedelta(days=32)).replace(day=1)}
     return render_template(
-        "admin/reports.html",
-        r=report,
-        period=_period_label(start, end),
-        presets=presets,
-        weeks=month_calendar(g.tenant, cal_month.year, cal_month.month),
-        cal_label=f"{MONTHS[cal_month.month - 1]} de {cal_month.year}",
-        cal_month=cal_month,
-        prev_month=prev_month,
-        next_month=next_month,
-        today=today,
+        "admin/reports.html", kind=kind, kinds=REPORT_KINDS, kind_name=kinds[kind][0], locked=locked,
+        start=start, end=end, period=_period_label(start, end), presets=presets, today=today,
+        prev_day=start - timedelta(days=1), next_day=end + timedelta(days=1) if end < today else None,
+        **data, **cal,
     )
 
 

@@ -1,0 +1,17 @@
+{# números dos relatórios: porcentagem com vírgula e variação contra o período anterior #}
+{% macro pct(value, places=1) -%}
+{{ ('%.' ~ places ~ 'f')|format(value or 0)|replace('.', ',') }}%
+{%- endmacro %}
+
+{% macro qty(value) -%}
+{{ ('%.1f'|format(value|float)).replace('.0', '').replace('.', ',') }}
+{%- endmacro %}
+
+{% macro delta(change, good_up=True) -%}
+{% if change is none %}<small class="delta">sem comparação</small>
+{%- else %}{% set up = change >= 0 %}<small class="delta {{ 'good' if up == good_up else 'bad' }}">{{ '▲' if up else '▼' }} {{ ('%.0f'|format(change|abs)) }}% vs. período anterior</small>{% endif %}
+{%- endmacro %}
+
+{% macro x(value) -%}
+{% if value %}{{ ('%.2f'|format(value))|replace('.', ',') }}×{% else %}—{% endif %}
+{%- endmacro %}

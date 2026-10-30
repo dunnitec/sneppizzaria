@@ -1,0 +1,86 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis">
+  <div class="kpi"><span>Vendido</span><b>{{ r.revenue|brl }}</b>{{ m.delta(compare(r.revenue, before.revenue)) }}</div>
+  <div class="kpi"><span>Pedidos</span><b>{{ r.orders }}</b>{{ m.delta(compare(r.orders, before.orders)) }}</div>
+  <div class="kpi"><span>Ticket médio</span><b>{{ r.avg_ticket|brl }}</b>{{ m.delta(compare(r.avg_ticket, before.avg_ticket)) }}</div>
+  {% if p.with_expenses %}
+  <div class="kpi {{ 'kpi-ok' if p.net >= 0 else 'kpi-bad' }}"><span>Lucro real</span><b>{{ p.net|brl }}</b>{{ m.delta(compare(p.net, p_before.net)) }}</div>
+  {% else %}
+  <div class="kpi"><span>Pizzas</span><b>{{ r.pizzas }}</b>{{ m.delta(compare(r.pizzas, before.pizzas)) }}</div>
+  {% endif %}
+</div>
+<p class="hint">
+  Comparando com {{ before_label }}. Inclui {{ r.delivery_fees|brl }} de taxas de entrega.
+  {% if r.pending_orders %}<b>{{ r.pending_orders }} pedido(s) pendente(s)</b> somando {{ r.pending_value|brl }} ainda não entraram — confirme ou cancele em <a href="{{ url_for('admin.orders', status='pendente') }}">Pedidos</a>.{% endif %}
+  {% if r.cancelled_orders %}{{ r.cancelled_orders }} cancelado(s).{% endif %}
+</p>
+
+<div class="kpis kpis-mini">
+  <div class="kpi"><span>Pizzas</span><b>{{ r.pizzas }}</b></div>
+  <div class="kpi"><span>Lucro bruto</span><b>{{ p.gross_profit|brl }}</b><small>margem {{ m.pct(p.gross_margin) }}</small></div>
+  <div class="kpi"><span>Custo dos produtos</span><b>{{ p.cmv|brl }}</b><small>{{ m.pct(p.cmv_share) }} dos produtos</small></div>
+  <div class="kpi"><span>Vendas pelo site</span><b>{{ m.pct(r.online_share, 0) }}</b><small>do vendido</small></div>
+</div>
+
+{% set max_day = r.by_day|map(attribute='revenue')|max if r.by_day else 0 %}
+{% if r.by_day|length > 1 %}
+<section class="card">
+  <h2>Vendido por dia</h2>
+  <div class="bars" role="img" aria-label="Vendido por dia no período; os valores estão no calendário abaixo">
+    {% for d in r.by_day %}
+    <div class="bar-col" tabindex="0" data-tip="{{ d.date.strftime('%d/%m') }}: {{ d.revenue|brl }} · {{ d.orders }} pedido(s)">
+      <div class="bar" style="height:{{ ((d.revenue / max_day * 100) if max_day else 0)|round(1) }}%"></div>
+      {% if r.by_day|length <= 16 or loop.first or loop.last or d.date.day in (1, 10, 20) %}<span class="tick">{{ d.date.strftime('%d/%m') }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<div class="two">
+  <section class="card">
+    <h2>Sabores mais vendidos</h2>
+    {% if r.top_flavors %}
+    {% set max_q = r.top_flavors[0].qty %}
+    <table class="rank">
+      {% for f in r.top_flavors[:10] %}
+      <tr><td class="n">{{ loop.index }}</td><td>{{ f.name }}<div class="hbar" style="width:{{ (f.qty / max_q * 100)|round(1) }}%"></div></td><td class="v">{{ m.qty(f.qty) }}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="hint">Em pizzas. Meio a meio conta meia para cada sabor. Lucro de cada sabor: relatório <a href="{{ url_for('admin.reports', tipo='produtos', inicio=start.isoformat(), fim=end.isoformat()) }}">Produtos</a>.</p>
+    {% else %}<p class="empty">Nenhuma venda confirmada no período.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Formas de pagamento</h2>
+    <table class="list">
+      {% for row in r.by_payment %}<tr><td>{{ row.label }}</td><td class="v">{{ row.orders }} ped.</td><td class="v">{{ row.revenue|brl }}</td></tr>
+      {% else %}<tr><td class="empty">Sem dados no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>
+
+<section class="card">
+  <div class="cal-head">
+    <a href="{{ url_for('admin.reports', tipo='resumo', inicio=start.isoformat(), fim=end.isoformat(), mes=prev_month.strftime('%Y-%m')) }}" aria-label="Mês anterior">‹</a>
+    <h2>Calendário · {{ cal_label }}</h2>
+    <a href="{{ url_for('admin.reports', tipo='resumo', inicio=start.isoformat(), fim=end.isoformat(), mes=next_month.strftime('%Y-%m')) }}" aria-label="Próximo mês">›</a>
+  </div>
+  <p class="hint">Toque em um dia para ver o fechamento dele.</p>
+  <table class="cal">
+    <tr>{% for w in ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] %}<th>{{ w }}</th>{% endfor %}</tr>
+    {% for week in weeks %}
+    <tr>
+      {% for d in week %}
+      <td class="{{ 'out' if not d.in_month }} {{ 'has' if d.orders }} {{ 'today' if d.date == today }}">
+        {% if d.in_month %}
+        <a href="{{ url_for('admin.reports', tipo='fechamento', dia=d.date.isoformat()) }}">
+          <span class="day">{{ d.date.day }}</span>
+          {% if d.orders %}<span class="money">{{ d.revenue|brl }}</span><span class="cnt">{{ d.orders }} ped.</span>{% endif %}
+        </a>
+        {% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+</section>

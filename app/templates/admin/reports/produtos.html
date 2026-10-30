@@ -1,0 +1,52 @@
+{% import "admin/reports/_macros.html" as m %}
+<div class="kpis kpis-3">
+  <div class="kpi"><span>Classe A</span><b>{{ pr.classes.A }}</b><small>produtos que fazem 80% do vendido</small></div>
+  <div class="kpi"><span>Classe B</span><b>{{ pr.classes.B }}</b><small>os próximos 15%</small></div>
+  <div class="kpi"><span>Classe C</span><b>{{ pr.classes.C }}</b><small>vendem pouco (5% finais)</small></div>
+</div>
+<p class="hint"><b>Curva ABC:</b> cuide para nunca faltar os da classe A; os da C podem sair do cardápio ou entrar numa promoção. Meio a meio divide a pizza entre os sabores.</p>
+
+<section class="card">
+  <h2>Por produto</h2>
+  {% if pr.rows %}
+  <div class="table-scroll">
+  <table class="list abc">
+    <thead><tr><th></th><th>Produto</th><th class="v">Qtd.</th><th class="v">Vendido</th><th class="v">% (acum.)</th><th class="v">Custo</th><th class="v">Lucro</th><th class="v">Margem</th><th class="v">Markup</th></tr></thead>
+    <tbody>
+    {% for r in pr.rows %}
+    <tr>
+      <td><span class="abc-tag abc-{{ r.cls|lower }}">{{ r.cls }}</span></td>
+      <td>{{ r.name }}</td>
+      <td class="v">{{ m.qty(r.qty) }}</td>
+      <td class="v">{{ r.sales|brl }}</td>
+      <td class="v">{{ m.pct(r.share) }} <small class="hint">({{ m.pct(r.cumulative, 0) }})</small></td>
+      <td class="v">{{ r.cost|brl if r.cost is not none else '—' }}</td>
+      <td class="v">{{ r.profit|brl if r.profit is not none else '—' }}</td>
+      <td class="v">{{ m.pct(r.margin, 0) if r.margin is not none else '—' }}</td>
+      <td class="v">{{ m.x(r.markup) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if pr.rows|selectattr('cost', 'none')|list %}<p class="hint">“—” = sem custo cadastrado. <a href="{{ url_for('admin.costs') }}">Preencher custos</a> para ver o lucro de cada um.</p>{% endif %}
+  {% else %}<p class="empty">Nenhuma venda confirmada no período.</p>{% endif %}
+</section>
+
+<div class="two">
+  <section class="card">
+    <h2>Por linha do cardápio</h2>
+    <table class="list">
+      {% for r in pr.categories %}<tr><td>{{ r.name }}</td><td class="v">{{ m.qty(r.qty) }} un.</td><td class="v">{{ r.sales|brl }}</td><td class="v">{{ m.pct(r.margin, 0) if r.margin is not none else '' }}</td></tr>
+      {% else %}<tr><td class="empty">Sem vendas.</td></tr>{% endfor %}
+    </table>
+    <p class="hint">A última coluna é a margem (lucro ÷ vendido) quando há custo.</p>
+  </section>
+  <section class="card">
+    <h2>Bordas mais pedidas</h2>
+    <table class="list">
+      {% for b in pr.borders[:12] %}<tr><td>{{ b.name }}</td><td class="v">{{ b.qty }}</td></tr>
+      {% else %}<tr><td class="empty">Nenhuma borda no período.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>
