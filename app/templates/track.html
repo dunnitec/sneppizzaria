@@ -59,7 +59,7 @@ h1{font:900 26px var(--display);margin:0}
 
   <div id="live" data-final="{{ 1 if o.status in ('entregue', 'cancelado') else 0 }}">
   {% if o.status == 'cancelado' %}
-  <section class="card cancel"><b>Este pedido foi cancelado.</b><p class="note">Dúvidas? Fale com a pizzaria pelo WhatsApp.</p></section>
+  <section class="card cancel"><b>Este pedido foi cancelado.</b><p class="note">Dúvidas? Fale com a loja pelo WhatsApp.</p></section>
   {% else %}
   <section class="card eta">
     <small>{{ 'Previsão de entrega' if o.delivery else 'Pronto para retirar' }}</small>
@@ -80,7 +80,7 @@ h1{font:900 26px var(--display);margin:0}
     <img src="{{ pix.qr }}" alt="QR Code do Pix">
     <textarea id="pix-code" readonly rows="3" onclick="this.select()">{{ pix.code }}</textarea>
     <button class="btn btn-pix" onclick="navigator.clipboard&&window.isSecureContext?navigator.clipboard.writeText(document.getElementById('pix-code').value).then(()=>this.textContent='Código copiado ✓'):(document.getElementById('pix-code').select(),document.execCommand('copy'),this.textContent='Código copiado ✓')">Copiar código Pix</button>
-    <p class="note">Depois de pagar, mande o comprovante no WhatsApp da pizzaria.</p>
+    <p class="note">Depois de pagar, mande o comprovante no WhatsApp da loja.</p>
   </section>
   {% endif %}
 
@@ -100,7 +100,7 @@ h1{font:900 26px var(--display);margin:0}
       {% if o.split_people %}<div class="tot"><span>Dividir a conta</span><span>{{ o.split_text() }}</span></div>{% endif %}
     </div>
   </section>
-  <a class="btn btn-wa" href="https://wa.me/{{ tenant.whatsapp }}" target="_blank" rel="noopener">Falar com a pizzaria no WhatsApp</a>
+  <a class="btn btn-wa" href="https://wa.me/{{ tenant.whatsapp }}" target="_blank" rel="noopener">Falar com a loja no WhatsApp</a>
   {% if o.status not in ('entregue', 'cancelado') %}<p class="note">Esta página se atualiza sozinha a cada 30 segundos.</p>{% endif %}
 </div>
 <script>

@@ -9,7 +9,7 @@
 </section>
 <div class="kpis">
   <div class="kpi"><span>Vendido</span><b>{{ c.sold|brl }}</b><small>{{ c.orders }} pedido{{ 's' if c.orders != 1 }}</small></div>
-  <div class="kpi"><span>Ticket médio</span><b>{{ c.avg_ticket|brl }}</b><small>{{ c.pizzas }} pizza{{ 's' if c.pizzas != 1 }} · {{ c.deliveries }} entrega{{ 's' if c.deliveries != 1 }}</small></div>
+  <div class="kpi"><span>Ticket médio</span><b>{{ c.avg_ticket|brl }}</b><small>{{ c.pizzas }} {{ biz.plural|lower }} · {{ c.deliveries }} entrega{{ 's' if c.deliveries != 1 }}</small></div>
   <div class="kpi"><span>Dinheiro na gaveta</span><b>{{ c.cash_in|brl }}</b><small>vendas em dinheiro (fora o troco inicial)</small></div>
   {% if c.with_expenses %}
   <div class="kpi {{ 'kpi-ok' if c.net >= 0 else 'kpi-bad' }}"><span>Lucro real do dia</span><b>{{ c.net|brl }}</b><small>margem {{ m.pct(c.net_margin) }}</small></div>

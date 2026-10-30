@@ -34,6 +34,8 @@ from app.models import (
 )
 from app.routes.public import get_tenant_or_404
 from app.services.hours import STORE_TZ, is_open, local_time, status_text
+from app.services.business import TYPES as BUSINESS_TYPES
+from app.services.business import biz, kind_order
 from app.services.plans import blocked_feature
 from app.services.plans import has as has_feature
 from app.services.menu_data import WEEKDAYS
@@ -66,6 +68,10 @@ LABEL_NAMES = {"80x0": "Bobina 80 mm (cupom) — ex.: Bematech MP-4200 HS", "58x
 KINDS = {
     "pizza": {"icon": "🍕", "label": "Pizza salgada", "help": "Sabores com preço por tamanho. Aceita meio a meio, borda e adicionais."},
     "doce": {"icon": "🍫", "label": "Pizza doce", "help": "Igual à salgada, mas aparece separada no cardápio."},
+    "lanche": {"icon": "🍔", "label": "Lanche, porção ou prato",
+               "help": "Cada item com seu preço (por tamanho ou único). Aceita adicionais e observação."},
+    "montar": {"icon": "🥣", "label": "Monte o seu (açaí, marmita)",
+               "help": "O cliente escolhe o tamanho e marca os complementos grátis. Extras pagos são os adicionais."},
     "bebida": {"icon": "🥤", "label": "Bebida", "help": "Refrigerantes, sucos, água. O cliente só escolhe o tamanho."},
     "metro": {"icon": "🎁", "label": "Combo de preço fixo", "help": ""},
 }
@@ -125,6 +131,7 @@ def _template_context():
     pending = Order.query.filter_by(tenant_id=g.tenant.id, status="pendente").count() if g.admin else 0
     return {"tenant": g.tenant, "admin": g.admin, "store_open": is_open(g.tenant),
             "is_owner": bool(g.admin and g.admin.role == "dono"), "pending_count": pending, "kinds": KINDS,
+            "biz": biz(g.tenant), "kind_order": kind_order(g.tenant), "business_types": BUSINESS_TYPES,
             "has_feature": lambda feature: has_feature(g.tenant, feature),
             "blocked_tab": lambda endpoint: blocked_feature(g.tenant, endpoint)}
 
@@ -623,7 +630,7 @@ def _report_csv(kind, data):
         rows += [["Taxas de entrega", c["delivery"]]]
         if c["ingredients"] is not None:
             rows += [["Compras de ingredientes", c["ingredients"]]]
-        rows += [["Pizzas vendidas", c["pizza_total"]]] + [[l["label"], l["qty"]] for l in c["pizza_lines"]]
+        rows += [[c["main_label"], c["pizza_total"]]] + [[l["label"], l["qty"]] for l in c["pizza_lines"]]
         rows += [[l["label"], l["qty"]] for l in c["other_lines"]]
         for g in c["sold_list"]:
             rows += [[f"{g['label']}: {r['name']}", r["qty"]] for r in g["rows"]]
@@ -1081,6 +1088,8 @@ def store():
                 hours[str(day)] = [opens, closes]
             if "name" in form:
                 tenant.name = _name(form.get("name"), "o nome da loja")
+                if form.get("business_type") in BUSINESS_TYPES:
+                    tenant.business_type = form["business_type"]
                 tenant.address = form.get("address", "").strip()[:255]
                 tenant.instagram = form.get("instagram", "").strip().lstrip("@")[:120]
             if "slogan" in form:

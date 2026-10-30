@@ -72,6 +72,9 @@
   /* ---------- regras (as mesmas do site) ---------- */
   const comboOf = (c) => Object.assign({ sources: [], extras: [], choice_label: "", choice_options: [] }, c.combo || {});
   const isCombo = () => B.cat.kind === "metro";
+  const isSingle = () => B.cat.kind === "lanche" || B.cat.kind === "montar";  // um item por vez, sem sabores
+  const picksOf = () => B.cat.picks || { label: "Complementos", options: [] };
+  const picksMax = () => { const p = B.flavors[0]; const v = p && B.cat.products.find((x) => x.id === p.id).variants.find((x) => x.label === B.size); return v ? v.max_flavors : 0; };
   const sizesOf = (c) => [...new Set(c.products.flatMap((p) => p.variants.map((v) => v.label)))];
   const maxFlavors = (c, label) => Math.max(1, ...c.products.map((p) => (p.variants.find((v) => v.label === label) || {}).max_flavors || 1));
   function flavorPool() {
@@ -90,7 +93,7 @@
     let p = Math.max(...chosen.map((f) => f.price));
     const border = D.borders.find((b) => b.id === B.border);
     if (border) p += border.price;
-    const whole = !SMALL_PIZZA.test(B.size);
+    const whole = isSingle() || !SMALL_PIZZA.test(B.size);
     Object.entries(B.addons).forEach(([id, q]) => { const a = D.addons.find((x) => x.id === Number(id)); if (a) p += q * (whole ? a.price_whole : a.price_half); });
     return p;
   }
@@ -107,7 +110,7 @@
     const cat = D.categories[Number(btn.dataset.ci)];
     if (cat.kind === "bebida") { B = { cat }; renderDrinks(); return; }
     const size = cat.kind === "metro" ? cat.products[0].variants[0].label : sizesOf(cat)[0];
-    B = { cat, size, n: 1, flavors: [], border: null, addons: {}, choice: "", qty: 1, notes: "" };
+    B = { cat, size, n: 1, flavors: [], border: null, addons: {}, choice: "", picks: [], qty: 1, notes: "" };
     renderBuilder();
   });
 
@@ -128,22 +131,26 @@
 
   function renderBuilder() {
     builder.hidden = false;
-    const combo = isCombo(), max = combo ? B.cat.products[0].variants[0].max_flavors : maxFlavors(B.cat, B.size);
+    const combo = isCombo(), single = isSingle(), max = combo ? B.cat.products[0].variants[0].max_flavors : single ? 1 : maxFlavors(B.cat, B.size);
     if (B.n > max) B.n = max;
     const pool = flavorPool();
     let html = `<h3>${esc(B.cat.name)}</h3>`;
     if (!combo) html += `<div class="row"><span class="where-label">Tamanho</span>${sizesOf(B.cat).map((s) => `<button type="button" class="chip-btn ${s === B.size ? "on" : ""}" data-size-pick="${esc(s)}">${esc(s)}</button>`).join("")}</div>`;
-    html += `<div class="row"><span class="where-label">Sabores</span>${Array.from({ length: max }, (_, i) => `<button type="button" class="chip-btn ${i + 1 === B.n ? "on" : ""}" data-n="${i + 1}">${i + 1}</button>`).join("")}</div>`;
+    if (!single) html += `<div class="row"><span class="where-label">Sabores</span>${Array.from({ length: max }, (_, i) => `<button type="button" class="chip-btn ${i + 1 === B.n ? "on" : ""}" data-n="${i + 1}">${i + 1}</button>`).join("")}</div>`;
     for (let i = 0; i < B.n; i++) {
-      html += `<label class="grow">${B.n > 1 ? `${i + 1}º sabor` : "Sabor"}<select data-flavor="${i}"><option value="">Escolha…</option>${pool.map((f) => `<option value="${f.id}" ${B.flavors[i] && B.flavors[i].id === f.id ? "selected" : ""}>${esc(f.name)}${f.price != null ? ` — ${money(f.price)}` : ""}${f.promo ? " 🏷 promoção" : ""}</option>`).join("")}</select></label>`;
+      html += `<label class="grow">${single ? "Item" : B.n > 1 ? `${i + 1}º sabor` : "Sabor"}<select data-flavor="${i}"><option value="">Escolha…</option>${pool.map((f) => `<option value="${f.id}" ${B.flavors[i] && B.flavors[i].id === f.id ? "selected" : ""}>${esc(f.name)}${f.price != null ? ` — ${money(f.price)}` : ""}${f.promo ? " 🏷 promoção" : ""}</option>`).join("")}</select></label>`;
     }
-    const borders = combo ? [] : borderOptions();
+    if (B.cat.kind === "montar" && B.flavors[0] && picksOf().options.length && picksMax() > 0) {
+      const pk = picksOf();
+      html += `<fieldset class="picks"><legend>${esc(pk.label)} (até ${picksMax()} grátis)</legend>${pk.options.map((o) => `<label class="check"><input type="checkbox" data-pick value="${esc(o)}" ${B.picks.includes(o) ? "checked" : ""}> ${esc(o)}</label>`).join("")}</fieldset>`;
+    }
+    const borders = combo || single ? [] : borderOptions();
     if (borders.length) html += `<label class="grow">Borda<select data-border><option value="">Sem borda</option>${borders.map((b) => `<option value="${b.id}" ${B.border === b.id ? "selected" : ""}>${esc(b.group)} — ${esc(b.name)} (+${money(b.price)})</option>`).join("")}</select></label>`;
     if (!combo && B.cat.allows_addons) {
-      const whole = !SMALL_PIZZA.test(B.size);
+      const whole = single || !SMALL_PIZZA.test(B.size);
       const chosen = Object.entries(B.addons).map(([id, q]) => { const a = D.addons.find((x) => x.id === Number(id)); return `<button type="button" class="chip-btn on" data-addon-del="${id}" aria-label="Tirar ${esc(a.name)}">${q}x ${esc(a.name)} ✕</button>`; }).join("");
       html += `<div class="addons"><span class="where-label">Adicionais</span><select data-addon-pick><option value="">Escolha um adicional…</option>${D.addons.map((a) => `<option value="${a.id}">${esc(a.name)} (+${money(whole ? a.price_whole : a.price_half)})</option>`).join("")}</select>
-        <button type="button" class="ghost small" data-addon-add>+ Adicionar</button>${chosen}<small class="hint">até 5 por pizza</small></div>`;
+        <button type="button" class="ghost small" data-addon-add>+ Adicionar</button>${chosen}<small class="hint">até 5 por item</small></div>`;
     }
     const c = comboOf(B.cat);
     if (combo && c.choice_options.length) html += `<label class="grow">${esc(c.choice_label || "Escolha")}<select data-choice><option value="">Escolha…</option>${c.choice_options.map((o) => `<option ${B.choice === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></label>`;
@@ -157,9 +164,16 @@
     if (t.dataset.flavor !== undefined) {
       const f = flavorPool().find((x) => x.id === Number(t.value));
       B.flavors[Number(t.dataset.flavor)] = f || null;
+      if (isSingle()) B.picks = B.picks.slice(0, picksMax());
       if (!borderOptions().some((b) => b.id === B.border)) B.border = null;
       renderBuilder();  // calzone esconde a borda
       return;
+    }
+    else if (t.hasAttribute("data-pick")) {
+      const at = B.picks.indexOf(t.value);
+      if (t.checked && at < 0) { if (B.picks.length >= picksMax()) { t.checked = false; showError(`Até ${picksMax()} grátis neste tamanho.`); return; } B.picks.push(t.value); }
+      if (!t.checked && at >= 0) B.picks.splice(at, 1);
+      showError("");
     }
     else if (t.hasAttribute("data-border")) B.border = t.value ? Number(t.value) : null;
     else if (t.hasAttribute("data-choice")) B.choice = t.value;
@@ -169,7 +183,7 @@
   });
   builder.addEventListener("click", (e) => {
     const t = e.target;
-    if (t.dataset.sizePick) { B.size = t.dataset.sizePick; B.flavors = []; B.border = null; renderBuilder(); }
+    if (t.dataset.sizePick) { B.size = t.dataset.sizePick; B.flavors = []; B.border = null; B.picks = []; renderBuilder(); }
     else if (t.dataset.n) { B.n = Number(t.dataset.n); B.flavors = B.flavors.slice(0, B.n); renderBuilder(); }
     else if (t.hasAttribute("data-add")) addItem();
     else if (t.hasAttribute("data-addon-add")) {
@@ -181,7 +195,7 @@
   });
   function addItem() {
     const flavors = B.flavors.slice(0, B.n).filter(Boolean);
-    if (flavors.length < B.n) { showError(`Escolha ${B.n > 1 ? "os " + B.n + " sabores" : "o sabor"}.`); return; }
+    if (flavors.length < B.n) { showError(isSingle() ? "Escolha o item." : `Escolha ${B.n > 1 ? "os " + B.n + " sabores" : "o sabor"}.`); return; }
     const c = comboOf(B.cat);
     if (isCombo() && c.choice_options.length && !B.choice) { showError(`Escolha: ${c.choice_label}.`); return; }
     const border = D.borders.find((b) => b.id === B.border);
@@ -190,11 +204,11 @@
       : flavors.length > 1 ? flavors.map((f) => `1/${flavors.length} ${f.name}`).join(" + ") : flavors[0].name;
     const detail = [B.size, border ? `Borda ${border.group.replace(/^Borda /, "")} - ${border.name}` : "",
       addons.length ? addons.map((a) => `${a.qty}x ${D.addons.find((x) => x.id === a.id).name}`).join(", ") : "",
-      B.choice, B.notes ? `Obs: ${B.notes}` : ""].filter(Boolean).join(" · ");
-    cart.push({ sel: { category_id: B.cat.id, variant: B.size, flavors: flavors.map((f) => f.id), border_id: B.border, addons, combo_choice: B.choice || null, notes: B.notes },
+      B.picks.length ? `${picksOf().label}: ${B.picks.join(", ")}` : "", B.choice, B.notes ? `Obs: ${B.notes}` : ""].filter(Boolean).join(" · ");
+    cart.push({ sel: { category_id: B.cat.id, variant: B.size, flavors: flavors.map((f) => f.id), border_id: B.border, addons, combo_choice: B.choice || null, notes: B.notes, ...(B.cat.kind === "montar" ? { picks: [...B.picks] } : {}) },
       title, detail, price: unitPrice(), qty: B.qty });
     showError("");
-    B = Object.assign(B, { flavors: [], border: null, addons: {}, choice: "", qty: 1, notes: "" });
+    B = Object.assign(B, { flavors: [], border: null, addons: {}, choice: "", picks: [], qty: 1, notes: "" });
     renderBuilder();
     renderCart();
   }

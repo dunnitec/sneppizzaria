@@ -19,7 +19,7 @@ ORDER_STATUSES = {
 SOLD_STATUSES = ("confirmado", "saiu", "entregue")
 # aparência do título de cada categoria no site
 CATEGORY_ICONS = {"fatia": "Fatia de pizza", "coroa": "Coroa", "trem": "Trem", "copo": "Copo", "estrela": "Estrela",
-                  "fogo": "Fogo", "coracao": "Coração"}
+                  "fogo": "Fogo", "coracao": "Coração", "lanche": "Hambúrguer", "tigela": "Tigela (açaí, marmita)"}
 CATEGORY_ACCENTS = {"vermelho": "Vermelho", "dourado": "Dourado", "rosa": "Rosa", "laranja": "Laranja", "verde": "Verde"}
 # de onde veio o pedido
 CHANNELS = {"site": "Site", "balcao": "Balcão", "mesa": "Mesa", "telefone": "Telefone/WhatsApp"}
@@ -132,6 +132,8 @@ class Tenant(db.Model):
     store_city = db.Column(db.String(80))  # cidade/UF da loja: usadas quando o cliente não sabe o CEP
     store_uf = db.Column(db.String(2))
     km_price = db.Column(db.Numeric(8, 2))  # R$ por km
+    # pizzaria | lanchonete | acai | restaurante | doceria | outro (services/business.py): muda só palavras
+    business_type = db.Column(db.String(20), nullable=False, default="pizzaria", server_default="pizzaria")
     payment_fees = db.Column(db.Text)  # JSON {"Débito": 1.99, "Crédito": 3.49}: taxa da maquininha em % (aba Custos)
     km_base_km = db.Column(db.Numeric(6, 1))  # até X km cobra a taxa fixa abaixo; acima, só km × km_price
     km_base_fee = db.Column(db.Numeric(8, 2))  # vazios = só km × km_price
@@ -157,7 +159,7 @@ class Category(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
     name = db.Column(db.String(80), nullable=False)  # Pizzas Promocionais, Pizzas Premium, Pizzas Doces
     slug = db.Column(db.String(80), nullable=False)
-    kind = db.Column(db.String(20), default="pizza")  # pizza | doce | metro (combo) | bebida
+    kind = db.Column(db.String(20), default="pizza")  # pizza | doce | lanche | montar | metro (combo) | bebida
     allows_addons = db.Column(db.Boolean, default=False, nullable=False)  # linha aceita adicionais por ingrediente
     sort_order = db.Column(db.Integer, default=0)
 
@@ -173,6 +175,10 @@ class Category(db.Model):
     icon = db.Column(db.String(20), nullable=False, default="fatia", server_default="fatia")
     accent = db.Column(db.String(20), nullable=False, default="vermelho", server_default="vermelho")
     banner_image = db.Column(db.String(255))  # foto à direita do título (UPLOAD_FOLDER)
+    # só para kind="montar" (açaí, marmita): complementos grátis, um por linha; quantos o cliente marca
+    # em cada tamanho fica em ProductVariant.max_flavors
+    pick_label = db.Column(db.String(60))  # ex.: "Complementos" ou "Acompanhamentos"
+    pick_options = db.Column(db.Text)
     # custo estimado da linha em % do preço (aba Custos): vale para o sabor sem custo em R$, borda e adicionais
     cost_percent = db.Column(db.Numeric(5, 2))
 
@@ -184,6 +190,11 @@ class Category(db.Model):
             for variant in product.variants:
                 found.setdefault(variant.label, variant.max_flavors)
         return [{"label": label, "max_flavors": n} for label, n in found.items()]
+
+    def pick_settings(self):
+        """Complementos do “monte o seu”: {"label", "options": [...]}."""
+        options = [" ".join(line.split()) for line in (self.pick_options or "").splitlines() if line.strip()]
+        return {"label": self.pick_label or "Complementos", "options": options}
 
     def combo_settings(self):
         """Configuração do combo já interpretada (listas no lugar de texto)."""

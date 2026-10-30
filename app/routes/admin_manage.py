@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.routes.admin import (FormError, _category_or_404, _category_url, _name, _price, _reject, _save, admin_bp,
                               save_category_look)
+from app.services.business import MAX_PICKS
 from app.services.costs import MAX_FEE, PAY_METHODS, fee_rates
 from app.services.photos import PhotoError, delete_photo, normalize, save_photo
 from app.services.plans import has as has_feature
@@ -39,6 +40,21 @@ ROLES = {"dono": "Dono (acesso a tudo)", "funcionario": "Funcionário (só pedid
 def _back(category_id=None, anchor=None):
     """Volta para a página da categoria ou, sem categoria, para o resumo do cardápio."""
     return _category_url(category_id, anchor) if category_id else redirect(url_for("admin.menu"))
+
+
+def _size_max(kind, text, what):
+    """Número de cada tamanho: sabores (pizza), complementos grátis (monte o seu) ou 1 (lanche, bebida)."""
+    if kind == "montar":
+        try:
+            n = int(text)
+        except (TypeError, ValueError):
+            n = -1
+        if not 0 <= n <= MAX_PICKS:
+            raise FormError(f"{what}: os complementos grátis vão de 0 a {MAX_PICKS}.")
+        return n
+    if kind in ("bebida", "lanche"):
+        return 1
+    return _max_flavors(text, what)
 
 
 def _max_flavors(text, what):
@@ -79,7 +95,7 @@ def _new_sizes(form, kind):
         if not label.strip():
             continue
         label = _name(label, "o nome do tamanho", max_length=30)
-        sizes.append({"label": label, "max_flavors": 1 if kind == "bebida" else _max_flavors(max_text, label)})
+        sizes.append({"label": label, "max_flavors": _size_max(kind, max_text, label)})
     if not sizes:
         raise FormError("Informe pelo menos um tamanho (ex.: Inteira, ou Lata 350ml para bebida).")
     labels = [s["label"].lower() for s in sizes]
@@ -93,7 +109,7 @@ def line_new():
     form = request.form
     try:
         name = _name(form.get("name"), "o nome da categoria", max_length=80)
-        kind = form.get("kind") if form.get("kind") in ("pizza", "doce", "bebida") else "pizza"
+        kind = form.get("kind") if form.get("kind") in ("pizza", "doce", "lanche", "montar", "bebida") else "pizza"
         sizes = _new_sizes(form, kind)
         cats = _ordered_categories()
         combos = [c for c in cats if c.kind == "metro"]
@@ -104,6 +120,7 @@ def line_new():
         category = Category(
             tenant_id=g.tenant.id, name=name, slug=_unique_slug(name), kind=kind,
             allows_addons=kind != "bebida" and "allows_addons" in form, sort_order=position,
+            icon={"lanche": "lanche", "montar": "tigela", "bebida": "copo"}.get(kind, "fatia"),
             sizes_json=json.dumps(sizes, ensure_ascii=False),
         )
         db.session.add(category)
@@ -132,12 +149,12 @@ def line_save(category_id):
                 removed.append(size["label"])
                 continue
             label = _name(form.get(f"size-label-{i}", size["label"]), "o nome do tamanho", max_length=30)
-            n = 1 if category.kind == "bebida" else _max_flavors(form.get(f"size-max-{i}"), label)
+            n = _size_max(category.kind, form.get(f"size-max-{i}"), label)
             new_sizes.append({"label": label, "max_flavors": n})
             renames[size["label"]] = new_sizes[-1]
         if form.get("new_size_label", "").strip():
             label = _name(form["new_size_label"], "o nome do novo tamanho", max_length=30)
-            n = 1 if category.kind == "bebida" else _max_flavors(form.get("new_size_max"), label)
+            n = _size_max(category.kind, form.get("new_size_max"), label)
             new_sizes.append({"label": label, "max_flavors": n})
         labels = [s["label"].lower() for s in new_sizes]
         if not new_sizes:
@@ -629,3 +646,26 @@ def _cost_value(text, what, limit=Decimal("10000")):
     if value < 0 or value > limit:
         raise FormError(f"Confira {what}: “{text}”.")
     return value
+
+
+@admin_bp.route("/cardapio/<int:category_id>/complementos", methods=["POST"])
+def picks_save(category_id):
+    """Lista de complementos grátis do “monte o seu” (açaí, marmita)."""
+    category = _category_or_404(category_id)
+    if category.kind != "montar":
+        abort(400)
+    form = request.form
+    try:
+        options = [" ".join(line.split()) for line in form.get("pick_options", "").splitlines() if line.strip()]
+        if any(len(o) > 60 for o in options):
+            raise FormError("Cada complemento pode ter até 60 caracteres.")
+        if len({o.lower() for o in options}) != len(options):
+            raise FormError("Há complementos repetidos na lista.")
+        if len(options) > 80:
+            raise FormError("No máximo 80 complementos.")
+        category.pick_label = " ".join(form.get("pick_label", "").split())[:60] or None
+        category.pick_options = "\n".join(options) or None
+        _save(f"{category.name}: complementos salvos.")
+    except FormError as e:
+        _reject(e)
+    return _back(category.id, "complementos")

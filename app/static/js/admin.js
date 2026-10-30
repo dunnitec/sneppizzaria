@@ -33,7 +33,19 @@
     const SUGGEST = {
       pizza: [["Broto", 1], ["Inteira", 2]],
       doce: [["Broto", 1], ["Inteira", 2]],
+      lanche: [["Único", 1]],
+      montar: [["300 ml", 2], ["500 ml", 3], ["700 ml", 4]],
       bebida: [["Lata 350ml", 1], ["2 litros", 1]],
+    };
+    // número de cada tamanho: sabores (pizza) ou complementos grátis (monte o seu); lanche e bebida não usam
+    const fillMax = (select, value) => {
+      const picks = kind() === "montar";
+      const opts = picks ? Array.from({ length: 11 }, (_, n) => [n, `${n} grátis`])
+        : [[1, "1 (inteira)"], [2, "2 (meio a meio)"], [3, "3 sabores"], [4, "4 sabores"]];
+      select.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+      select.value = String(value ?? (picks ? 2 : 2));
+      const label = select.closest("label").querySelector("[data-max-label]");
+      if (label) label.textContent = picks ? "Complementos" : "Sabores";
     };
     let touched = false;  // depois que o dono mexe nos tamanhos, não troca mais sozinho
     const kind = () => newCat.querySelector('[name="kind"]:checked').value;
@@ -45,8 +57,8 @@
     const addRow = (label = "", max = 2) => {
       const row = tpl.content.firstElementChild.cloneNode(true);
       row.querySelector('[data-name="size_label"]').value = label;
-      row.querySelector('[data-name="size_label"]').placeholder = kind() === "bebida" ? "Ex.: Lata 350ml" : "Ex.: Inteira";
-      row.querySelector('[data-name="size_max"]').value = String(max);
+      row.querySelector('[data-name="size_label"]').placeholder = {bebida: "Ex.: Lata 350ml", montar: "Ex.: 500 ml", lanche: "Ex.: Único"}[kind()] || "Ex.: Inteira";
+      fillMax(row.querySelector('[data-name="size_max"]'), max);
       row.querySelector(".remove-size").addEventListener("click", () => { touched = true; row.remove(); renumber(); });
       row.addEventListener("input", () => { touched = true; });
       box.appendChild(row);
@@ -59,10 +71,11 @@
     const applyKind = () => {
       nameInput.placeholder = nameInput.dataset["placeholder" + kind().charAt(0).toUpperCase() + kind().slice(1)];
       if (!touched) { box.innerHTML = ""; SUGGEST[kind()].forEach(([l, m]) => addRow(l, m)); }
+      else box.querySelectorAll('[data-name="size_max"]').forEach((s) => fillMax(s));
       showFor();
     };
     newCat.querySelectorAll('[name="kind"]').forEach((r) => r.addEventListener("change", applyKind));
-    document.getElementById("add-size").addEventListener("click", () => { touched = true; addRow("", kind() === "bebida" ? 1 : 2); });
+    document.getElementById("add-size").addEventListener("click", () => { touched = true; addRow("", ["bebida", "lanche"].includes(kind()) ? 1 : 2); });
     applyKind();
   }
 

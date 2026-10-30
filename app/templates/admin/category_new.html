@@ -2,7 +2,7 @@
 {% block title %}Nova categoria{% endblock %}
 {% block help %}
 <ol>
-  <li>Escolha o tipo (pizza salgada, pizza doce ou bebida).</li>
+  <li>Escolha o tipo: pizza, lanche/porção/prato, monte o seu (açaí, marmita) ou bebida.</li>
   <li>Dê um nome, como vai aparecer no site.</li>
   <li>Confira os tamanhos sugeridos. Depois de criar, você coloca os itens e os preços.</li>
 </ol>
@@ -16,7 +16,7 @@
   <section class="card">
     <h2>1. O que vai nesta categoria?</h2>
     <div class="kind-choices">
-      {% for key in ('pizza', 'doce', 'bebida') %}
+      {% for key in kind_order %}
       <label class="kind-choice">
         <input type="radio" name="kind" value="{{ key }}" {{ 'checked' if loop.first }} required>
         <span class="kind-icon" aria-hidden="true">{{ kinds[key].icon }}</span>
@@ -30,16 +30,19 @@
   <section class="card">
     <h2>2. Nome da categoria</h2>
     <label class="grow">Como vai aparecer no site<input name="name" maxlength="80" required placeholder="Ex.: Pizzas Especiais"
-           data-placeholder-pizza="Ex.: Pizzas Especiais" data-placeholder-doce="Ex.: Pizzas Doces" data-placeholder-bebida="Ex.: Refrigerantes"></label>
+           data-placeholder-pizza="Ex.: Pizzas Especiais" data-placeholder-doce="Ex.: Pizzas Doces" data-placeholder-bebida="Ex.: Refrigerantes"
+           data-placeholder-lanche="Ex.: Lanches, Porções, Pratos executivos" data-placeholder-montar="Ex.: Monte seu açaí"></label>
   </section>
 
   <section class="card">
     <h2>3. Tamanhos</h2>
     <p class="hint" data-only="pizza doce">Cada tamanho tem seu preço. Em “Sabores”, escolha quantos sabores o cliente pode misturar: 1 = pizza inteira de um sabor, 2 = meio a meio.</p>
     <p class="hint" data-only="bebida">Ex.: Lata 350ml, 600ml, 2 litros. O preço de cada um você coloca no próximo passo, em cada bebida.</p>
+    <p class="hint" data-only="lanche">Item de preço único: deixe só “Único”. Com tamanhos (ex.: Simples e Duplo, Meia e Inteira): um por linha.</p>
+    <p class="hint" data-only="montar">Cada tamanho tem seu preço e quantos complementos vêm grátis (ex.: 500 ml com 3). Depois de criar, você monta a lista de complementos.</p>
     <div id="sizes"></div>
     <button type="button" class="ghost small" id="add-size">+ Outro tamanho</button>
-    <label class="check" data-only="pizza doce"><input type="checkbox" name="allows_addons"> o cliente pode pedir adicionais (ex.: + bacon, + catupiry)</label>
+    <label class="check" data-only="pizza doce lanche montar"><input type="checkbox" name="allows_addons"> o cliente pode pedir adicionais pagos (ex.: + bacon, + leite Ninho)</label>
   </section>
 
   <div class="savebar"><button class="primary">Criar e cadastrar os itens ›</button></div>
@@ -48,9 +51,7 @@
 <template id="size-row">
   <div class="row size-row">
     <label class="grow">Tamanho<input data-name="size_label" maxlength="30"></label>
-    <label class="grow" data-only="pizza doce">Sabores<select data-name="size_max">
-      <option value="1">1 (inteira)</option><option value="2">2 (meio a meio)</option><option value="3">3 sabores</option><option value="4">4 sabores</option>
-    </select></label>
+    <label class="grow" data-only="pizza doce montar"><span data-max-label>Sabores</span><select data-name="size_max"></select></label>
     <button type="button" class="ghost small danger remove-size" aria-label="Tirar este tamanho">Tirar</button>
   </div>
 </template>

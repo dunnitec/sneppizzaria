@@ -78,6 +78,7 @@ def data_from_db(tenant, order_url, assets):
     from app.services.hours import is_open, open_hours
     from app.services.photos import photo_url
     from app.services.geo import km_on
+    from app.services.business import biz
     from app.services.site_options import options as site_options
     from flask import current_app
 
@@ -116,6 +117,7 @@ def data_from_db(tenant, order_url, assets):
                 "accent": c.accent or "vermelho",
                 "banner": photo_url(c.banner_image),
                 **({"combo": c.combo_settings()} if c.kind == "metro" else {}),
+                **({"picks": c.pick_settings()} if c.kind == "montar" else {}),
                 "products": [
                     {
                         "id": p.id,
@@ -143,6 +145,7 @@ def data_from_db(tenant, order_url, assets):
             "eta_minutes": tenant.eta_minutes,
             "pickup_minutes": tenant.pickup_minutes,
         },
+        "business": biz(tenant),  # tipo de loja: palavras do site (services/business.py)
         "hours": open_hours(tenant),
         "open": is_open(tenant),
         "pix": bool(tenant.pix_key),  # QR Code do Pix no pedido feito (app/services/pix.py)

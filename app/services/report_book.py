@@ -18,6 +18,7 @@ from decimal import Decimal
 
 from app.models import (CHANNELS, EXPENSE_CATEGORIES, RESIDENCES, SOLD_STATUSES, Category, Customer, Dispatch,
                         Expense, Order, OrderItem, OrderItemFlavor)
+from app.services.business import MAIN_KINDS, biz
 from app.services.costs import Menu, card_fee, estimate, fee_rates
 from app.services.hours import local_time
 from app.services.reports import _utc_bounds
@@ -28,7 +29,7 @@ PURCHASES = ("mercado", "bebidas", "embalagens")  # compras que viram produto ve
 INACTIVE_DAYS = 30
 # fechamento do dia: as quatro formas aparecem sempre, mesmo zeradas (pedidos antigos com "Cartão" vão no crédito)
 CLOSING_PAYMENTS = [("Dinheiro", "Dinheiro"), ("Pix", "PIX"), ("Débito", "Cartão de débito"), ("Crédito", "Cartão de crédito")]
-PIZZA_KINDS = ("pizza", "doce", "metro")
+PIZZA_KINDS = MAIN_KINDS  # “itens principais”: tudo menos bebida (services/business.py)
 
 
 def _q(value):
@@ -154,7 +155,7 @@ def closing(tenant, day, with_expenses=True):
     ingredients = (sum((e.amount for e in _expenses(tenant, day, day) if e.category == "mercado"), ZERO)
                    if with_expenses else None)
     return {
-        **p, "day": day, "payment_lines": payment_lines, "pizza_lines": pizza_lines, "ingredients": ingredients,
+        **p, "day": day, "main_label": biz(tenant)["sold"], "payment_lines": payment_lines, "pizza_lines": pizza_lines, "ingredients": ingredients,
         "pizza_total": sum(i.quantity for i in pizza_items),
         "other_lines": sorted(({"label": k, "qty": v} for k, v in other_lines.items()), key=lambda r: -r["qty"]),
         "sold_list": _sold_list(sold_items),

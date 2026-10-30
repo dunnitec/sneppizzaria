@@ -12,9 +12,10 @@
 <form method="post" data-track>
   {{ csrf() }}
   <section class="card">
-    <h2>Dados da pizzaria</h2>
+    <h2>Dados da loja</h2>
     <div class="row">
       <label class="grow">Nome<input name="name" value="{{ tenant.name }}" maxlength="120" required></label>
+      <label class="grow">Tipo de loja<select name="business_type">{% for key, t in business_types.items() %}<option value="{{ key }}" {{ 'selected' if key == biz.key }}>{{ t.label }}</option>{% endfor %}</select></label>
       <label class="grow">Instagram<input name="instagram" value="{{ tenant.instagram or '' }}" maxlength="120" placeholder="sneppizzariaitu"></label>
     </div>
     <div class="row"><label class="grow2">Frase embaixo do nome, no topo do site<input name="slogan" value="{{ tenant.slogan or '' }}" maxlength="120" placeholder="Ex.: A melhor pizzaria de Itu"></label></div>

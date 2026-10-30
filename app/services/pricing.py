@@ -4,7 +4,8 @@ O navegador só informa O QUE foi escolhido (categoria, tamanho, sabores,
 borda, adicionais). Qualquer preço enviado por ele é ignorado, então adulterar
 a página não muda o valor que chega para a loja.
 
-Regras: meio a meio cobra o sabor mais caro; o combo (kind="metro") tem preço
+Regras: meio a meio cobra o sabor mais caro (pizza); lanche e “monte o seu” são um item por vez, sem borda,
+e o “monte o seu” aceita até N complementos grátis da lista da categoria (N = max_flavors do tamanho); o combo (kind="metro") tem preço
 fixo, sabores só das linhas que o dono escolheu e não leva borda paga;
 adicionais só nas categorias com allows_addons, no máximo MAX_ADDONS por pizza.
 Promoções no ar (services/promotions.py) baixam o preço do sabor/tamanho antes
@@ -15,6 +16,7 @@ import re
 from decimal import Decimal
 
 from app.models import Addon, Border, Category, Product
+from app.services.business import PIZZA_KINDS, SINGLE_KINDS
 from app.services.promotions import best_price, running
 
 MAX_ADDONS = 5
@@ -87,6 +89,19 @@ def _addons(tenant, category, raw):
     return result
 
 
+def _picks(category, raw, limit):
+    """Complementos grátis marcados no “monte o seu”: só os da lista, sem repetir, no máximo `limit`."""
+    chosen = raw.get("picks") or []
+    if not isinstance(chosen, list) or not all(isinstance(x, str) for x in chosen):
+        raise OrderError("Complementos inválidos. Atualize a página.")
+    settings = category.pick_settings()
+    if len(set(chosen)) != len(chosen) or any(x not in settings["options"] for x in chosen):
+        raise OrderError("Um dos complementos não está mais disponível. Atualize a página.")
+    if len(chosen) > limit:
+        raise OrderError(f"Este tamanho vem com até {limit} {settings['label'].lower()}.")
+    return f"{settings['label']}: {', '.join(chosen)}" if chosen else f"{settings['label']}: nenhum"
+
+
 def price_item(tenant, raw):
     """Valida um item vindo do navegador e devolve a linha do pedido já precificada."""
     if not isinstance(raw, dict):
@@ -137,13 +152,18 @@ def price_item(tenant, raw):
             raise OrderError("Tamanho indisponível para o sabor escolhido. Atualize a página.")
         if category.kind == "bebida" and (len(flavors) != 1 or raw.get("border_id") not in (None, "")):
             raise OrderError("Bebida inválida. Atualize a página.")
-        max_flavors = max(v.max_flavors for v in variants)
+        if category.kind in SINGLE_KINDS and len(flavors) != 1:
+            raise OrderError("Item inválido. Atualize a página.")
+        # “monte o seu”: max_flavors é o nº de complementos grátis, não de sabores
+        max_flavors = 1 if category.kind in SINGLE_KINDS else max(v.max_flavors for v in variants)
         # meio a meio cobra o sabor mais caro, já com o desconto de cada sabor
         prices = [best_price(promos, category.id, p.id, label, v.price) for p, v in zip(flavors, variants)]
         price = max(pr for pr, _ in prices)
         if price < max(_money(v.price) for v in variants):
             applied += [promo.name for _, promo in prices if promo]
         extras = []
+        if category.kind == "montar":
+            extras.append(_picks(category, raw, variants[0].max_flavors))
         n = len(flavors)
         title = flavors[0].name if n == 1 else " + ".join(f"1/{n} {p.name}" for p in flavors)
 
@@ -152,6 +172,8 @@ def price_item(tenant, raw):
 
     base_price = price  # sabor/tamanho já com promoção, sem borda e adicionais (prêmio da fidelidade)
     border = _border(tenant, raw)
+    if border and category.kind not in PIZZA_KINDS:
+        raise OrderError("Este item não aceita borda.")
     no_border = next((p for p in flavors if not p.accepts_border), None)
     if border and no_border:
         raise OrderError(f"{no_border.name} não aceita borda. Tire a borda e envie de novo.")
@@ -161,7 +183,8 @@ def price_item(tenant, raw):
         price += _money(border.price)
 
     addons = _addons(tenant, category, raw)
-    whole = not SMALL_PIZZA.search(label)
+    # adicional: preço de pizza pequena só em pizza pequena; lanche, açaí etc. pagam o preço cheio
+    whole = category.kind not in PIZZA_KINDS or not SMALL_PIZZA.search(label)
     for addon, qty in addons:
         price += qty * _money(addon.price_whole if whole else addon.price_half)
 

@@ -8,7 +8,7 @@
   <div class="cl-row"><dt>Taxas de entrega</dt><dd>{{ c.delivery|brl }}</dd></div>
   {% if c.ingredients is not none %}<div class="cl-row"><dt>Compras de ingredientes</dt><dd>{{ c.ingredients|brl }}</dd></div>{% endif %}
   <div class="cl-sep"></div>
-  <div class="cl-row cl-strong"><dt>Pizzas vendidas</dt><dd>{{ c.pizza_total }}</dd></div>
+  <div class="cl-row cl-strong"><dt>{{ c.main_label }}</dt><dd>{{ c.pizza_total }}</dd></div>
   {% for l in c.pizza_lines %}<div class="cl-row cl-sub"><dt>{{ l.label }}</dt><dd>{{ l.qty }}</dd></div>{% endfor %}
   {% for l in c.other_lines %}<div class="cl-row cl-strong"><dt>{{ l.label }}</dt><dd>{{ l.qty }}</dd></div>{% endfor %}
 </dl>
