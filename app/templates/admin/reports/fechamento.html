@@ -1,5 +1,12 @@
 {% import "admin/reports/_macros.html" as m %}
-{# fechamento do dia: também aparece resumido no Início (admin/home.html) #}
+{# fechamento do dia: também aparece no Início (admin/home.html) e no cupom (admin/closing_label.html) #}
+<section class="card closing">
+  <div class="closing-head">
+    <h2>Fechamento</h2>
+    <a class="button primary small no-print" href="{{ url_for('admin.closing_label', dia=c.day.isoformat(), auto=1) }}" target="_blank" rel="noopener">Imprimir fechamento</a>
+  </div>
+  {% include "admin/_closing_list.html" %}
+</section>
 <div class="kpis">
   <div class="kpi"><span>Vendido</span><b>{{ c.sold|brl }}</b><small>{{ c.orders }} pedido{{ 's' if c.orders != 1 }}</small></div>
   <div class="kpi"><span>Ticket médio</span><b>{{ c.avg_ticket|brl }}</b><small>{{ c.pizzas }} pizza{{ 's' if c.pizzas != 1 }} · {{ c.deliveries }} entrega{{ 's' if c.deliveries != 1 }}</small></div>

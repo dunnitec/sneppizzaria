@@ -490,3 +490,22 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
   .card{break-inside:avoid;box-shadow:none}
   body{background:#fff}
 }
+
+/* fechamento do dia (Início e relatório): lista de conferência */
+.closing-actions{display:flex;flex-wrap:wrap;gap:8px}
+.closing-list{margin:0;max-width:520px}
+.closing-list .cl-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eee}
+.closing-list dt{margin:0}
+.closing-list dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.closing-list .cl-big{font-size:20px;font-weight:800}
+.closing-list .cl-strong{font-weight:700}
+.closing-list .cl-sub dt{padding-left:16px;color:var(--muted)}
+.closing-list .cl-sep{height:8px}
+.sold-list{max-width:520px;margin-top:14px}
+.sold-list dl{margin:0}
+.sold-list .cl-row{display:flex;justify-content:space-between;gap:12px;padding:4px 0 4px 16px;border-bottom:1px solid #eee;font-size:14px}
+.sold-list dt{margin:0}
+.sold-list dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.sl-title{font-weight:800;margin:0 0 4px}
+.sl-group{font-weight:700;margin:10px 0 2px}
+.sl-note{font-size:12px;color:var(--muted);margin:6px 0 0}

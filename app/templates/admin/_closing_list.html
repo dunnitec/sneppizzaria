@@ -1,0 +1,26 @@
+{# fechamento do dia: os itens que o dono confere no fim da noite (Início, relatório e cupom impresso) #}
+<dl class="closing-list">
+  <div class="cl-row cl-big"><dt>Faturamento total do dia</dt><dd>{{ c.sold|brl }}</dd></div>
+  <div class="cl-row"><dt>Quantidade de pedidos</dt><dd>{{ c.orders }}</dd></div>
+  <div class="cl-sep"></div>
+  {% for p in c.payment_lines %}<div class="cl-row"><dt>{{ p.label }}</dt><dd>{{ p.total|brl }}</dd></div>{% endfor %}
+  <div class="cl-sep"></div>
+  <div class="cl-row"><dt>Taxas de entrega</dt><dd>{{ c.delivery|brl }}</dd></div>
+  {% if c.ingredients is not none %}<div class="cl-row"><dt>Compras de ingredientes</dt><dd>{{ c.ingredients|brl }}</dd></div>{% endif %}
+  <div class="cl-sep"></div>
+  <div class="cl-row cl-strong"><dt>Pizzas vendidas</dt><dd>{{ c.pizza_total }}</dd></div>
+  {% for l in c.pizza_lines %}<div class="cl-row cl-sub"><dt>{{ l.label }}</dt><dd>{{ l.qty }}</dd></div>{% endfor %}
+  {% for l in c.other_lines %}<div class="cl-row cl-strong"><dt>{{ l.label }}</dt><dd>{{ l.qty }}</dd></div>{% endfor %}
+</dl>
+{% if c.sold_list %}
+<div class="sold-list">
+  <p class="sl-title">Tudo que saiu</p>
+  {% for g in c.sold_list %}
+  <p class="sl-group">{{ g.label }}</p>
+  <dl>
+    {% for r in g.rows %}<div class="cl-row"><dt>{{ r.name }}</dt><dd>{{ ('%.1f'|format(r.qty|float)).replace('.0', '').replace('.', ',') }}</dd></div>{% endfor %}
+  </dl>
+  {% endfor %}
+  <p class="sl-note">Meio a meio conta meia pizza para cada sabor.</p>
+</div>
+{% endif %}

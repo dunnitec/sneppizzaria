@@ -1,0 +1,48 @@
+{% from "admin/_receipt.html" import sheet_width, fit_page_script %}<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Fechamento {{ c.day.strftime('%d/%m/%Y') }}</title>
+<style>
+  /* mesmo papel do cupom do pedido (Loja → Impressora) */
+  {% if tenant.label_height_mm %}@page { size: {{ tenant.label_width_mm }}mm {{ tenant.label_height_mm }}mm; margin: 3mm; }
+  {% else %}@page { margin: 0; }
+  @media print { html body .sheet { width: {{ sheet_width(tenant) }}; padding: 0 1mm; } }{% endif %}
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 12pt; color: #000; background: #fff; }
+  .head { border-bottom: 2px solid #000; padding-bottom: 2mm; margin-bottom: 1mm; }
+  .head b { display: block; font-size: 17pt; font-weight: 900; }
+  .closing-list { margin: 0; }
+  .cl-row { display: flex; justify-content: space-between; gap: 2mm; padding: .8mm 0; }
+  .cl-row dt { margin: 0; }
+  .cl-row dd { margin: 0; font-weight: 700; white-space: nowrap; }
+  .cl-big { display: block; font-weight: 900; }  /* valor numa linha própria: lado a lado passava da área de impressão */
+  .cl-big dd { text-align: right; font-size: 16pt; font-weight: 900; }
+  .cl-strong { font-weight: 900; }
+  .cl-sub dt { padding-left: 3mm; }
+  .cl-sep { border-top: 1px dashed #000; margin: 1mm 0; }
+  .sold-list { border-top: 2px solid #000; margin-top: 2mm; padding-top: 1mm; }
+  .sold-list dl { margin: 0; }
+  .sl-title { font-weight: 900; margin: 0; }
+  .sl-group { font-weight: 700; margin: 1.5mm 0 0; text-decoration: underline; }
+  .sl-note { font-size: 9pt; margin: 1mm 0 0; }
+  .sold-list .cl-row dt { padding-left: 2mm; }
+  .foot { border-top: 2px solid #000; margin-top: 2mm; padding-top: 1mm; font-size: 10pt; }
+  @media screen { body { background: #ddd; } .sheet { width: {{ sheet_width(tenant) if not tenant.label_height_mm else tenant.label_width_mm ~ 'mm' }}; margin: 10px auto; background: #fff; padding: 3mm; }
+                  .tools { text-align: center; font: 14px Arial; margin: 10px; } }
+  @media print { .tools { display: none; } }
+</style>
+</head>
+<body>
+<div class="tools"><button onclick="window.print()">Imprimir</button></div>
+<div class="sheet">
+  <div class="head"><b>FECHAMENTO</b>{{ tenant.name }} · {{ c.day.strftime('%d/%m/%Y') }}</div>
+  {% include "admin/_closing_list.html" %}
+  <div class="foot">Impresso em {{ printed_at }}{% if c.pending %} · {{ c.pending }} pedido(s) pendente(s) fora da conta{% endif %}</div>
+</div>
+{{ fit_page_script(tenant) }}
+<script>
+  if (new URLSearchParams(location.search).get("auto") === "1") window.addEventListener("load", () => setTimeout(() => window.print(), 300));
+</script>
+</body>
+</html>

@@ -571,6 +571,17 @@ def _report_data(kind, tenant, start, end):
     return {"ca": book.cancelled(tenant, start, end)}
 
 
+@admin_bp.route("/fechamento/imprimir")
+def closing_label():
+    """Cupom do fechamento do dia na bobina (mesmo papel do cupom do pedido)."""
+    from app.services.report_book import closing
+
+    today = datetime.now(STORE_TZ).date()
+    day = min(_date(request.args.get("dia")) or today, today)
+    return render_template("admin/closing_label.html", c=closing(g.tenant, day, has_feature(g.tenant, "financeiro")),
+                           printed_at=datetime.now(STORE_TZ).strftime("%d/%m/%Y %H:%M"))
+
+
 def _report_csv(kind, data):
     """Tabela principal do relatório para abrir no Excel: (cabeçalho, linhas)."""
     if kind == "produtos":
@@ -606,7 +617,17 @@ def _report_csv(kind, data):
                 [[o.id, local_time(o.created_at).strftime("%d/%m/%Y %H:%M"), o.customer_name, o.total]
                  for o in data["ca"]["orders"]])
     if kind == "fechamento":
-        return ["Forma", "Pedidos", "Vendido"], [[r["label"], r["orders"], r["total"]] for r in data["c"]["by_payment"]]
+        c = data["c"]
+        rows = [["Faturamento total do dia", c["sold"]], ["Quantidade de pedidos", c["orders"]]]
+        rows += [[p["label"], p["total"]] for p in c["payment_lines"]]
+        rows += [["Taxas de entrega", c["delivery"]]]
+        if c["ingredients"] is not None:
+            rows += [["Compras de ingredientes", c["ingredients"]]]
+        rows += [["Pizzas vendidas", c["pizza_total"]]] + [[l["label"], l["qty"]] for l in c["pizza_lines"]]
+        rows += [[l["label"], l["qty"]] for l in c["other_lines"]]
+        for g in c["sold_list"]:
+            rows += [[f"{g['label']}: {r['name']}", r["qty"]] for r in g["rows"]]
+        return ["Item", "Valor"], rows
     return (["Dia", "Pedidos", "Vendido"],
             [[d["date"].strftime("%d/%m/%Y"), d["orders"], d["revenue"]] for d in data["r"]["by_day"]])
 

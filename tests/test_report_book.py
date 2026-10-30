@@ -7,6 +7,7 @@ from app.models import Border, Category, Expense, Order, OrderItem, Product
 from app.services import report_book as book
 from app.services.costs import Menu, card_fee, cost_of, fee_rates
 from tests.test_admin import admin, panel  # noqa: F401
+from tests.test_drinks_stock import drinks  # noqa: F401
 from tests.test_finance import today
 from tests.test_pos import paulista_price, pizza
 from tests.test_pos import post as pos_post
@@ -160,7 +161,34 @@ def test_closing_picks_any_day(panel):
 def test_home_shows_todays_closing(panel):
     post(panel, payment_method="Dinheiro", items=[pizza()])
     html = panel.get("/snep/admin/").get_data(as_text=True)
-    assert "Fechamento de hoje" in html and "Dinheiro na gaveta" in html
+    assert "Fechamento de hoje" in html and "Imprimir fechamento" in html
+    for label in ("Faturamento total do dia", "Quantidade de pedidos", "Dinheiro", "PIX", "Cartão de débito",
+                  "Cartão de crédito", "Taxas de entrega", "Compras de ingredientes", "Pizzas vendidas"):
+        assert label in html, label
+
+
+def test_closing_lines_payments_ingredients_and_pizzas_by_line(panel, tenant):
+    post(panel, payment_method="Dinheiro", items=[pizza(qty=2)])
+    post(panel, payment_method="Crédito", items=[pizza()])
+    db.session.add_all([Expense(tenant_id=tenant.id, day=today(), category="mercado", amount=Decimal("80")),
+                        Expense(tenant_id=tenant.id, day=today(), category="gas", amount=Decimal("120"))])
+    db.session.commit()
+    c = book.closing(tenant, today())
+    price = paulista_price()
+    pay = {p["label"]: p["total"] for p in c["payment_lines"]}
+    assert pay == {"Dinheiro": 2 * price, "PIX": 0, "Cartão de débito": 0, "Cartão de crédito": price}
+    assert c["ingredients"] == Decimal("80")  # só compras de mercado, o gás não
+    assert c["orders"] == 2 and c["pizza_total"] == 3
+    lines = {l["label"]: l["qty"] for l in c["pizza_lines"]}
+    assert lines[premium().name] == 3
+    assert all(q == 0 for name, q in lines.items() if name != premium().name)
+
+
+def test_closing_receipt_prints(panel):
+    post(panel, payment_method="Pix", items=[pizza()])
+    html = panel.get("/snep/admin/fechamento/imprimir").get_data(as_text=True)
+    assert "FECHAMENTO" in html and "Faturamento total do dia" in html and "Pizzas vendidas" in html
+    assert panel.get("/snep/admin/fechamento/imprimir?dia=2026-01-05").status_code == 200
 
 
 def test_costs_page_saves_values_percent_and_fees(panel, tenant):
@@ -184,3 +212,17 @@ def test_accounts_and_team_have_a_day_picker(panel):
     for url in ("/snep/admin/contas?dia=2026-10-01", "/snep/admin/equipe?dia=2026-10-01"):
         html = panel.get(url).get_data(as_text=True)
         assert 'type="date" name="dia" value="2026-10-01"' in html, url
+
+
+def test_closing_lists_everything_sold_including_drinks(panel, tenant, drinks):
+    from tests.test_drinks_stock import drink
+
+    post(panel, payment_method="Pix", items=[pizza(qty=2), drink(drinks, "Coca-Cola", "2 litros", qty=3)])
+    c = book.closing(tenant, today())
+    assert c["pizza_total"] == 2
+    assert {l["label"]: l["qty"] for l in c["other_lines"]} == {"Refrigerantes": 3}
+    groups = {g["label"]: {r["name"]: r["qty"] for r in g["rows"]} for g in c["sold_list"]}
+    assert groups["Refrigerantes"] == {"Coca-Cola 2 litros": 3}
+    assert groups[premium().name] == {"Paulista": 2}
+    html = panel.get("/snep/admin/fechamento/imprimir").get_data(as_text=True)
+    assert "Tudo que saiu" in html and "Coca-Cola 2 litros" in html

@@ -16,8 +16,8 @@ from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 
-from app.models import (CHANNELS, EXPENSE_CATEGORIES, SOLD_STATUSES, Customer, Dispatch, Expense, Order, OrderItem,
-                        OrderItemFlavor, RESIDENCES)
+from app.models import (CHANNELS, EXPENSE_CATEGORIES, RESIDENCES, SOLD_STATUSES, Category, Customer, Dispatch,
+                        Expense, Order, OrderItem, OrderItemFlavor)
 from app.services.costs import Menu, card_fee, estimate, fee_rates
 from app.services.hours import local_time
 from app.services.reports import _utc_bounds
@@ -26,6 +26,9 @@ ZERO = Decimal("0")
 CENT = Decimal("0.01")
 PURCHASES = ("mercado", "bebidas", "embalagens")  # compras que viram produto vendido (CMV pelas compras)
 INACTIVE_DAYS = 30
+# fechamento do dia: as quatro formas aparecem sempre, mesmo zeradas (pedidos antigos com "Cartão" vão no crédito)
+CLOSING_PAYMENTS = [("Dinheiro", "Dinheiro"), ("Pix", "PIX"), ("Débito", "Cartão de débito"), ("Crédito", "Cartão de crédito")]
+PIZZA_KINDS = ("pizza", "doce", "metro")
 
 
 def _q(value):
@@ -127,8 +130,34 @@ def closing(tenant, day, with_expenses=True):
         g["total"] += o.total
     pending = [o for o in orders if o.status == "pendente"]
     cancelled = [o for o in orders if o.status == "cancelado"]
+    payment_lines = [{"label": label, "total": by_payment.get(key, {}).get("total", ZERO)
+                                      + (by_payment.get("Cartão", {}).get("total", ZERO) if key == "Crédito" else ZERO)}
+                     for key, label in CLOSING_PAYMENTS]
+    known = {key for key, _ in CLOSING_PAYMENTS} | {"Cartão"}
+    others = sum((v["total"] for k, v in by_payment.items() if k not in known), ZERO)
+    if others:
+        payment_lines.append({"label": "Outras formas", "total": others})
+    sold_items = _items(sold_orders)
+    pizza_items = [i for i in sold_items if i.kind in PIZZA_KINDS]
+    per_category = defaultdict(int)
+    for i in pizza_items:
+        per_category[i.category_id] += i.quantity
+    lines = (Category.query.filter(Category.tenant_id == tenant.id, Category.kind.in_(PIZZA_KINDS))
+             .order_by(Category.sort_order, Category.id).all())
+    pizza_lines = [{"label": c.name, "qty": per_category.pop(c.id, 0)} for c in lines]
+    if sum(per_category.values()):  # linha apagada depois da venda
+        pizza_lines.append({"label": "Outras", "qty": sum(per_category.values())})
+    other_items = [i for i in sold_items if i.kind not in PIZZA_KINDS]  # bebidas e o que mais houver
+    other_lines = defaultdict(int)
+    for i in other_items:
+        other_lines[i.category_name or "Outros"] += i.quantity
+    ingredients = (sum((e.amount for e in _expenses(tenant, day, day) if e.category == "mercado"), ZERO)
+                   if with_expenses else None)
     return {
-        **p, "day": day,
+        **p, "day": day, "payment_lines": payment_lines, "pizza_lines": pizza_lines, "ingredients": ingredients,
+        "pizza_total": sum(i.quantity for i in pizza_items),
+        "other_lines": sorted(({"label": k, "qty": v} for k, v in other_lines.items()), key=lambda r: -r["qty"]),
+        "sold_list": _sold_list(sold_items),
         "by_payment": sorted(({"label": k, **v} for k, v in by_payment.items()), key=lambda r: -r["total"]),
         "by_channel": sorted(({"label": k, **v} for k, v in by_channel.items()), key=lambda r: -r["total"]),
         "cash_in": cash_in, "paid_out": paid_out, "left": p["sold"] - paid_out,
@@ -139,6 +168,26 @@ def closing(tenant, day, with_expenses=True):
         "first": local_time(min(o.created_at for o in sold_orders)).strftime("%H:%M") if sold_orders else None,
         "last": local_time(max(o.created_at for o in sold_orders)).strftime("%H:%M") if sold_orders else None,
     }
+
+
+def _sold_list(items):
+    """Tudo que saiu, por linha do cardápio: sabor (meio a meio conta meia de cada) ou bebida com o tamanho."""
+    flavors = defaultdict(list)
+    if items:
+        for f in OrderItemFlavor.query.filter(OrderItemFlavor.order_item_id.in_([i.id for i in items])):
+            flavors[f.order_item_id].append(f)
+    groups = defaultdict(lambda: defaultdict(Decimal))
+    for i in items:
+        group = groups[i.category_name or "Outros"]
+        parts = flavors.get(i.id)
+        if i.kind == "bebida" or not parts:
+            group[f"{i.product_names} {i.variant_label or ''}".strip() if i.kind == "bebida" else i.product_names] += i.quantity
+        else:
+            for f in parts:
+                group[f.product_name] += Decimal(f.share) * i.quantity
+    return [{"label": cat, "rows": sorted(({"name": n, "qty": q} for n, q in rows.items()),
+                                          key=lambda r: (-r["qty"], r["name"]))}
+            for cat, rows in sorted(groups.items(), key=lambda kv: -sum(kv[1].values()))]
 
 
 # ---------- produtos (curva ABC) ----------

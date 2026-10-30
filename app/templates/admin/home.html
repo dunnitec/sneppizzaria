@@ -26,22 +26,13 @@
 <section class="card closing">
   <div class="closing-head">
     <h2>Fechamento de hoje</h2>
-    <a class="button ghost small" href="{{ url_for('admin.reports', tipo='fechamento') }}">Ver completo e imprimir ›</a>
+    <div class="closing-actions">
+      <a class="button primary small" href="{{ url_for('admin.closing_label', auto=1) }}" target="_blank" rel="noopener">Imprimir fechamento</a>
+      <a class="button ghost small" href="{{ url_for('admin.reports', tipo='fechamento') }}">Ver mais ›</a>
+    </div>
   </div>
-  <div class="kpis">
-    <div class="kpi"><span>Vendido</span><b>{{ c.sold|brl }}</b><small>{{ c.orders }} pedido{{ 's' if c.orders != 1 }} · ticket {{ c.avg_ticket|brl }}</small></div>
-    <div class="kpi"><span>Dinheiro na gaveta</span><b>{{ c.cash_in|brl }}</b><small>vendas em dinheiro</small></div>
-    {% if c.with_expenses %}
-    <div class="kpi"><span>Gastos de hoje</span><b class="{{ 'neg' if c.paid_out }}">{{ c.paid_out|brl }}</b><small><a href="{{ url_for('admin.accounts') }}">lançar gasto</a></small></div>
-    <div class="kpi {{ 'kpi-ok' if c.net >= 0 else 'kpi-bad' }}"><span>Lucro real</span><b>{{ c.net|brl }}</b><small>depois de custos, taxas e gastos</small></div>
-    {% else %}
-    <div class="kpi"><span>Entregas</span><b>{{ c.deliveries }}</b><small>{{ c.pizzas }} pizza{{ 's' if c.pizzas != 1 }}</small></div>
-    <div class="kpi"><span>Lucro bruto</span><b>{{ c.gross_profit|brl }}</b><small>depois de custos e taxas</small></div>
-    {% endif %}
-  </div>
-  {% if c.by_payment %}
-  <p class="pay-line">{% for r in c.by_payment %}<span><b>{{ r.label }}</b> {{ r.total|brl }}</span>{% endfor %}</p>
-  {% endif %}
+  {% include "admin/_closing_list.html" %}
+  {% if c.pending %}<p class="hint"><b>{{ c.pending }} pedido(s) pendente(s)</b> ({{ c.pending_value|brl }}) ainda não entraram — <a href="{{ url_for('admin.orders', status='pendente') }}">confirmar</a>.</p>{% endif %}
 </section>
 
 <section class="card times">
