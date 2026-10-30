@@ -22,11 +22,12 @@
   <span id="search-count" class="hint" aria-live="polite"></span>
 </div>
 
-<div class="cat-list">
+<div class="cat-list" id="cat-list" data-url="{{ url_for('admin.line_order') }}">
   {% for c in categories %}
   {% set info = kinds[c.kind] %}
   {% set sold_out = c.products|selectattr('active', 'equalto', False)|list|length %}
-  <article class="card cat-overview" data-name="{{ c.name }} {% for p in c.products %}{{ p.name }} {% endfor %}">
+  <article class="card cat-overview" draggable="true" data-id="{{ c.id }}" data-name="{{ c.name }} {% for p in c.products %}{{ p.name }} {% endfor %}">
+    <div class="cat-drag" aria-hidden="true" title="Arraste para mudar a ordem">⠿</div>
     <div class="cat-icon" aria-hidden="true">{{ info.icon }}</div>
     <div class="cat-info">
       <h2><a href="{{ url_for('admin.category_page', category_id=c.id) }}">{{ c.name }}</a></h2>
@@ -55,6 +56,30 @@
   {% endfor %}
 </div>
 
-<p class="hint">As setas ↑ ↓ mudam a ordem em que as categorias aparecem no site. Para tirar um item do ar por um tempo, use a aba <a href="{{ url_for('admin.stock') }}">Estoque</a>.
+<p class="hint">Arraste uma categoria (pelo ⠿) ou use as setas ↑ ↓ para mudar a ordem em que aparecem no site. Para tirar um item do ar por um tempo, use a aba <a href="{{ url_for('admin.stock') }}">Estoque</a>.
   Fotos de todos os itens de uma vez: <a href="{{ url_for('admin.photos') }}">ver fotos</a>.</p>
+<script>
+  // arrastar e soltar: muda a ordem na tela e salva sozinho
+  (function () {
+    const list = document.getElementById("cat-list");
+    let dragging = null;
+    list.addEventListener("dragstart", (e) => { dragging = e.target.closest(".cat-overview"); if (dragging) dragging.classList.add("dragging"); });
+    list.addEventListener("dragover", (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const over = e.target.closest(".cat-overview");
+      if (!over || over === dragging) return;
+      const r = over.getBoundingClientRect();
+      list.insertBefore(dragging, e.clientY > r.top + r.height / 2 ? over.nextSibling : over);
+    });
+    list.addEventListener("dragend", async () => {
+      if (!dragging) return;
+      dragging.classList.remove("dragging"); dragging = null;
+      const ids = [...list.querySelectorAll(".cat-overview")].map((a) => Number(a.dataset.id));
+      const token = document.querySelector('meta[name="csrf-token"]').content;
+      const r = await fetch(list.dataset.url, { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": token }, body: JSON.stringify({ ids }) });
+      if (r.ok) location.reload(); else alert("Não deu para salvar a ordem. Atualize a página e tente de novo.");
+    });
+  })();
+</script>
 {% endblock %}

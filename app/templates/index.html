@@ -18,9 +18,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 {% if inline %}<style>{{ css|safe }}</style>{% else %}<link rel="stylesheet" href="{{ static_url('css/delivery.css') }}">{% endif %}
 {# cor escolhida pelo dono (Aparência): depois do CSS do site, para valer por cima #}
-{% if site_css %}<style>{{ site_css }}</style>{% endif %}
+{% if font_url %}<link href="{{ font_url }}" rel="stylesheet">{% endif %}
+{% if site_css %}<style>{{ site_css|safe }}</style>{% endif %}{# só valores validados: cor #rrggbb e fonte da lista FONTS #}
 </head>
-<body class="layout-{{ d.site.layout }}">
+<body class="layout-{{ d.site.layout }} theme-{{ d.site.theme }}">
 {% set words = d.tenant.name.split() %}
 {% set slogan_words = (d.tenant.slogan or '').split() %}
 <header class="hero" {% if d.tenant.hero %}style="--hero:url('{{ d.tenant.hero }}')"{% endif %}>
@@ -50,7 +51,7 @@
   </div>
   {% else %}<div id="banner" hidden></div><div id="dots" hidden></div>{% endif %}
 
-  <div class="infobar">
+  <div class="infobar"{% if not d.site.show_infobar %} hidden{% endif %}>
     <button type="button" class="blk" onclick="togglePop('pop-h',event)"><span class="ib-ico" aria-hidden="true"><span class="dot" id="st-dot"></span></span><span class="ib-txt"><b id="st-txt">Fechado</b><small>Ver horários ›</small></span>
       <span class="pop hrs" id="pop-h">{% for h in d.hours_rows %}<span class="row"><span>{{ h[0] }}</span><span>{{ h[1] }}</span></span>{% endfor %}</span></button>
     <div class="blk"><span class="ib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="ib-txt"><b>Entrega</b><small>{{ d.tenant.eta }}</small></span></div>

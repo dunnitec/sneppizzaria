@@ -46,17 +46,39 @@ def test_site_options_saved_from_panel(panel, tenant):
     assert r.status_code == 302
     opts = options(db.session.get(Tenant, tenant.id))
     assert opts == {"show_filter": False, "flavors_one_page": False, "borders_grouped": False,
-                    "layout": "lista", "color": "#1e88e5"}
+                    "layout": "lista", "color": "#1e88e5", "theme": "escuro", "font": "montserrat",
+                    "show_infobar": False, "flavor_photos": False}
     html = panel.get("/snep/").get_data(as_text=True)
-    assert 'class="layout-lista"' in html and "--red:#1e88e5" in html
-    assert '<label class="filter" hidden>' in html
+    assert 'class="layout-lista theme-escuro"' in html and "--red:#1e88e5" in html
+    assert '<label class="filter" hidden>' in html and '<div class="infobar" hidden>' in html
     panel.post("/snep/admin/visual/site", data={"reset": "1"})
     assert options(db.session.get(Tenant, tenant.id)) == DEFAULTS
 
 
 def test_bad_options_fall_back_to_default(tenant):
-    tenant.site_options = json.dumps({"layout": "x", "color": "red", "unknown": 1})
+    tenant.site_options = json.dumps({"layout": "x", "color": "red", "theme": "neon", "font": "comic", "unknown": 1})
     assert options(tenant) == DEFAULTS
     tenant.site_options = "{quebrado"
     assert options(tenant) == DEFAULTS
     assert color_css(DEFAULTS) == ""
+
+
+def test_light_theme_and_font(panel, tenant):
+    panel.post("/snep/admin/visual/site", data={"theme": "claro", "font": "lobster", "show_infobar": "on",
+                                                "show_filter": "on", "flavor_photos": "on", "layout": "grade"})
+    html = panel.get("/snep/").get_data(as_text=True)
+    assert "theme-claro" in html and "family=Lobster" in html and '.brand-name{font-family:"Lobster"' in html
+    assert '<div class="infobar">' in html
+    assert panel.get("/snep/admin/visual").status_code == 200
+
+
+def test_drag_categories_saves_order(panel, tenant):
+    from app.models import Category
+
+    ids = [c.id for c in Category.query.filter_by(tenant_id=tenant.id).order_by(Category.sort_order, Category.id)]
+    new = list(reversed(ids))
+    assert panel.post("/snep/admin/cardapio/ordem", json={"ids": new}).get_json()["ok"]
+    db.session.expire_all()
+    assert [c.id for c in Category.query.filter_by(tenant_id=tenant.id).order_by(Category.sort_order)] == new
+    assert panel.post("/snep/admin/cardapio/ordem", json={"ids": new[:-1]}).status_code == 400
+    assert "cat-drag" in panel.get("/snep/admin/cardapio").get_data(as_text=True)

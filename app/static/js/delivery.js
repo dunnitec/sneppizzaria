@@ -178,7 +178,8 @@ function comboNote(c){
 function isCombo(){return F.card.cat.kind==="metro";}
 function comboExtras(){if(!isCombo())return "";const c=comboOf(F.card.cat),x=[...c.extras];if(c.choice_options.length&&F.choice)x.push(`${c.choice_label||"Escolha"}: ${F.choice}`);return x.join(", ");}
 // opções escolhidas pelo dono em Aparência → Como o site funciona (services/site_options.py)
-const SITE=Object.assign({flavors_one_page:true,borders_grouped:true},DATA.site||{});
+const SITE=Object.assign({flavors_one_page:true,borders_grouped:true,flavor_photos:true},DATA.site||{});
+const thumb=p=>SITE.flavor_photos&&p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:"";
 function steps(){const s=[];if(SITE.flavors_one_page&&F.n>1)s.push({type:"flavors"});else for(let i=0;i<F.n;i++)s.push({type:"flavor",i});
   if(isCombo()){if(comboOf(F.card.cat).choice_options.length)s.push({type:"choice"});}
   else{if(borderOptions().length)s.push({type:"border"});if(isPremium())s.push({type:"addons"});}
@@ -199,12 +200,12 @@ function renderStep(){
   if(st.type==="flavor"){
     t=`Escolha o ${ordinal(st.i)} sabor.`;
     const cur=F.flavors[st.i];
-    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
+    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${thumb(p)}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
     nextOk=!!cur;
   } else if(st.type==="flavors"){
     const got=F.flavors.length;
     t=`Escolha ${F.n} sabores`; sub=got<F.n?`Marque ${F.n-got===F.n?"os":"mais"} ${F.n-got} ${F.n-got>1?"sabores":"sabor"} · ${got} de ${F.n}`:`Pronto: ${F.flavors.map(f=>esc(f.name)).join(" + ")}`;
-    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>{const on=F.flavors.some(f=>f.id===p.id);return `<div class="opt multi ${on?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickMany(${pi})" role="checkbox" aria-checked="${on}"><span class="ck-box" aria-hidden="true">${on?"✓":""}</span>${p.image?`<img class="th" src="${esc(p.image)}" alt="" loading="lazy">`:""}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`;}).join("")+`</div>`;
+    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>{const on=F.flavors.some(f=>f.id===p.id);return `<div class="opt multi ${on?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickMany(${pi})" role="checkbox" aria-checked="${on}"><span class="ck-box" aria-hidden="true">${on?"✓":""}</span>${thumb(p)}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`;}).join("")+`</div>`;
     nextOk=got===F.n;
   } else if(st.type==="choice"){
     const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
@@ -231,7 +232,7 @@ function renderStep(){
     const k=F.card, up=unitPrice();
     const ttl=k.cat.kind==="metro"?`${k.title}`:`PIZZA ${k.cat.name.replace(/^Pizzas? /i,"")} ${k.label} (${F.n} sabor${F.n>1?"es":""})`;
     body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(borderLabel(DATA.borders[F.border]))}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}${comboExtras()?`<div class="sub">Acompanha: ${esc(comboExtras())}</div>`:""}</div>
-      <div><div class="cnt" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button class="m" style="width:22px;height:22px;border-radius:50%;border:0;background:#e31c1c;color:#fff;font-weight:700" onclick="F.qty=Math.max(1,F.qty-1);renderStep()">−</button><span>${F.qty}</span><button style="width:22px;height:22px;border-radius:50%;border:0;background:#2fb344;color:#fff;font-weight:700" onclick="F.qty++;renderStep()">+</button></div>
+      <div><div class="cnt" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button class="m" style="width:22px;height:22px;border-radius:50%;border:0;background:var(--red);color:#fff;font-weight:700" onclick="F.qty=Math.max(1,F.qty-1);renderStep()">−</button><span>${F.qty}</span><button style="width:22px;height:22px;border-radius:50%;border:0;background:#2fb344;color:#fff;font-weight:700" onclick="F.qty++;renderStep()">+</button></div>
       <div class="big">${money(up*F.qty)}<small>${money(up)}</small></div></div></div>
       <textarea placeholder="Observações" oninput="F.notes=this.value">${esc(F.notes)}</textarea>
       ${k.cat.kind==="metro"?`<p class="note">*${esc(k.cat.name)}: preço fixo, independente dos sabores.</p>`:`<p class="note">*O valor da pizza será definido pelo sabor de maior valor.</p>`}</div>`;

@@ -13,8 +13,23 @@ DEFAULTS = {
     "borders_grouped": True,  # bordas separadas por tipo (Tradicional, Caracol, Vulcão), abrindo ao tocar
     "layout": "grade",  # grade (2 por linha no computador) | lista (1 por linha)
     "color": DEFAULT_COLOR,  # cor principal (botões, destaques)
+    "theme": "escuro",  # escuro | claro (fundo do site)
+    "font": "montserrat",  # fonte do nome da pizzaria no topo (FONTS)
+    "show_infobar": True,  # barra “aberto/fechado · entrega · pagamento” embaixo dos banners
+    "flavor_photos": True,  # foto de cada sabor na lista de escolher sabores
 }
 LAYOUTS = ("grade", "lista")
+THEMES = ("escuro", "claro")
+# fonte do nome: rótulo no painel, nome no CSS e parâmetro do Google Fonts (None = já carregada pelo site)
+FONTS = {
+    "montserrat": ("Montserrat (padrão)", '"Montserrat"', None),
+    "bebas": ("Bebas Neue", '"Bebas Neue"', "Bebas+Neue"),
+    "oswald": ("Oswald", '"Oswald"', "Oswald:wght@700"),
+    "anton": ("Anton", '"Anton"', "Anton"),
+    "lobster": ("Lobster", '"Lobster"', "Lobster"),
+    "pacifico": ("Pacifico", '"Pacifico"', "Pacifico"),
+    "playfair": ("Playfair Display", '"Playfair Display"', "Playfair+Display:wght@900"),
+}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -27,6 +42,10 @@ def options(tenant):
     out.update({k: v for k, v in saved.items() if k in DEFAULTS})
     if out["layout"] not in LAYOUTS:
         out["layout"] = DEFAULTS["layout"]
+    if out["theme"] not in THEMES:
+        out["theme"] = DEFAULTS["theme"]
+    if out["font"] not in FONTS:
+        out["font"] = DEFAULTS["font"]
     if not HEX.match(str(out["color"])):
         out["color"] = DEFAULT_COLOR
     return out
@@ -41,6 +60,10 @@ def from_form(form):
         "borders_grouped": "borders_grouped" in form,
         "layout": form.get("layout") if form.get("layout") in LAYOUTS else DEFAULTS["layout"],
         "color": color.lower() if HEX.match(color) else DEFAULT_COLOR,
+        "theme": form.get("theme") if form.get("theme") in THEMES else DEFAULTS["theme"],
+        "font": form.get("font") if form.get("font") in FONTS else DEFAULTS["font"],
+        "show_infobar": "show_infobar" in form,
+        "flavor_photos": "flavor_photos" in form,
     }
 
 
@@ -51,8 +74,16 @@ def _mix(hex_color, other, amount):
 
 
 def color_css(opts):
-    """Variáveis de cor do site (static/css/delivery.css) a partir da cor principal; '' = cor padrão."""
-    c = opts["color"]
-    if c == DEFAULT_COLOR:
-        return ""
-    return f":root{{--red:{c};--red-2:{_mix(c, '#000000', .3)};--red-soft:{_mix(c, '#ffffff', .2)}}}"
+    """CSS da cor principal e da fonte do nome (por cima de static/css/delivery.css); '' = tudo padrão."""
+    css, c = "", opts["color"]
+    if c != DEFAULT_COLOR:
+        css += f":root{{--red:{c};--red-2:{_mix(c, '#000000', .3)};--red-soft:{_mix(c, '#ffffff', .2)}}}"
+    if opts["font"] != DEFAULTS["font"]:
+        css += f".brand-name{{font-family:{FONTS[opts['font']][1]},var(--display)}}"
+    return css
+
+
+def font_url(opts):
+    """Google Fonts da fonte escolhida para o nome; '' = a padrão (já carregada)."""
+    family = FONTS[opts["font"]][2]
+    return f"https://fonts.googleapis.com/css2?family={family}&display=swap" if family else ""

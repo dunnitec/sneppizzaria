@@ -14,10 +14,20 @@
   <h2>Como o site funciona</h2>
   <p class="hint">Mude e salve: o site muda na hora. <a href="{{ url_for('public.menu', slug=tenant.slug) }}" target="_blank" rel="noopener">Ver o site ›</a></p>
 
-  <h3>Cor principal</h3>
+  <h3>Cores</h3>
+  <div class="kind-choices">
+    <label class="kind-choice"><input type="radio" name="theme" value="escuro" {{ 'checked' if site.theme == 'escuro' }}><span class="kind-icon" aria-hidden="true">🌙</span><b>Fundo escuro</b><small>Preto, como o site é hoje.</small></label>
+    <label class="kind-choice"><input type="radio" name="theme" value="claro" {{ 'checked' if site.theme == 'claro' }}><span class="kind-icon" aria-hidden="true">☀️</span><b>Fundo claro</b><small>Branco e bege claro.</small></label>
+  </div>
   <div class="row">
     <label class="color-pick">Cor dos botões e destaques<input type="color" name="color" value="{{ site.color }}"></label>
-    <span class="hint">Escolha uma cor forte: o fundo do site é escuro.</span>
+    <span class="hint">Escolha uma cor forte, que apareça bem no fundo escolhido.</span>
+  </div>
+
+  <h3>Nome da pizzaria no topo</h3>
+  <div class="row">
+    <label class="grow">Fonte do nome<select name="font" id="font-pick">{% for key, f in fonts.items() %}<option value="{{ key }}" {{ 'selected' if site.font == key }}>{{ f[0] }}</option>{% endfor %}</select></label>
+    <p class="font-preview grow2" id="font-preview">{{ tenant.name }}</p>
   </div>
 
   <h3>Cardápio</h3>
@@ -26,6 +36,9 @@
     <label class="kind-choice"><input type="radio" name="layout" value="lista" {{ 'checked' if site.layout == 'lista' }}><span class="kind-icon" aria-hidden="true">☰</span><b>Em lista</b><small>Um item por linha, mais largo.</small></label>
   </div>
   <label class="check"><input type="checkbox" name="show_filter" {{ 'checked' if site.show_filter }}> mostrar a caixa <b>“Filtrar cardápio”</b> em cima das categorias</label>
+  <label class="check"><input type="checkbox" name="show_infobar" {{ 'checked' if site.show_infobar }}> mostrar a barra <b>aberto/fechado · entrega · pagamento</b> embaixo dos banners</label>
+  <label class="check"><input type="checkbox" name="flavor_photos" {{ 'checked' if site.flavor_photos }}> mostrar a <b>foto de cada sabor</b> na hora de escolher</label>
+  <p class="hint">A ordem das categorias no site muda na aba <a href="{{ url_for('admin.menu') }}">Cardápio</a> (arraste ou use as setas).</p>
 
   <h3>Pizza de 2 sabores ou mais</h3>
   <div class="kind-choices">
@@ -96,4 +109,20 @@
     <label class="file">{{ 'Trocar fundo' if tenant.background_image else 'Enviar fundo' }}<input type="file" name="photo" accept="image/*" onchange="this.form.submit()"></label>
   </form>
 </section>
+<script>
+  // prévia da fonte do nome, sem salvar
+  (function () {
+    const pick = document.getElementById("font-pick"), box = document.getElementById("font-preview");
+    const urls = { {% for key, f in fonts.items() %}{{ key|tojson }}: [{{ f[1]|tojson }}, {{ f[2]|tojson }}],{% endfor %} };
+    function show() {
+      const [family, param] = urls[pick.value];
+      if (param && !document.getElementById("gf-" + pick.value)) {
+        const l = document.createElement("link"); l.id = "gf-" + pick.value; l.rel = "stylesheet";
+        l.href = "https://fonts.googleapis.com/css2?family=" + param + "&display=swap"; document.head.appendChild(l);
+      }
+      box.style.fontFamily = family + ", sans-serif";
+    }
+    pick.addEventListener("change", show); show();
+  })();
+</script>
 {% endblock %}

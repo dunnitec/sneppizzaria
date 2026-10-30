@@ -203,6 +203,19 @@ def _forget_in_loyalty(category_id=None, product_id=None):
     return off
 
 
+@admin_bp.route("/cardapio/ordem", methods=["POST"])
+def line_order():
+    """Nova ordem das categorias, arrastando na aba Cardápio: {"ids": [3, 1, 2]}."""
+    ids = (request.get_json(silent=True) or {}).get("ids")
+    cats = {c.id: c for c in _ordered_categories()}
+    if not isinstance(ids, list) or sorted(ids) != sorted(cats):
+        return jsonify(ok=False, error="A lista de categorias mudou. Atualize a página."), 400
+    for i, cid in enumerate(ids):
+        cats[cid].sort_order = i
+    db.session.commit()
+    return jsonify(ok=True)
+
+
 @admin_bp.route("/cardapio/<int:category_id>/mover", methods=["POST"])
 def line_move(category_id):
     category = _category_or_404(category_id)
@@ -332,9 +345,9 @@ def _ordered_banners():
 
 @admin_bp.route("/visual")
 def visual():
-    from app.services.site_options import options
+    from app.services.site_options import FONTS, options
 
-    return render_template("admin/visual.html", banners=_ordered_banners(), site=options(g.tenant))
+    return render_template("admin/visual.html", banners=_ordered_banners(), site=options(g.tenant), fonts=FONTS)
 
 
 @admin_bp.route("/visual/site", methods=["POST"])
