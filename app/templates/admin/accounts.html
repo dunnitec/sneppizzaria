@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% block title %}Contas{% endblock %}
+{% block help %}
+<ul>
+  <li><b>Vendido</b> soma os pedidos que você <b>confirmou</b> (os mesmos do Relatório). Pendentes e cancelados não entram.</li>
+  <li><b>Gastos</b> são o que você lança aqui (mercado, gás, aluguel...) e os pagamentos feitos na aba <a href="{{ url_for('admin.team') }}">Equipe</a> (motoboys e funcionários entram sozinhos).</li>
+  <li><b>Sobrou</b> = vendido − gastos.</li>
+  <li>Lançou errado? Toque em <b>Apagar</b> na linha do gasto.</li>
+</ul>
+{% endblock %}
+{% block content %}
+{% set here = url_for('admin.accounts', periodo='mes' if month else None, dia=day.isoformat() if day != today else None) %}
+<h1>Contas</h1>
+
+<div class="filters">
+  <a href="{{ url_for('admin.accounts') }}" class="{{ 'cur' if not month and day == today }}">Hoje</a>
+  <a href="{{ url_for('admin.accounts', periodo='mes') }}" class="{{ 'cur' if month and day.month == today.month and day.year == today.year }}">Este mês</a>
+</div>
+
+<div class="day-nav">
+  <a class="button ghost small" href="{{ url_for('admin.accounts', periodo='mes' if month else None, dia=prev.isoformat()) }}" aria-label="Anterior">‹</a>
+  <h2 class="period-title">{{ title }}</h2>
+  {% if next %}<a class="button ghost small" href="{{ url_for('admin.accounts', periodo='mes' if month else None, dia=next.isoformat()) }}" aria-label="Próximo">›</a>{% else %}<span class="button ghost small" aria-hidden="true" style="visibility:hidden">›</span>{% endif %}
+</div>
+
+<div class="kpis kpis-3">
+  <div class="kpi"><span>Vendido</span><b>{{ s.sold|brl }}</b><small>{{ s.orders }} pedido{{ 's' if s.orders != 1 }}</small></div>
+  <div class="kpi"><span>Gastos</span><b class="neg">{{ s.spent|brl }}</b><small>{{ s.expenses|length }} lançamento{{ 's' if s.expenses|length != 1 }}</small></div>
+  <div class="kpi {{ 'kpi-ok' if s.left >= 0 else 'kpi-bad' }}"><span>Sobrou</span><b>{{ s.left|brl }}</b><small>vendido − gastos</small></div>
+</div>
+
+<form method="post" action="{{ url_for('admin.expense_new') }}" class="card" data-track>
+  {{ csrf() }}<input type="hidden" name="next" value="{{ here }}">
+  <h2>Lançar gasto</h2>
+  <div class="row">
+    <label class="grow">Tipo<select name="category" required><option value="">Escolha…</option>{% for k, v in categories.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+    <label class="grow2">O que foi (opcional)<input name="description" maxlength="160" placeholder="Ex.: queijo e calabresa no atacadão"></label>
+    <label class="money">Valor (R$)<input name="amount" inputmode="decimal" required placeholder="0,00"></label>
+    <label class="time">Dia<input type="date" name="day" value="{{ (day if not month else today).isoformat() }}" max="{{ today.isoformat() }}"></label>
+    <button class="primary">Lançar</button>
+  </div>
+</form>
+
+<div class="two-cols">
+  <section class="card">
+    <h2>Vendido por forma de pagamento</h2>
+    {% if s.by_payment %}
+    <table class="list">
+      {% for r in s.by_payment %}<tr><td>{{ r.label }}</td><td class="v">{{ r.orders }} ped.</td><td class="v"><b>{{ r.total|brl }}</b></td></tr>{% endfor %}
+    </table>
+    {% else %}<p class="hint">Nenhum pedido confirmado neste período.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Gastos por tipo</h2>
+    {% if s.by_category %}
+    <table class="list">
+      {% for r in s.by_category %}<tr><td>{{ r.label }}</td><td class="v"><b>{{ r.total|brl }}</b></td></tr>{% endfor %}
+    </table>
+    {% else %}<p class="hint">Nenhum gasto lançado neste período.</p>{% endif %}
+  </section>
+</div>
+
+{% if s.expenses %}
+<section class="card">
+  <h2>Gastos lançados</h2>
+  <table class="list">
+    {% for e in s.expenses %}
+    <tr>
+      {% if month %}<td>{{ e.day.strftime('%d/%m') }}</td>{% endif %}
+      <td><b>{{ e.category_name }}</b>{% if e.description %} · {{ e.description }}{% endif %}{% if e.is_advance %} <span class="tag">vale</span>{% endif %}</td>
+      <td class="v">{{ e.amount|brl }}</td>
+      <td class="v"><form method="post" action="{{ url_for('admin.expense_delete', expense_id=e.id) }}" data-msg="Apagar o gasto de {{ e.amount|brl }} ({{ e.category_name }})?" onsubmit="return confirm(this.dataset.msg)">{{ csrf() }}<input type="hidden" name="next" value="{{ here }}"><button class="ghost small">Apagar</button></form></td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+{% endblock %}

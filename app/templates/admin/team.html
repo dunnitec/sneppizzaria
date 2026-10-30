@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+{% block title %}Equipe{% endblock %}
+{% block help %}
+<ul>
+  <li><b>Motoboys:</b> escolha como paga cada um. O sistema soma as entregas do dia pelas comandas da aba <a href="{{ url_for('admin.dispatches') }}">Entregas</a> e mostra quanto pagar. Ao tocar em <b>Pagar</b>, o valor entra nos gastos da aba <a href="{{ url_for('admin.accounts') }}">Contas</a>.</li>
+  <li><b>Funcionários diaristas:</b> marque quem trabalhou no dia. <b>Mensalistas:</b> o salário do mês aparece sozinho.</li>
+  <li><b>Vale</b> é um adiantamento: entra nos gastos e desconta do que falta pagar no mês.</li>
+  <li>Use as setas ‹ › para ver ou acertar outro dia.</li>
+</ul>
+{% endblock %}
+{% block content %}
+{% set dia = day.isoformat() if day != today else None %}
+<h1>Equipe</h1>
+<div class="day-nav">
+  <a class="button ghost small" href="{{ url_for('admin.team', dia=prev.isoformat()) }}" aria-label="Dia anterior">‹</a>
+  <h2 class="period-title">{{ title }}</h2>
+  {% if next %}<a class="button ghost small" href="{{ url_for('admin.team', dia=next.isoformat() if next != today else None) }}" aria-label="Próximo dia">›</a>{% else %}<span class="button ghost small" aria-hidden="true" style="visibility:hidden">›</span>{% endif %}
+</div>
+
+{# ---------- motoboys ---------- #}
+<section class="card" id="motoboys">
+  <h2>Motoboys</h2>
+  {% for r in couriers %}
+  {% set c = r.courier %}
+  <article class="team-row" id="motoboy-{{ c.id }}">
+    <div class="team-head">
+      <b>{{ c.name }}</b>{% if not c.active %} <span class="tag">fora da lista</span>{% endif %}
+      <span class="hint">{{ r.deliveries }} entrega{{ 's' if r.deliveries != 1 }}{% if r.km %} · {{ '%.1f'|format(r.km)|replace('.', ',') }} km{% endif %} · taxas {{ r.fees|brl }}</span>
+    </div>
+    <div class="money-check">
+      <div><span>Ganhou {{ title|lower if title in ('Hoje', 'Ontem') else 'no dia' }}</span><b>{{ r.earned|brl }}</b></div>
+      <div><span>Já pago</span><b>{{ r.paid|brl }}</b></div>
+      <div><span>Falta pagar</span><b class="{{ 'neg' if r.to_pay }}">{{ r.to_pay|brl }}</b></div>
+    </div>
+    <form method="post" action="{{ url_for('admin.courier_pay', courier_id=c.id, dia=dia) }}" class="row"
+          data-msg="Pagar {{ c.name }}? O valor entra nos gastos de {{ day.strftime('%d/%m') }}." onsubmit="return confirm(this.dataset.msg)">
+      {{ csrf() }}<input type="hidden" name="deliveries" value="{{ r.deliveries }}">
+      <label class="money">Valor (R$)<input name="amount" inputmode="decimal" value="{{ r.to_pay|money_input if r.to_pay else '' }}" placeholder="0,00" required></label>
+      <button class="primary small green">Pagar</button>
+    </form>
+    <details class="pay-mode">
+      <summary>Como paga: <b>{{ pay_modes[c.pay_mode] }}</b>{% if c.pay_per_delivery %} · {{ c.pay_per_delivery|brl }} por entrega{% endif %}{% if c.pay_daily %} · diária {{ c.pay_daily|brl }}{% endif %} — mudar</summary>
+      <form method="post" action="{{ url_for('admin.courier_pay_mode', courier_id=c.id, dia=dia) }}" class="pay-mode-form" data-track>
+        {{ csrf() }}
+        <div class="kind-choices">
+          {% for k, label in pay_modes.items() %}
+          <label class="kind-choice"><input type="radio" name="pay_mode" value="{{ k }}" {{ 'checked' if c.pay_mode == k }}><b>{{ label }}</b></label>
+          {% endfor %}
+        </div>
+        <div class="row">
+          <label class="money" data-for="por_entrega diaria_entrega">Por entrega (R$)<input name="pay_per_delivery" inputmode="decimal" value="{{ c.pay_per_delivery|money_input if c.pay_per_delivery else '' }}" placeholder="0,00"></label>
+          <label class="money" data-for="diaria diaria_entrega">Diária (R$)<input name="pay_daily" inputmode="decimal" value="{{ c.pay_daily|money_input if c.pay_daily else '' }}" placeholder="0,00"></label>
+          <button class="primary small">Salvar</button>
+        </div>
+      </form>
+    </details>
+  </article>
+  {% else %}
+  <p class="hint">Nenhum motoboy cadastrado. Cadastre na aba <a href="{{ url_for('admin.dispatches', _anchor='motoboys') }}">Entregas</a>.</p>
+  {% endfor %}
+</section>
+
+{# ---------- funcionários ---------- #}
+<section class="card" id="funcionarios">
+  <h2>Funcionários</h2>
+  {% set diaristas = staff|selectattr('employee.active')|selectattr('employee.pay_type', 'equalto', 'diaria')|list %}
+  {% if diaristas %}
+  <div class="worked">
+    <b>Quem trabalhou {{ 'hoje' if day == today else 'em ' ~ day.strftime('%d/%m') }}?</b>
+    {% for r in diaristas %}
+    <form method="post" action="{{ url_for('admin.work_day', employee_id=r.employee.id, dia=dia) }}">{{ csrf() }}
+      <button class="chip-btn {{ 'on' if r.worked_today }}" aria-pressed="{{ 'true' if r.worked_today else 'false' }}">{{ '✓ ' if r.worked_today }}{{ r.employee.name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% for r in staff %}
+  {% set e = r.employee %}
+  <article class="team-row {{ 'off' if not e.active }}" id="func-{{ e.id }}">
+    <div class="team-head">
+      <b>{{ e.name }}</b>{% if e.role %} · {{ e.role }}{% endif %}{% if not e.active %} <span class="tag">fora da equipe</span>{% endif %}
+      <span class="hint">{{ 'Diarista: ' ~ (e.pay_amount|brl) ~ ' por dia' if e.pay_type == 'diaria' else 'Mensalista: ' ~ (e.pay_amount|brl) ~ ' por mês' }}{% if e.pay_type == 'diaria' %} · {{ r.days_worked }} dia{{ 's' if r.days_worked != 1 }} em {{ month_name }}{% endif %}</span>
+    </div>
+    <div class="money-check">
+      {% if e.pay_type == 'diaria' %}<div><span>{{ 'Hoje' if day == today else 'No dia' }}</span><b>{{ r.today|brl }}</b></div>{% endif %}
+      <div><span>Ganhou em {{ month_name }}</span><b>{{ r.month|brl }}</b></div>
+      <div><span>Pago no mês{% if r.advances %} (vales {{ r.advances|brl }}){% endif %}</span><b>{{ r.paid|brl }}</b></div>
+      <div><span>Falta pagar</span><b class="{{ 'neg' if r.left }}">{{ r.left|brl }}</b></div>
+    </div>
+    {% if e.active %}
+    <form method="post" action="{{ url_for('admin.employee_pay', employee_id=e.id, dia=dia) }}" class="row"
+          data-msg="Lançar para {{ e.name }}? O valor entra nos gastos de {{ day.strftime('%d/%m') }}." onsubmit="return confirm(this.dataset.msg)">
+      {{ csrf() }}
+      <label class="money">Valor (R$)<input name="amount" inputmode="decimal" value="{{ r.suggest|money_input if r.suggest else '' }}" placeholder="0,00" required></label>
+      <button class="primary small green" name="kind" value="pagamento">Pagar</button>
+      <button class="ghost small" name="kind" value="vale">Dar vale</button>
+    </form>
+    {% endif %}
+    <details class="pay-mode">
+      <summary>Editar {{ e.name }}</summary>
+      <form method="post" action="{{ url_for('admin.employee_save', employee_id=e.id, dia=dia) }}" class="row" data-track>
+        {{ csrf() }}
+        <label class="grow">Nome<input name="name" value="{{ e.name }}" maxlength="80" required></label>
+        <label class="grow">Função<input name="role" value="{{ e.role or '' }}" maxlength="60" placeholder="Ex.: pizzaiolo"></label>
+        <label class="grow">Como paga<select name="pay_type"><option value="diaria" {{ 'selected' if e.pay_type == 'diaria' }}>Diarista (por dia)</option><option value="mensal" {{ 'selected' if e.pay_type == 'mensal' }}>Mensalista (salário)</option></select></label>
+        <label class="money">Valor (R$)<input name="pay_amount" value="{{ e.pay_amount|money_input }}" inputmode="decimal" required></label>
+        <button class="primary small">Salvar</button>
+      </form>
+      <form method="post" action="{{ url_for('admin.employee_toggle', employee_id=e.id, dia=dia) }}">{{ csrf() }}<button class="ghost small">{{ 'Tirar da equipe' if e.active else 'Voltar para a equipe' }}</button></form>
+    </details>
+  </article>
+  {% endfor %}
+
+  <form method="post" action="{{ url_for('admin.employee_new', dia=dia) }}" class="row add-row" data-track>
+    {{ csrf() }}
+    <label class="grow">Nome<input name="name" maxlength="80" required placeholder="Ex.: Maria"></label>
+    <label class="grow">Função (opcional)<input name="role" maxlength="60" placeholder="Ex.: atendente"></label>
+    <label class="grow">Como paga<select name="pay_type"><option value="diaria">Diarista (por dia)</option><option value="mensal">Mensalista (salário)</option></select></label>
+    <label class="money">Diária ou salário (R$)<input name="pay_amount" inputmode="decimal" required placeholder="0,00"></label>
+    <button class="primary small">Cadastrar funcionário</button>
+  </form>
+</section>
+
+<script>
+  // forma de pagar o motoboy: mostra só os campos que valem para a opção marcada
+  document.querySelectorAll(".pay-mode-form").forEach((f) => {
+    const sync = () => {
+      const mode = (f.querySelector("[name=pay_mode]:checked") || {}).value || "";
+      f.querySelectorAll("[data-for]").forEach((l) => { const on = l.dataset.for.split(" ").includes(mode); l.hidden = !on; l.querySelector("input").required = on; });
+    };
+    f.addEventListener("change", sync); sync();
+  });
+</script>
+{% endblock %}

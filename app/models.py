@@ -562,6 +562,76 @@ class Courier(db.Model):
     name = db.Column(db.String(80), nullable=False)
     phone = db.Column(db.String(30))
     active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    # como o dono paga este motoboy (aba Equipe; services/finance.py): ver COURIER_PAY
+    pay_mode = db.Column(db.String(16), nullable=False, default="taxa", server_default="taxa")
+    pay_per_delivery = db.Column(db.Numeric(8, 2))  # valor por entrega (por_entrega, diaria_entrega)
+    pay_daily = db.Column(db.Numeric(8, 2))  # diária (diaria, diaria_entrega)
+
+
+# formas de pagar o motoboy: nome que o dono vê
+COURIER_PAY = {
+    "taxa": "Fica com a taxa de entrega",
+    "por_entrega": "Valor fixo por entrega",
+    "diaria": "Diária",
+    "diaria_entrega": "Diária + valor por entrega",
+}
+# categorias de gasto (aba Contas); motoboys e funcionários entram sozinhos pela aba Equipe
+EXPENSE_CATEGORIES = {
+    "mercado": "Mercado", "bebidas": "Bebidas", "embalagens": "Embalagens", "gas": "Gás", "aluguel": "Aluguel",
+    "contas": "Luz, água e internet", "manutencao": "Manutenção", "outros": "Outros",
+    "motoboys": "Motoboys", "funcionarios": "Funcionários",
+}
+MANUAL_CATEGORIES = ("mercado", "bebidas", "embalagens", "gas", "aluguel", "contas", "manutencao", "outros")
+
+
+class Employee(db.Model):
+    """Funcionário (aba Equipe): diarista (ganha por dia trabalhado) ou mensalista (salário)."""
+
+    __tablename__ = "employees"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    role = db.Column(db.String(60))  # função, ex.: pizzaiolo, atendente
+    pay_type = db.Column(db.String(10), nullable=False, default="diaria")  # diaria | mensal
+    pay_amount = db.Column(db.Numeric(8, 2), nullable=False, default=0)  # valor da diária ou do salário
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class WorkDay(db.Model):
+    """Dia em que o diarista trabalhou (marcado em “Quem trabalhou hoje”)."""
+
+    __tablename__ = "work_days"
+    __table_args__ = (db.UniqueConstraint("employee_id", "day", name="uq_work_days_employee_day"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False)
+
+
+class Expense(db.Model):
+    """Gasto (aba Contas). Pagamento de motoboy e de funcionário (e vale) também vira gasto."""
+
+    __tablename__ = "expenses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False, index=True)  # dia do gasto (horário de Brasília)
+    category = db.Column(db.String(20), nullable=False)  # EXPENSE_CATEGORIES
+    description = db.Column(db.String(160))
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    courier_id = db.Column(db.Integer, db.ForeignKey("couriers.id"))  # pagamento de motoboy
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"))  # pagamento ou vale de funcionário
+    is_advance = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # vale
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    courier = db.relationship("Courier")
+    employee = db.relationship("Employee")
+
+    @property
+    def category_name(self):
+        return EXPENSE_CATEGORIES.get(self.category, self.category)
 
 
 class Dispatch(db.Model):

@@ -9,6 +9,7 @@ FEATURES = {
     "promocoes": "Promoções com selo e aviso na tela",
     "fidelidade": "Cadastro do cliente, desconto no 1º pedido e cartões fidelidade",
     "app": "App no celular e avisos ao cliente",
+    "financeiro": "Contas (gastos e quanto sobrou) e Equipe (pagamento de motoboys e funcionários)",
 }
 
 PLANS = {
@@ -22,6 +23,9 @@ ADMIN_ENDPOINTS = {
     "fidelidade": {"admin.loyalty", "admin.loyalty_program_save", "admin.loyalty_program_delete",
                    "admin.loyalty_first_order", "admin.customer_new_pin"},
     "app": {"admin.push_campaigns", "admin.push_campaign_cancel"},
+    "financeiro": {"admin.accounts", "admin.expense_new", "admin.expense_delete", "admin.team", "admin.courier_pay_mode",
+                   "admin.courier_pay", "admin.employee_new", "admin.employee_save", "admin.employee_toggle",
+                   "admin.work_day", "admin.employee_pay"},
 }
 
 

@@ -26,7 +26,9 @@ def parse_money(text):
 
 def brl(value):
     """65.5 -> 'R$ 65,50'; 17275.4 -> 'R$ 17.275,40'"""
-    return "R$ " + f"{Decimal(str(value or 0)):,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+    value = Decimal(str(value or 0))
+    text = "R$ " + f"{abs(value):,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+    return "-" + text if value < 0 else text  # -R$ 250,00 (sobrou negativo na aba Contas)
 
 
 def money_input(value):

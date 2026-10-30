@@ -417,3 +417,24 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
 .slug-field{display:flex;align-items:center;gap:4px}
 .slug-field input{flex:1}
 .credentials{width:100%;box-sizing:border-box;font:14px/1.5 ui-monospace,Consolas,monospace;padding:10px;border:1px solid var(--line);border-radius:8px;background:#f7f7f9}
+
+/* ---------- Contas e Equipe ---------- */
+.day-nav{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.day-nav .period-title{margin:0;min-width:0;flex:1;text-align:center}
+.kpis.kpis-3{grid-template-columns:repeat(3,1fr)}
+.kpi small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.kpi-ok b{color:#1f7a3a}
+.kpi-bad b,.neg{color:#b3121b}
+.two-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.team-row{border-top:1px solid var(--line);padding:14px 0}
+.team-row:first-of-type{border-top:0;padding-top:4px}
+.team-row.off{opacity:.6}
+.team-head{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.team-head b{font-size:17px}
+.pay-mode{margin-top:8px}
+.pay-mode summary{cursor:pointer;font-size:14px;color:var(--muted)}
+.pay-mode form{margin-top:10px}
+.worked{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:12px;background:#f7f5f0;border-radius:10px}
+.worked b{width:100%}
+.add-row{border-top:1px dashed var(--line);padding-top:14px;margin-top:6px}
+@media (max-width:700px){.kpis.kpis-3,.two-cols{grid-template-columns:1fr}}
