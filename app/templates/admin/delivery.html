@@ -17,7 +17,8 @@
   <h2>Como cobrar a entrega</h2>
   <div class="kind-choices">
     <label class="kind-choice"><input type="radio" name="delivery_mode" value="bairro" {{ 'checked' if not km }}><span class="kind-icon" aria-hidden="true">🏘️</span><b>Por bairro</b><small>Uma taxa para cada bairro, da lista abaixo.</small></label>
-    <label class="kind-choice"><input type="radio" name="delivery_mode" value="km" {{ 'checked' if km }}><span class="kind-icon" aria-hidden="true">📍</span><b>Por distância</b><small>O cliente digita o CEP e paga pelos km até a pizzaria.</small></label>
+    {% if has_feature('km') %}<label class="kind-choice"><input type="radio" name="delivery_mode" value="km" {{ 'checked' if km }}><span class="kind-icon" aria-hidden="true">📍</span><b>Por distância</b><small>O cliente digita o CEP e paga pelos km até a pizzaria.</small></label>
+    {% else %}<div class="kind-choice disabled" aria-disabled="true"><span class="kind-icon" aria-hidden="true">📍</span><b>Por distância</b><small>O cliente digita o CEP e paga pelos km. Disponível em um plano maior.</small></div>{% endif %}
   </div>
 
   <div id="km-fields" {{ 'hidden' if not km }}>

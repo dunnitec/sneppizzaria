@@ -438,3 +438,4 @@ button.link{background:none;border:0;padding:0;color:var(--muted);text-decoratio
 .worked b{width:100%}
 .add-row{border-top:1px dashed var(--line);padding-top:14px;margin-top:6px}
 @media (max-width:700px){.kpis.kpis-3,.two-cols{grid-template-columns:1fr}}
+.kind-choice.disabled{cursor:not-allowed;opacity:.55;border-style:dashed}

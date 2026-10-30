@@ -81,7 +81,7 @@
     <tr><td>Comanda {{ d.number }} · {{ d.courier.name }}</td><td>{{ (d.created_at|local_time).strftime('%d/%m %H:%M') }} → {{ (d.returned_at|local_time).strftime('%H:%M') }}</td><td class="v">{{ d.orders|length }} ped.</td><td class="v">taxas {{ s.fees|brl }}</td></tr>
     {% endfor %}
   </table>
-  <p class="hint">Total de entregas e taxas por motoboy no período: veja em <a href="{{ url_for('admin.reports') }}">Relatórios</a>.</p>
+  {% if has_feature('relatorios') %}<p class="hint">Total de entregas e taxas por motoboy no período: veja em <a href="{{ url_for('admin.reports') }}">Relatórios</a>.</p>{% endif %}
 </section>
 {% endif %}
 

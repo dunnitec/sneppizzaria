@@ -11,7 +11,7 @@
 {% block content %}
 <div class="page-head">
   <h1>Pedidos</h1>
-  <a class="button primary" href="{{ url_for('admin.order_new') }}">+ Novo pedido (balcão, mesa, telefone)</a>
+  {% if has_feature('balcao') %}<a class="button primary" href="{{ url_for('admin.order_new') }}">+ Novo pedido (balcão, mesa, telefone)</a>{% endif %}
 </div>
 <div id="live" class="live card" data-poll="{{ url_for('admin.orders_poll') }}" data-latest="{{ latest_id }}">
   <button type="button" class="sound ghost small">🔕 Ativar som de novos pedidos</button>
@@ -59,7 +59,7 @@
     <input type="hidden" name="filter" value="{{ status or '' }}">
     {% if o.status == 'pendente' %}<button name="status" value="confirmado" class="primary small">Confirmar{{ ' e imprimir' if tenant.auto_print }}</button>{% endif %}
     {% if o.status == 'confirmado' and not o.delivery %}<button name="status" value="entregue" class="primary small">Entregue ao cliente</button>{% endif %}
-    {% if o.status == 'confirmado' and o.delivery %}<a class="button primary small" href="{{ url_for('admin.dispatches') }}">Mandar para entrega ›</a>{% endif %}
+    {% if o.status == 'confirmado' and o.delivery and has_feature('motoboys') %}<a class="button primary small" href="{{ url_for('admin.dispatches') }}">Mandar para entrega ›</a>{% endif %}
     {% if o.status in ('pendente', 'confirmado') %}<button name="status" value="cancelado" class="ghost small" onclick="return confirm('Cancelar o pedido #{{ o.id }}? O cliente recebe o aviso de cancelado.')">Cancelar</button>{% endif %}
     {% if o.status in ('cancelado', 'entregue') %}<button name="status" value="confirmado" class="ghost small">Voltar para confirmado</button>{% endif %}
     <a class="button ghost small" href="{{ url_for('admin.order_label', order_id=o.id) }}" target="_blank" rel="noopener">{{ 'Reimprimir' if o.printed_at else 'Imprimir' }}</a>

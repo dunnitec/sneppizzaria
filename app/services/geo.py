@@ -243,6 +243,13 @@ def km_fee(tenant, km):
     return (km * Decimal(str(tenant.km_price or 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def km_on(tenant):
+    """Frete por distância ligado: escolhido na aba Entrega e liberado no plano."""
+    from app.services.plans import has
+
+    return tenant.delivery_mode == "km" and has(tenant, "km")
+
+
 def locate_customer(tenant, cep="", street="", neighborhood="", number=""):
     """Ponto do cliente: rua e número na cidade do CEP (ou da loja), o CEP, a rua; senão o bairro."""
     info = lookup_cep(cep) if cep else None

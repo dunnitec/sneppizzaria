@@ -77,6 +77,7 @@ def data_from_db(tenant, order_url, assets):
     from app.models import Addon, Border, Category, Neighborhood
     from app.services.hours import is_open, open_hours
     from app.services.photos import photo_url
+    from app.services.geo import km_on
     from app.services.site_options import options as site_options
     from flask import current_app
 
@@ -154,7 +155,7 @@ def data_from_db(tenant, order_url, assets):
         # frete por distância: o checkout pede o CEP e consulta quote_url (services/geo.py)
         "km": {"quote_url": f"/{tenant.slug}/api/frete", "price": float(tenant.km_price or 0),
                "max": float(tenant.km_max) if tenant.km_max else None}
-        if tenant.delivery_mode == "km" else None,
+        if km_on(tenant) else None,
         # app no celular e avisos (Web Push); sem chave VAPID os avisos ficam desligados
         "app": has_feature(tenant, "app"),
         "push_key": (current_app.config.get("VAPID_PUBLIC_KEY", "") if current_app.config.get("VAPID_PRIVATE_KEY")

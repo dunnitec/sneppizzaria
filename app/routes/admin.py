@@ -100,6 +100,10 @@ def _require_login():
     user = db.session.get(AdminUser, session.get("admin_id") or 0)
     if user and user.tenant_id == g.tenant.id and session.get("admin_key") == _session_key(user):
         g.admin = user
+        if user.role != "dono" and not has_feature(g.tenant, "funcionarios"):
+            session.clear()
+            flash("O plano da loja não tem acesso para funcionários. Fale com o dono.", "error")
+            return redirect(url_for("admin.login"))
         if user.role != "dono" and request.endpoint not in STAFF_ENDPOINTS:
             abort(403)
         if blocked_feature(g.tenant, request.endpoint):
@@ -815,6 +819,8 @@ def delivery_mode():
     try:
         if mode not in ("bairro", "km"):
             raise FormError("Escolha como cobrar a entrega.")
+        if mode == "km" and not has_feature(tenant, "km"):
+            raise FormError("A entrega por distância (km) não faz parte do seu plano.")
         if mode == "km":
             tenant.km_price = _price(form.get("km_price"), "o preço por km", positive=True)
             tenant.km_base_km = _optional_km(form.get("km_base_km"), "na distância da taxa fixa")

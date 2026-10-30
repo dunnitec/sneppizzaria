@@ -28,7 +28,7 @@ from app.extensions import db
 from app.models import RESIDENCES, CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.customers import phone_key, upsert_customer
 from app.services.delivery import calculate_fee
-from app.services.geo import cep_digits, quote
+from app.services.geo import cep_digits, quote, km_on
 from app.services.hours import is_open, local_time
 from app.services.loyalty import card, discounts
 from app.services.money import brl
@@ -137,7 +137,7 @@ def place_order(tenant, p, channel="site", account=None):
     neighborhood = _text(p, "neighborhood", 120)
     cep = None if withdraw else cep_digits(p.get("cep"))
     manual = None if from_site else _manual_fee(p.get("delivery_fee"))
-    by_km = not withdraw and tenant.delivery_mode == "km"
+    by_km = not withdraw and km_on(tenant)
     distance = None
     if withdraw:
         delivery_fee = Decimal("0")

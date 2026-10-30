@@ -26,6 +26,7 @@ from app.models import (
 from app.routes.admin import (FormError, _category_or_404, _category_url, _name, _price, _reject, _save, admin_bp,
                               save_category_look)
 from app.services.photos import PhotoError, delete_photo, normalize, save_photo
+from app.services.plans import has as has_feature
 from app.services.promotions import forget_product
 
 MAX_SIZE_FLAVORS = 6
@@ -438,7 +439,9 @@ def users():
         form = request.form
         username = form.get("username", "").strip().lower()
         role = form.get("role") if form.get("role") in ROLES else "funcionario"
-        if not USERNAME.fullmatch(username):
+        if role != "dono" and not has_feature(g.tenant, "funcionarios"):
+            flash("Acesso para funcionários não faz parte do seu plano.", "error")
+        elif not USERNAME.fullmatch(username):
             flash("Usuário inválido: use letras minúsculas, números, ponto, hífen ou _ (sem espaço).", "error")
         elif AdminUser.query.filter_by(tenant_id=g.tenant.id, username=username).first():
             flash(f"Já existe o usuário “{username}”.", "error")

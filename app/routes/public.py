@@ -104,7 +104,9 @@ def fee_quote(tenant, args):
 @public_bp.route("/<slug>/api/frete")
 def delivery_quote(slug):
     tenant = get_tenant_or_404(slug)
-    if tenant.delivery_mode != "km":
+    from app.services.geo import km_on
+
+    if not km_on(tenant):
         abort(404)
     hits, now = _quotes[request.remote_addr or "?"], time.monotonic()
     while hits and now - hits[0] > 600:

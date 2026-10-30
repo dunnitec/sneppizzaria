@@ -6,6 +6,13 @@ painel da loja e do site; os dados já cadastrados ficam guardados e voltam se o
 
 # função -> nome que aparece nas telas
 FEATURES = {
+    "km": "Frete por km calculado pelo CEP",
+    "rastreio": "Cliente acompanha o pedido pelo link",
+    "balcao": "Lançar pedido de balcão, mesa e telefone",
+    "motoboys": "Motoboys e acerto do caixa na volta",
+    "funcionarios": "Acessos para funcionários",
+    "relatorios": "Relatório de vendas, horários e sabores",
+    "clientes": "Cadastro automático de clientes",
     "promocoes": "Promoções com selo e aviso na tela",
     "fidelidade": "Cadastro do cliente, desconto no 1º pedido e cartões fidelidade",
     "app": "App no celular e avisos ao cliente",
@@ -19,6 +26,11 @@ PLANS = {
 
 # telas do painel da loja que dependem de cada função
 ADMIN_ENDPOINTS = {
+    "balcao": {"admin.order_new", "admin.order_fee_quote"},
+    "motoboys": {"admin.dispatches", "admin.dispatch_new", "admin.dispatch_return", "admin.dispatch_remove_order",
+                 "admin.dispatch_label", "admin.courier_new", "admin.courier_toggle"},
+    "relatorios": {"admin.reports"},
+    "clientes": {"admin.customers", "admin.customer_erase"},
     "promocoes": {"admin.promos", "admin.promo_edit", "admin.promo_toggle", "admin.promo_delete"},
     "fidelidade": {"admin.loyalty", "admin.loyalty_program_save", "admin.loyalty_program_delete",
                    "admin.loyalty_first_order", "admin.customer_new_pin"},

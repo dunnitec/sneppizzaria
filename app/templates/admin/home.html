@@ -41,7 +41,7 @@
     <span>{{ 'pedido esperando confirmação' if pending_count == 1 else 'pedidos esperando confirmação' }}</span>
     <span class="tile-link">Ver pedidos ›</span>
   </a>
-  <a class="card tile" href="{{ url_for('admin.reports', inicio=today.isoformat(), fim=today.isoformat()) }}">
+  <a class="card tile" href="{{ url_for('admin.reports', inicio=today.isoformat(), fim=today.isoformat()) if has_feature('relatorios') else url_for('admin.orders') }}">
     <span class="tile-num">{{ report.revenue|brl }}</span>
     <span>vendido hoje · {{ report.orders }} pedido(s) · {{ report.pizzas }} pizza(s)</span>
     <span class="tile-link">Ver relatório ›</span>

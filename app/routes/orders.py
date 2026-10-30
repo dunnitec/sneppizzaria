@@ -11,6 +11,7 @@ from app.routes.public import get_tenant_or_404
 from app.services.hours import local_time
 from app.services.order_create import place_order
 from app.services.pix import for_order
+from app.services.plans import has as has_feature
 from app.services.pricing import OrderError
 from app.services.whatsapp import build_whatsapp_link
 
@@ -47,6 +48,6 @@ def create_order(slug):
         pix=pix,
         discount=float(order.discount),
         discount_note=order.discount_note or "",
-        track_url=url_for("account.track", slug=slug, token=order.track_token),
+        track_url=url_for("account.track", slug=slug, token=order.track_token) if has_feature(tenant, "rastreio") else None,
         pix_pending=order.payment_method == "Pix" and bool(tenant.pix_key) and order.delivery and delivery_fee is None,
     )

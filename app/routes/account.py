@@ -8,7 +8,7 @@ cadastro, e o dono pode gerar uma senha nova em Clientes quando o cliente esquec
 
 import re
 
-from flask import Blueprint, current_app, jsonify, render_template, request, url_for
+from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from app.extensions import db
@@ -239,6 +239,10 @@ def track_steps(order):
 @account_bp.route("/<slug>/pedido/<token>")
 def track(slug, token):
     tenant = get_tenant_or_404(slug)
+    from app.services.plans import has
+
+    if not has(tenant, "rastreio"):
+        abort(404)
     order = Order.query.filter_by(tenant_id=tenant.id, track_token=token).first_or_404()
     show_pix = (order.payment_method == "Pix" and order.channel == "site" and not order.pix_paid_at
                 and order.status != "cancelado" and not order.fee_pending)
