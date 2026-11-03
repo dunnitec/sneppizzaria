@@ -69,7 +69,7 @@ def menu(slug):
     from app.services.site_options import color_css, font_url
 
     return render_template("index.html", d=d, pay_icons=PAY_ICONS, inline=False, site_css=color_css(d["site"]),
-                           font_url=font_url(d["site"]))
+                           font_url=font_url(d["site"]), howto_video=current_app.config.get("HOWTO_VIDEO"))
 
 
 @public_bp.route("/<slug>/api/status")

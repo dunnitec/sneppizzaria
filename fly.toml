@@ -9,6 +9,8 @@ primary_region = "gru"
   DATABASE_URL = "sqlite:////data/snep.db"
   # fotos dos sabores enviadas pelo painel, no mesmo volume (entram nos snapshots)
   UPLOAD_FOLDER = "/data/uploads"
+  # vídeo "como pedir" do site, guardado no mesmo volume (só a Snep)
+  HOWTO_VIDEO = "como-pedir-1.mp4"
 
 # disco persistente: sobrevive a deploys e reinícios. O Fly tira uma cópia
 # (snapshot) por dia; aqui ficam guardadas as dos últimos 14 dias.

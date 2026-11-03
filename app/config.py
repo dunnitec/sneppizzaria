@@ -31,6 +31,8 @@ class Config:
     MAX_CONTENT_LENGTH = 15 * 1024 * 1024  # foto de celular de até 15 MB
 
     DEFAULT_TENANT_SLUG = os.environ.get("DEFAULT_TENANT_SLUG", "snep")
+    # vídeo "como pedir" no site (arquivo em UPLOAD_FOLDER); vazio = sem o botão. Só a Snep usa (fly.toml).
+    HOWTO_VIDEO = os.environ.get("HOWTO_VIDEO", "")
     # avisos no celular (Web Push): chaves VAPID; sem elas os avisos ficam desligados (services/push.py)
     VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
     VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
