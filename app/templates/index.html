@@ -30,7 +30,7 @@
       <svg class="brand-hat" viewBox="0 0 64 26" aria-hidden="true"><path d="M8 22c0-10 10-18 24-18s24 8 24 18z" fill="#e3141b"/><rect x="2" y="21" width="60" height="5" rx="2.5" fill="#e3141b"/><rect x="27" y="0" width="10" height="7" rx="3" fill="#e3141b"/></svg>
       <h1 class="brand-name">{{ words[0] }}</h1>
       {% if words|length > 1 %}<p class="brand-sub"><span>{{ words[1:]|join(' ') }}</span></p>{% endif %}
-      {% if slogan_words %}<p class="brand-slogan">{{ slogan_words[:-1]|join(' ') }} <b>{{ slogan_words[-1] }}</b></p>{% endif %}
+      {% if slogan_words %}<p class="brand-slogan"><span>{{ slogan_words[:-1]|join(' ') }} <b>{{ slogan_words[-1] }}</b></span></p>{% endif %}
     </div>
     <div class="hero-actions">
     {% if d.account_url %}<button type="button" class="hero-acc" onclick="openAccount()" aria-label="Minha conta"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span id="acc-label">Entrar</span></button>{% endif %}

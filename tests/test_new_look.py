@@ -104,3 +104,11 @@ def test_panel_pages_show_look_fields(panel):
     html = panel.get(f"/snep/admin/cardapio/{cat('premium').id}").get_data(as_text=True)
     assert "Como aparece no site" in html and 'name="subtitle"' in html and 'name="icon"' in html
     assert "Foto do topo" in panel.get("/snep/admin/visual").get_data(as_text=True)
+
+
+def test_slogan_stays_together_on_small_screens(client, tenant):
+    # no celular a frase é um item só entre os dois traços: a última palavra não pode ficar solta numa linha
+    tenant.slogan = "A melhor pizzaria de Itu"
+    db.session.commit()
+    html = client.get("/snep/").get_data(as_text=True)
+    assert '<p class="brand-slogan"><span>A melhor pizzaria de <b>Itu</b></span></p>' in html

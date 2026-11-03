@@ -277,10 +277,11 @@ footer .st.open{color:var(--ok)}
   .brand{width:100%;align-items:stretch}
   .brand-hat,.brand-name,.brand-sub{display:none}
   /* frase longa quebra em duas linhas em vez de sumir na borda (o dono pode escrever até 120 letras) */
-  .brand-slogan{display:flex;align-items:center;justify-content:center;text-align:center;flex-wrap:wrap;margin:0;font:800 clamp(10px,3.1vw,12px)/1.4 var(--display);letter-spacing:2px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+  .brand-slogan{display:flex;align-items:center;justify-content:center;text-align:center;margin:0;font:800 clamp(10px,3.1vw,12px)/1.4 var(--display);letter-spacing:2px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8)}
   .brand-slogan::before,.brand-slogan::after{content:"";flex:1;height:3px;background:var(--red);min-width:16px;margin:0 14px 0 8px}
   .brand-slogan::after{margin:0 8px 0 14px}
-  .brand-slogan b{margin-left:.5em;color:var(--red);font-weight:800}
+  .brand-slogan span{min-width:0;overflow-wrap:anywhere;text-wrap:balance}
+  .brand-slogan b{color:var(--red);font-weight:800}
   .hero-actions{position:absolute;top:10px;right:0}
   .hero-wa{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%;
     background:rgba(20,120,50,.55);border:2px solid #25d366}
