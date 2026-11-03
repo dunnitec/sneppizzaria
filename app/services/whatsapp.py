@@ -7,8 +7,8 @@ def brl(v):
     return f"R$ {float(v):.2f}".replace(".", ",")
 
 
-def build_order_message(tenant, order_id, order, cart, delivery_fee, subtotal, total):
-    lines = [f"*Novo pedido - {tenant.name}*", f"Pedido #{order_id}", ""]
+def build_order_message(tenant, ticket, order, cart, delivery_fee, subtotal, total):
+    lines = [f"*Novo pedido - {tenant.name}*", f"Pedido #{ticket}", ""]
 
     for item in cart:
         view = flavor_view(item.get("kind"), item.get("category_name"), [p.name for p, _ in item.get("flavors", [])],

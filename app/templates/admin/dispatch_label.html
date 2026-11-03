@@ -35,7 +35,7 @@
   </div>
   <ol>
     {% for o in d.orders %}
-    <li><b>#{{ o.id }} · {{ o.neighborhood_name }}</b>
+    <li><b>#{{ o.ticket }} · {{ o.neighborhood_name }}</b>
       <small>{% if o.residence_text() %}<b>{{ o.residence_text() }}</b> · {% endif %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}{% if o.reference %} · Ref.: {{ o.reference }}{% endif %}</small>
       <small>{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</small>
       <small>{% if o.distance_km is not none %}{{ '%.1f'|format(o.distance_km)|replace('.', ',') }} km · {% endif %}corrida {{ 'a combinar' if o.fee_pending else o.delivery_fee|brl }}</small>

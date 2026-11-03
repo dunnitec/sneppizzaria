@@ -108,9 +108,9 @@ def dispatch_remove_order(dispatch_id, order_id):
     if not Order.query.filter_by(dispatch_id=dispatch.id).count():
         # comanda sem nenhum pedido não aconteceu: some da lista em vez de ficar “na rua” vazia
         db.session.delete(dispatch)
-        flash(f"Pedido #{order.id} voltou para “Prontos para sair” e a comanda {dispatch.number}, que ficou vazia, foi apagada.", "ok")
+        flash(f"Pedido #{order.ticket} voltou para “Prontos para sair” e a comanda {dispatch.number}, que ficou vazia, foi apagada.", "ok")
     else:
-        flash(f"Pedido #{order.id} voltou para “Prontos para sair”.", "ok")
+        flash(f"Pedido #{order.ticket} voltou para “Prontos para sair”.", "ok")
     db.session.commit()
     return redirect(url_for("admin.dispatches"))
 

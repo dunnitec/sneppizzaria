@@ -6,6 +6,15 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* navegador sem armazenamento */ } },
   };
 
+  /* ---------- impressão automática ---------- */
+  // o cupom sai uma vez só: tira o pedido de impressão do endereço para recarregar a página não imprimir de novo
+  const here = new URL(location.href);
+  if (here.searchParams.has("imprimir") || here.searchParams.has("imprimir_comanda")) {
+    here.searchParams.delete("imprimir");
+    here.searchParams.delete("imprimir_comanda");
+    history.replaceState(null, "", here.pathname + here.search);
+  }
+
   /* ---------- alterações não salvas ---------- */
   // formulários com data-track: avisa antes de sair da página se algo foi mudado e não foi salvo
   const dirty = new Set();
@@ -236,7 +245,7 @@
       if (data.new.length) {
         latest = data.latest;
         const last = data.new[data.new.length - 1];
-        status.textContent = `Novo pedido #${last.id} — ${last.name} · ${last.total}`;
+        status.textContent = `Novo pedido #${last.ticket} — ${last.name} · ${last.total}`;
         status.classList.add("alert");
         document.title = `(${data.new.length}) Novo pedido! · ${baseTitle}`;
         beep();

@@ -19,7 +19,7 @@
     {% for o in ready %}
     <label class="ready-order">
       <input type="checkbox" name="orders" value="{{ o.id }}">
-      <span class="ro-main"><b>#{{ o.id }}</b> · {{ o.neighborhood_name }} · {{ o.street }}, {{ o.number }}</span>
+      <span class="ro-main"><b>#{{ o.ticket }}</b> · {{ o.neighborhood_name }} · {{ o.street }}, {{ o.number }}</span>
       <span class="ro-side">{{ o.total|brl }} · {{ o.payment_method or '—' }}{% if o.change_for %} (troco p/ {{ o.change_for|brl }}){% endif %}{% if o.split_people %} · dividir em {{ o.split_people }}{% endif %}</span>
     </label>
     {% endfor %}
@@ -50,9 +50,9 @@
   <ul class="d-orders">
     {% for o in d.orders %}
     <li>
-      <span><b>#{{ o.id }}</b> {{ o.customer_name }} · {{ o.street }}, {{ o.number }} · {{ o.neighborhood_name }} — {{ o.total|brl }} ({{ o.payment_method or '—' }})</span>
+      <span><b>#{{ o.ticket }}</b> {{ o.customer_name }} · {{ o.street }}, {{ o.number }} · {{ o.neighborhood_name }} — {{ o.total|brl }} ({{ o.payment_method or '—' }})</span>
       <form method="post" action="{{ url_for('admin.dispatch_remove_order', dispatch_id=d.id, order_id=o.id) }}"
-            data-msg="O pedido #{{ o.id }} não foi entregue? Ele volta para “Prontos para sair”." onsubmit="return confirm(this.dataset.msg)">
+            data-msg="O pedido #{{ o.ticket }} não foi entregue? Ele volta para “Prontos para sair”." onsubmit="return confirm(this.dataset.msg)">
         {{ csrf() }}<button class="ghost small">Não entregue</button>
       </form>
     </li>

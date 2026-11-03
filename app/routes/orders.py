@@ -39,6 +39,7 @@ def create_order(slug):
     return jsonify(
         ok=True,
         order_id=order.id,
+        ticket=order.ticket,
         wa_link=build_whatsapp_link(tenant.whatsapp, order.whatsapp_message),
         subtotal=float(order.subtotal),
         delivery_fee=float(delivery_fee) if delivery_fee is not None else None,

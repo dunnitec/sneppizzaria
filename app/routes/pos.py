@@ -29,7 +29,7 @@ def order_new():
         return jsonify(ok=False, error=str(e)), 400
     notify_loyalty(g.tenant, order)  # pedido do balcão/telefone já entra confirmado: selos da fidelidade
     to_print = order.id if g.tenant.auto_print else None
-    return jsonify(ok=True, order_id=order.id, total=float(order.total),
+    return jsonify(ok=True, order_id=order.id, ticket=order.ticket, total=float(order.total),
                    redirect=url_for("admin.orders", imprimir=to_print))
 
 

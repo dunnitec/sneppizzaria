@@ -352,10 +352,14 @@ RESIDENCES = {"casa": "Casa", "apartamento": "Apartamento", "condominio": "Condo
 
 class Order(db.Model):
     __tablename__ = "orders"
-    __table_args__ = (db.UniqueConstraint("tenant_id", "client_ref", name="uq_orders_client_ref"),)
+    __table_args__ = (db.UniqueConstraint("tenant_id", "client_ref", name="uq_orders_client_ref"),
+                      db.UniqueConstraint("tenant_id", "ticket_month", "ticket_number", name="uq_orders_ticket"),)
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
+    # número que o dono e o cliente veem: volta a 1 todo mês (horário da loja). Endereços e o Pix usam o id.
+    ticket_month = db.Column(db.String(7))  # "2026-11"
+    ticket_number = db.Column(db.Integer)
 
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True)
     customer_name = db.Column(db.String(120), nullable=False)
@@ -389,6 +393,10 @@ class Order(db.Model):
     table_label = db.Column(db.String(20))  # mesa (pedido de comer na loja)
     dispatch_id = db.Column(db.Integer, db.ForeignKey("dispatches.id"), index=True)  # comanda de saída do motoboy
     printed_at = db.Column(db.DateTime)
+
+    @property
+    def ticket(self):
+        return self.ticket_number or self.id
 
     def residence_text(self):
         """'Apartamento · Edifício Solar' para o cupom e o painel; '' para casa ou sem informação."""

@@ -119,10 +119,14 @@ def _require_login():
         return redirect(url_for("admin.login"))
 
 
+PRINT_FRAMES = {"admin.order_label", "admin.dispatch_label"}
+
+
 @admin_bp.after_request
 def _no_cache(response):
     response.headers["Cache-Control"] = "no-store"
-    response.headers["X-Frame-Options"] = "DENY"
+    # o cupom abre num iframe escondido da própria página para imprimir sozinho; o resto não abre em iframe
+    response.headers["X-Frame-Options"] = "SAMEORIGIN" if request.endpoint in PRINT_FRAMES else "DENY"
     return response
 
 
@@ -292,7 +296,7 @@ def orders_poll():
     return {
         "latest": latest,
         "pending": base.filter_by(status="pendente").count(),
-        "new": [{"id": o.id, "name": o.customer_name, "total": brl(o.total)} for o in new],
+        "new": [{"id": o.id, "ticket": o.ticket, "name": o.customer_name, "total": brl(o.total)} for o in new],
     }
 
 
@@ -335,7 +339,7 @@ def order_pix(order_id):
     db.session.commit()
     if order.pix_paid_at:
         notify_order(g.tenant, order, "pix")
-    flash(f"Pedido #{order.id}: " + ("Pix marcado como recebido." if order.pix_paid_at else "Pix voltou para “conferir”."), "ok")
+    flash(f"Pedido #{order.ticket}: " + ("Pix marcado como recebido." if order.pix_paid_at else "Pix voltou para “conferir”."), "ok")
     current_filter = request.form.get("filter")
     return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None))
 
@@ -621,7 +625,7 @@ def _report_csv(kind, data):
                  for e in data["sp"]["expenses"]])
     if kind == "cancelados":
         return (["Pedido", "Quando", "Cliente", "Total"],
-                [[o.id, local_time(o.created_at).strftime("%d/%m/%Y %H:%M"), o.customer_name, o.total]
+                [[o.ticket, local_time(o.created_at).strftime("%d/%m/%Y %H:%M"), o.customer_name, o.total]
                  for o in data["ca"]["orders"]])
     if kind == "fechamento":
         c = data["c"]

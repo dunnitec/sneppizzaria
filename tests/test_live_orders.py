@@ -25,7 +25,7 @@ def test_poll_returns_orders_after_given_id(panel, tenant):
     assert r.status_code == 200
     assert r.json["latest"] == second.id
     assert r.json["pending"] == 2
-    assert r.json["new"] == [{"id": second.id, "name": "Segundo", "total": "R$ 80,50"}]
+    assert r.json["new"] == [{"id": second.id, "ticket": second.ticket, "name": "Segundo", "total": "R$ 80,50"}]
 
 
 def test_poll_with_bad_param_returns_nothing_new(panel, tenant):

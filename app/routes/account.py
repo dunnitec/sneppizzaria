@@ -104,6 +104,7 @@ def _hm(dt):
 def order_summary(order, slug):
     return {
         "id": order.id,
+        "ticket": order.ticket,
         "date": local_time(order.created_at).strftime("%d/%m/%Y %H:%M"),
         "status": ORDER_STATUSES.get(order.status, order.status),
         "status_code": order.status,

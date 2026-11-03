@@ -217,8 +217,13 @@ def place_order(tenant, p, channel="site", account=None):
 
     customer = _order_customer(tenant, key, info, account, from_site) if key else None
     db.session.flush()
+    month = local_time(now).strftime("%Y-%m")
     order = Order(
         tenant_id=tenant.id,
+        ticket_month=month,
+        # calculado dentro do próprio INSERT: dois pedidos ao mesmo tempo não pegam o mesmo número
+        ticket_number=db.select(db.func.coalesce(db.func.max(Order.ticket_number), 0) + 1)
+        .where(Order.tenant_id == tenant.id, Order.ticket_month == month).scalar_subquery(),
         customer_id=customer.id if customer else None,
         customer_name=info["customer_name"],
         customer_phone=info["customer_phone"],
@@ -288,6 +293,6 @@ def place_order(tenant, p, channel="site", account=None):
         for product, share in line["flavors"]:
             db.session.add(OrderItemFlavor(order_item_id=item.id, product_id=product.id, product_name=product.name, share=share))
 
-    order.whatsapp_message = build_order_message(tenant, order.id, info, cart, delivery_fee, subtotal, total)
+    order.whatsapp_message = build_order_message(tenant, order.ticket, info, cart, delivery_fee, subtotal, total)
     db.session.commit()
     return order, delivery_fee

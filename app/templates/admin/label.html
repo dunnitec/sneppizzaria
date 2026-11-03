@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="utf-8">
-<title>Pedido #{{ o.id }}</title>
+<title>Pedido #{{ o.ticket }}</title>
 <style>
   /* papel vem de Loja → Impressora. Bobina de cupom (altura 0): sem altura fixa, a impressora corta no fim;
      etiqueta: tamanho fixo, pedido comprido continua na etiqueta seguinte */
@@ -46,7 +46,7 @@
 <div class="tools"><button onclick="window.print()">Imprimir</button></div>
 <div class="sheet">
   <div class="head">
-    <span class="num">#{{ o.id }}</span>
+    <span class="num">#{{ o.ticket }}</span>
     <span class="kind">{{ 'ENTREGA' if o.delivery else channel_labels[o.channel]|upper }}{% if o.table_label %} {{ o.table_label }}{% endif %}</span>
   </div>
   <div class="meta">{{ (o.created_at|local_time).strftime('%d/%m %H:%M') if o.created_at }} · {{ channel_labels[o.channel] }}{% if o.dispatch %} · Comanda {{ o.dispatch.number }} · {{ o.dispatch.courier.name }}{% endif %}</div>
