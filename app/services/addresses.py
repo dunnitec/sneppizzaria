@@ -21,9 +21,11 @@ import requests
 from app.extensions import db
 from app.models import AddressPoint
 
-IBGE_CITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/{uf}/municipios"
 CNEFE_DIR = ("https://ftp.ibge.gov.br/Cadastro_Nacional_de_Enderecos_para_Fins_Estatisticos/"
              "Censo_Demografico_2022/Arquivos_CNEFE/CSV/Municipio/{code_uf}_{uf}/")
+UF_CODES = {"RO": 11, "AC": 12, "AM": 13, "RR": 14, "PA": 15, "AP": 16, "TO": 17, "MA": 21, "PI": 22, "CE": 23, "RN": 24,
+            "PB": 25, "PE": 26, "AL": 27, "SE": 28, "BA": 29, "MG": 31, "ES": 32, "RJ": 33, "SP": 35, "PR": 41, "SC": 42,
+            "RS": 43, "MS": 50, "MT": 51, "GO": 52, "DF": 53}
 USER_AGENT = "DunniDelivery/1.0 (frete por distancia)"
 GOOD_COORDS = {"1", "2", "3", "4"}  # 5 e 6: só o bairro ou o setor do censo, largos demais para o frete
 MAX_SPAN_KM = 4  # mesma rua espalhada por mais que isso: nomes iguais em bairros diferentes, quem decide é o CEP
@@ -83,21 +85,31 @@ def load_rows(city, uf, rows):
     return len(grouped)
 
 
+def _letters(text):
+    return re.sub(r"[^a-z0-9]", "", plain(text))
+
+
+def city_file(listing_html, city):
+    """Nome do arquivo da cidade na pasta do IBGE ('3523909_ITU.zip') ou None."""
+    for name in re.findall(r'href="(\d{7}_[^"]+\.zip)"', listing_html):
+        if _letters(name[8:-4]) == _letters(city):
+            return name
+    return None
+
+
 def import_city(uf, city):
-    """Baixa o arquivo da cidade no IBGE e carrega. Levanta ValueError se a cidade não existir."""
-    uf, wanted = uf.upper(), plain(city)
-    towns = requests.get(IBGE_CITIES_URL.format(uf=uf), timeout=30, headers={"User-Agent": USER_AGENT}).json()
-    code = next((str(t["id"]) for t in towns if plain(t["nome"]) == wanted), None)
-    if not code:
-        raise ValueError(f"Cidade '{city}' não encontrada em {uf}.")
-    folder = CNEFE_DIR.format(code_uf=code[:2], uf=uf)
+    """Baixa o arquivo da cidade no IBGE e carrega. Levanta ValueError se a cidade ou o estado não existirem."""
+    uf = uf.upper()
+    if uf not in UF_CODES:
+        raise ValueError(f"Estado '{uf}' não existe.")
+    folder = CNEFE_DIR.format(code_uf=UF_CODES[uf], uf=uf)
     listing = requests.get(folder, timeout=30, headers={"User-Agent": USER_AGENT})
     listing.raise_for_status()
-    found = re.search(rf'href="({code}_[^"]+\.zip)"', listing.text)
-    if not found:
-        raise ValueError(f"O IBGE não tem o arquivo de '{city}' ({code}).")
+    name = city_file(listing.text, city)
+    if not name:
+        raise ValueError(f"O IBGE não tem o arquivo de '{city}' em {uf}.")
     with tempfile.TemporaryFile() as tmp:
-        with requests.get(folder + found.group(1), stream=True, timeout=120, headers={"User-Agent": USER_AGENT}) as r:
+        with requests.get(folder + name, stream=True, timeout=120, headers={"User-Agent": USER_AGENT}) as r:
             r.raise_for_status()
             for chunk in r.iter_content(1 << 20):
                 tmp.write(chunk)

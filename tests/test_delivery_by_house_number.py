@@ -6,7 +6,7 @@ import pytest
 
 from app.extensions import db
 from app.models import AddressPoint, Order
-from app.services.addresses import find_address, load_rows, street_key
+from app.services.addresses import city_file, find_address, load_rows, street_key
 from tests.test_delivery_km import km_store, net, site_order  # noqa: F401
 
 
@@ -31,6 +31,14 @@ def test_street_key_matches_what_people_type():
     assert street_key("Doutor Ermelindo Maffei") == street_key("ERMELINDO MAFFEI")
     assert street_key("Rua São Paulo") == street_key("SAO PAULO")
     assert street_key("Rua Rio Amazonas") == "rio amazonas"
+
+
+def test_finds_the_city_file_by_name():
+    html = """<a href="3523909_ITU.zip">x</a> <a href="3545803_SANTA_BARBARA_D_OESTE.zip">y</a> <a href="3550308_SAO_PAULO.zip">z</a>"""
+    assert city_file(html, "Itu") == "3523909_ITU.zip"
+    assert city_file(html, "São Paulo") == "3550308_SAO_PAULO.zip"
+    assert city_file(html, "Santa Bárbara d'Oeste") == "3545803_SANTA_BARBARA_D_OESTE.zip"
+    assert city_file(html, "Itupeva") is None
 
 
 def test_each_number_has_its_own_place(street):
