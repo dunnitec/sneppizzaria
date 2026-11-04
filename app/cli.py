@@ -1,6 +1,8 @@
+import zipfile
 from pathlib import Path
 
 import click
+import requests
 
 from app.extensions import db
 from app.models import MIN_PASSWORD_LENGTH, AdminUser, PlatformAdmin, Tenant
@@ -35,6 +37,23 @@ def create_admin(slug, username, password):
     user.locked_until = None
     db.session.commit()
     click.echo(f"Usuário '{username}' {'criado' if created else 'atualizado'}. Painel: /{slug}/admin/")
+
+
+@click.command("importar-enderecos")
+@click.argument("uf")
+@click.argument("cidades", nargs=-1, required=True)
+def import_addresses(uf, cidades):
+    """Carrega os endereços do IBGE (local exato de cada número, para o frete por distância).
+
+    Exemplo: flask importar-enderecos SP Itu Salto
+    """
+    from app.services.addresses import import_city
+
+    for city in cidades:
+        try:
+            click.echo(f"{city}/{uf.upper()}: {import_city(uf, city)} endereços carregados.")
+        except (ValueError, requests.RequestException, zipfile.BadZipFile) as e:
+            raise click.ClickException(f"{city}: {e}")
 
 
 @click.command("create-platform-admin")

@@ -96,7 +96,7 @@ def fee_quote(tenant, args):
     hood = (args.get("neighborhood") or "").strip()[:120] or info.get("neighborhood", "")
     q = quote(tenant, cep or "", street, hood, (args.get("number") or "").strip()[:20])
     return {"ok": True, "status": q["status"], "km": float(q["km"]) if q["km"] is not None else None,
-            "fee": float(q["fee"]) if q["fee"] is not None else None, "cep_found": bool(info),
+            "fee": float(q["fee"]) if q["fee"] is not None else None, "approx": q["approx"], "cep_found": bool(info),
             "street": info.get("street", ""), "neighborhood": info.get("neighborhood", ""),
             "city": info.get("city", ""), "uf": info.get("uf", "")}
 

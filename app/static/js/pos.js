@@ -38,23 +38,34 @@
   });
   /* ---------- frete por distância: CEP → rua, bairro e taxa sugerida (editável) ---------- */
   const km = (v) => Number(v).toFixed(1).replace(".", ",");
+  let kmRun = 0, kmTimer = null;  // só vale a resposta da última consulta
   async function kmQuote() {
+    clearTimeout(kmTimer);
+    const run = ++kmRun;
     const cepEl = $('[name="cep"]'), info = $("#pos-km-info");
-    const cep = cepEl.value.replace(/\D/g, "");
-    if (cep.length !== 8 && !$('[name="street"]').value.trim()) return;
-    info.textContent = "Calculando…";
+    const cep = cepEl.value.replace(/\D/g, ""), street = $('[name="street"]').value.trim(), number = $('[name="number"]').value.trim();
+    if (cep.length !== 8 && !street) return;
     quoted = null;
+    if (!number && street) {
+      $("#pos-km-fee").value = "";
+      info.textContent = "Digite o número da casa para calcular a taxa.";
+      renderTotal();
+      return;
+    }
+    info.textContent = "Calculando…";
     try {
-      const qs = new URLSearchParams({ cep, street: $('[name="street"]').value.trim(), number: $('[name="number"]').value.trim(), neighborhood: $('[name="neighborhood"]').value.trim() });
+      const qs = new URLSearchParams({ cep, street, number, neighborhood: $('[name="neighborhood"]').value.trim() });
       const r = await (await fetch(cepEl.dataset.url + "?" + qs, { credentials: "same-origin" })).json();
+      if (run !== kmRun) return;
       if (r.street && !$('[name="street"]').value) $('[name="street"]').value = r.street;
       if (r.neighborhood && !$('[name="neighborhood"]').value) $('[name="neighborhood"]').value = r.neighborhood;
       const feeEl = $("#pos-km-fee");
-      if (r.status === "ok") { quoted = r.fee; feeEl.value = (r.fee + resFee()).toFixed(2).replace(".", ","); info.textContent = `${km(r.km)} km · taxa ${money(r.fee)}${resFee() ? ` + ${money(resFee())} do tipo de endereço` : ""} (pode mudar o valor).`; }
+      if (r.status === "number") { feeEl.value = ""; info.textContent = "Digite o número da casa para calcular a taxa."; if (r.street) $('[name="number"]').focus(); }
+      else if (r.status === "ok") { quoted = r.fee; feeEl.value = (r.fee + resFee()).toFixed(2).replace(".", ","); info.textContent = `${km(r.km)} km · taxa ${money(r.fee)}${resFee() ? ` + ${money(resFee())} do tipo de endereço` : ""} ${r.approx ? " Aproximado: número não achado no mapa" : ""} (pode mudar o valor).`; }
       else if (r.status === "far") { feeEl.value = ""; info.textContent = `Fica a cerca de ${km(r.km)} km, fora da área de entrega (até ${km(D.km.max)} km). Para entregar mesmo assim, digite a taxa.`; }
       else if (r.status === "store") { feeEl.value = ""; info.textContent = "A pizzaria ainda não está no mapa (aba Entrega). Digite a taxa."; }
       else { feeEl.value = ""; info.textContent = cep.length === 8 && !r.cep_found ? "CEP não encontrado. Preencha rua e bairro e digite a taxa." : "Endereço não achado no mapa. Combine e digite a taxa."; }
-    } catch (e) { info.textContent = "Sem conexão para calcular. Digite a taxa."; }
+    } catch (e) { if (run === kmRun) info.textContent = "Sem conexão para calcular. Digite a taxa."; }
     renderTotal();
   }
   if (D.km) {
@@ -64,7 +75,15 @@
       if (d.length === 8) { $('[name="street"]').value = ""; $('[name="neighborhood"]').value = ""; kmQuote(); }
     });
     $('[name="street"]').addEventListener("change", () => { if (!$('[name="cep"]').value) kmQuote(); });
-    $('[name="number"]').addEventListener("change", kmQuote);  // com o número o ponto no mapa fica mais exato
+    $('[name="number"]').addEventListener("input", () => {  // o valor antigo já não vale; calcula quando parar de digitar
+      clearTimeout(kmTimer);
+      kmRun++;
+      quoted = null;
+      $("#pos-km-fee").value = "";
+      $("#pos-km-info").textContent = "Calculando…";
+      renderTotal();
+      kmTimer = setTimeout(kmQuote, 700);
+    });
   }
   $('[name="payment_method"]').addEventListener("change", (e) => { $("#pos-change").hidden = e.target.value !== "Dinheiro"; });
   $('[name="split_people"]').addEventListener("change", renderTotal);

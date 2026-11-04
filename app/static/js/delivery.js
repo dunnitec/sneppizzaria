@@ -341,9 +341,9 @@ function openCheckout(){
       <div class="res-pick" role="radiogroup" aria-label="Tipo de endereço"><span class="res-lbl">Tipo de endereço</span>${RESIDENCES.map(([v,l])=>`<label><input type="radio" name="tipo" value="${v}" ${v==="casa"?"checked":""} onchange="resChange()"><span>${l}${resFee(v)?`<small>+${money(resFee(v))}</small>`:""}</span></label>`).join("")}</div>
       <label id="predio-box" hidden><span id="predio-lbl">Nome do prédio</span><input name="predio" maxlength="120"></label>
       ${DATA.km?`<label>CEP<input name="cep" id="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" oninput="cepInput(this)"></label>
-      <p class="km-info" id="km-info" aria-live="polite">Digite o CEP para calcular a entrega.</p>`:""}
+      <p class="km-info" id="km-info" aria-live="polite">${KM_ASK_CEP}</p>`:""}
       <label>Rua<input name="rua"${DATA.km?` onchange="kmQuote()"`:""}></label>
-      <div class="r2"><label>Número<input name="num"${DATA.km?` onchange="kmQuote()"`:""}></label><label>Complemento<input name="comp"></label></div>
+      <div class="r2"><label>Número<input name="num"${DATA.km?` oninput="kmNumberInput()" onchange="kmQuote()"`:""}></label><label>Complemento<input name="comp"></label></div>
       ${DATA.km?`<label>Bairro<input name="bairro" id="bairro" onchange="kmQuote()"></label>`:`<label>Bairro<select name="bairro" id="bairro" onchange="totals()"><option value="">Selecione…</option>${DATA.neighborhoods.map(n=>`<option value="${esc(n.name)}">${esc(n.name)} — ${money(n.fee)}</option>`).join("")}<option value="__outro__">Outro bairro (taxa a confirmar)</option></select></label>`}
       <label>Ponto de referência<input name="ref"></label>
     </div>
@@ -393,33 +393,45 @@ function fillRemembered(){
   setBairro(d.bairro);setResidence(d.tipo,d.predio);
 }
 /* ---------- frete por distância (painel → Entrega → Por distância) ---------- */
-let KMQ=null, KMQ_KEY="", KMQ_RUN=null; // última consulta: {status: ok|far|unknown|store, km, fee}
+let KMQ=null, KMQ_KEY="", KMQ_RUN=null, KMQ_TIMER=null; // última consulta: {status: ok|far|unknown|store|number, km, fee, approx}
+const KM_ASK_CEP="Digite o CEP e o número da casa para calcular a entrega.", KM_ASK_NUMBER="Agora digite o número da casa para calcular a entrega.";
 const kmKey=()=>{const f=document.getElementById("ckf");return [f.cep.value.replace(/\D/g,""),f.rua.value.trim(),f.num.value.trim(),f.bairro.value.trim()].join("|");};
 const kmText=v=>Number(v).toFixed(1).replace(".",",");
 function cepInput(el){
   const d=el.value.replace(/\D/g,"").slice(0,8);el.value=d.length>5?d.slice(0,5)+"-"+d.slice(5):d;
   if(d.length===8){const f=document.getElementById("ckf");f.rua.value="";f.bairro.value="";kmQuote();}
 }
+// número mudou: o valor antigo já não vale; calcula quando a pessoa para de digitar
+function kmNumberInput(){
+  clearTimeout(KMQ_TIMER);KMQ=null;KMQ_KEY="";KMQ_RUN=null;
+  const f=document.getElementById("ckf"),info=document.getElementById("km-info");
+  info.className="km-info";info.textContent=f.num.value.trim()?"Calculando a entrega…":KM_ASK_NUMBER;totals();
+  KMQ_TIMER=setTimeout(kmQuote,700);
+}
 function kmQuote(){
   const f=document.getElementById("ckf");if(!f||!DATA.km)return Promise.resolve();
+  clearTimeout(KMQ_TIMER);
   const key=kmKey(),info=document.getElementById("km-info");
   if(key===KMQ_KEY&&KMQ_RUN)return KMQ_RUN;
-  const cep=f.cep.value.replace(/\D/g,"");
-  if(cep.length!==8&&!f.rua.value.trim()){KMQ=null;KMQ_KEY="";KMQ_RUN=null;info.textContent="Digite o CEP para calcular a entrega.";totals();return Promise.resolve();}
+  const cep=f.cep.value.replace(/\D/g,""),rua=f.rua.value.trim(),num=f.num.value.trim(),hood=f.bairro.value.trim();
+  if((cep.length!==8&&!rua)||(!num&&rua)){KMQ=null;KMQ_KEY="";KMQ_RUN=null;info.className="km-info";info.textContent=rua?KM_ASK_NUMBER:KM_ASK_CEP;totals();return Promise.resolve();}
   info.textContent="Calculando a entrega…";info.className="km-info";KMQ_KEY=key;
-  const qs=new URLSearchParams({cep,street:f.rua.value.trim(),number:f.num.value.trim(),neighborhood:f.bairro.value.trim()});
+  const qs=new URLSearchParams({cep,street:rua,number:num,neighborhood:hood});
   KMQ_RUN=fetch(DATA.km.quote_url+"?"+qs).then(r=>r.json()).then(r=>{
     if(KMQ_KEY!==key)return;
     if(!r.ok){KMQ=null;info.textContent=r.error||"Não deu para calcular agora. A pizzaria confirma a taxa.";totals();return;}
-    if(r.street&&!f.rua.value)f.rua.value=r.street;
+    const filled=r.street&&!f.rua.value;
+    if(filled)f.rua.value=r.street;
     if(r.neighborhood&&!f.bairro.value)f.bairro.value=r.neighborhood;
+    // o endereço mudou enquanto calculava: este valor é do endereço antigo, calcula de novo
+    if(f.num.value.trim()!==num||(rua&&f.rua.value.trim()!==rua)||(hood&&f.bairro.value.trim()!==hood)||f.cep.value.replace(/\D/g,"")!==cep){KMQ=null;KMQ_KEY="";KMQ_RUN=null;return kmQuote();}
     KMQ=r;KMQ_KEY=kmKey();
     info.className="km-info"+(r.status==="far"?" bad":r.status==="ok"?" ok":"");
-    info.textContent=r.status==="ok"?`Entrega: ${kmText(r.km)} km · ${money(r.fee)}`:
+    info.textContent=r.status==="number"?KM_ASK_NUMBER:r.status==="ok"?`Entrega: ${kmText(r.km)} km · ${money(r.fee)}${r.approx?" (aproximado: não achamos este número exato no mapa)":""}`:
       r.status==="far"?`Este endereço fica a cerca de ${kmText(r.km)} km. Entregamos até ${kmText(DATA.km.max)} km. Você pode retirar na loja.`:
       cep.length===8&&!r.cep_found?"CEP não encontrado. Confira o número ou preencha rua e bairro.":
       "Não achamos este endereço no mapa. A pizzaria confirma a taxa pelo WhatsApp.";
-    if(r.status==="ok"&&!f.num.value)f.num.focus();
+    if(r.status==="number"&&filled)f.num.focus();
     totals();
   }).catch(()=>{if(KMQ_KEY===key){KMQ=null;info.textContent="Sem conexão para calcular. A pizzaria confirma a taxa.";totals();}});
   return KMQ_RUN;
@@ -447,7 +459,7 @@ function fee(){
 // mesma conta do servidor (services/split.py): partes iguais, os centavos que sobram nas primeiras
 function splitParts(total,n){const c=Math.round(total*100),b=Math.floor(c/n),x=c-b*n;return Array.from({length:n},(_,i)=>(b+(i<x?1:0))/100);}
 function splitText(total,n){const p=splitParts(total,n),x=p.filter(v=>v!==p[n-1]).length;return x?`${x} de ${money(p[0])} e ${n-x} de ${money(p[n-1])}`:`${money(p[0])} cada`;}
-function totals(){const f=fee(),s=subtotal(),d=accDiscount(),dv=document.querySelector("#md [name=dividir]"),n=dv?Number(dv.value):0;document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega${f&&DATA.km&&KMQ?` (${kmText(KMQ.km)} km)`:""}</span><span>${f===null?(DATA.km&&KMQ&&KMQ.status==="far"?"fora da área":"a confirmar"):money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>${n>1?`<div class="split"><span>Por pessoa (${n})</span><span>${splitText(s-d.value+(f||0),n)}</span></div>`:""}`;}
+function totals(){const f=fee(),s=subtotal(),d=accDiscount(),dv=document.querySelector("#md [name=dividir]"),n=dv?Number(dv.value):0;document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega${f&&DATA.km&&KMQ?` (${kmText(KMQ.km)} km)`:""}</span><span>${f===null?(DATA.km&&KMQ&&KMQ.status==="far"?"fora da área":DATA.km&&!document.querySelector("#ckf [name=num]").value.trim()?"falta o número":"a confirmar"):money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>${n>1?`<div class="split"><span>Por pessoa (${n})</span><span>${splitText(s-d.value+(f||0),n)}</span></div>`:""}`;}
 function finish(ev){ev.preventDefault();sendOrder(ev.target);return false;}
 async function sendOrder(f){
   const wd=document.getElementById("ck-wd").checked;

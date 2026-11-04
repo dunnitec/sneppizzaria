@@ -100,43 +100,43 @@ def test_parse_coords_from_google_maps():
 # ---------- consulta do site ----------
 
 def test_quote_fills_address_from_cep(client, km_store, net):
-    r = client.get("/snep/api/frete?cep=13300-000").json
+    r = client.get("/snep/api/frete?cep=13300-000&number=10").json
     assert (r["status"], r["km"], r["fee"]) == ("ok", 1.3, 5.0)
     assert (r["street"], r["neighborhood"], r["city"]) == ("Rua Perto", "Centro", "Itu")
 
 
 def test_quote_far_and_unknown(client, km_store, net):
-    assert client.get("/snep/api/frete?cep=13309999").json["status"] == "far"
-    r = client.get("/snep/api/frete?street=Rua+Inexistente").json
+    assert client.get("/snep/api/frete?cep=13309999&number=10").json["status"] == "far"
+    r = client.get("/snep/api/frete?street=Rua+Inexistente&number=10").json
     assert r["status"] == "unknown" and r["fee"] is None
 
 
 def test_quote_falls_back_to_neighborhood(client, km_store, net):
-    r = client.get("/snep/api/frete?street=Rua+Inexistente&neighborhood=Centro").json
+    r = client.get("/snep/api/frete?street=Rua+Inexistente&number=10&neighborhood=Centro").json
     assert r["status"] == "ok"
 
 
 def test_map_lookups_are_cached(client, km_store, net):
-    client.get("/snep/api/frete?cep=13300000")
-    client.get("/snep/api/frete?cep=13300000")
-    assert net["map"] == 1 and GeoCache.query.count() == 2  # a rua e o CEP (sem ponto), cada um consultado uma vez
+    client.get("/snep/api/frete?cep=13300000&number=10")
+    client.get("/snep/api/frete?cep=13300000&number=10")
+    assert net["map"] == 1 and GeoCache.query.count() == 1  # rua e número: consultados uma vez só
 
 
 def test_quote_only_when_store_charges_by_km(client, open_store, net):
-    assert client.get("/snep/api/frete?cep=13300000").status_code == 404
+    assert client.get("/snep/api/frete?cep=13300000&number=10").status_code == 404
 
 
 def test_quote_rate_limited_per_ip(client, km_store, net, monkeypatch):
     monkeypatch.setattr(public, "QUOTES_PER_10_MIN", 2)
-    client.get("/snep/api/frete?cep=13300000")
-    client.get("/snep/api/frete?cep=13300000")
-    assert client.get("/snep/api/frete?cep=13300000").status_code == 429
+    client.get("/snep/api/frete?cep=13300000&number=10")
+    client.get("/snep/api/frete?cep=13300000&number=10")
+    assert client.get("/snep/api/frete?cep=13300000&number=10").status_code == 429
 
 
 def test_store_not_on_map_yet_is_to_be_agreed(client, km_store, net):
     km_store.store_lat = None
     db.session.commit()
-    assert client.get("/snep/api/frete?cep=13300000").json["status"] == "store"
+    assert client.get("/snep/api/frete?cep=13300000&number=10").json["status"] == "store"
 
 
 # ---------- pedido pelo site (o servidor refaz a conta) ----------
@@ -220,7 +220,7 @@ def test_phone_order_far_without_fee_asks_for_it(panel, km_store, net):
 
 
 def test_panel_quote_and_pos_page(panel, km_store, net):
-    assert panel.get("/snep/admin/pedidos/frete?cep=13300000").json["fee"] == 5.0
+    assert panel.get("/snep/admin/pedidos/frete?cep=13300000&number=10").json["fee"] == 5.0
     html = panel.get("/snep/admin/pedidos/novo").get_data(as_text=True)
     assert 'name="cep"' in html and "pos-km-fee" in html
 

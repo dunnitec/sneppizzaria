@@ -289,6 +289,8 @@ footer .st.open{color:var(--ok)}
   .hero-wa span{display:none}
 }
 @media (max-width:360px){.brand-slogan{font-size:10.5px;letter-spacing:3px}}
+/* celular bem pequeno: o preço desce para a linha de baixo em vez de alargar a página inteira */
+@media (max-width:350px){.grid>.card{min-width:0}.card .top{flex-wrap:wrap}.card .btns button{flex:1;min-width:0}.cat-title{min-width:0}.cat-title .big{font-size:27px;overflow-wrap:anywhere}}
 
 /* ---------- promoções (painel → Promoções) ---------- */
 .card{position:relative}

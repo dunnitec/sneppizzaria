@@ -293,6 +293,22 @@ class Neighborhood(db.Model):
     active = db.Column(db.Boolean, default=True)
 
 
+class AddressPoint(db.Model):
+    """Endereços públicos do Censo 2022 (services/addresses.py): onde fica cada número da rua. Sem dado de cliente."""
+
+    __tablename__ = "address_points"
+    __table_args__ = (db.Index("ix_address_points_street", "city", "uf", "street_key", "number"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    city = db.Column(db.String(80), nullable=False)
+    uf = db.Column(db.String(2), nullable=False)
+    street_key = db.Column(db.String(120), nullable=False)
+    number = db.Column(db.Integer, nullable=False)
+    cep = db.Column(db.String(8))
+    lat = db.Column(db.Float, nullable=False)
+    lng = db.Column(db.Float, nullable=False)
+
+
 class GeoCache(db.Model):
     """Consultas ao mapa já feitas (services/geo.py). lat/lng vazios = endereço não achado."""
 

@@ -1,6 +1,8 @@
 """Frete por distância: CEP → endereço (ViaCEP) → ponto no mapa → km até a loja.
 
 Escolhas (pensadas para custo zero):
+- O frete só é calculado com o número da casa. O número vira ponto exato pelos endereços do IBGE
+  (services/addresses.py); fora de lá o mapa só acha a rua, e a resposta sai com approx=True.
 - Distância pelas ruas, de carro, no OSRM (rotas grátis sobre o OpenStreetMap); entre as rotas que ele
   sugere, vale a mais curta (o motoboy pega o caminho mais curto). Fora do ar: linha reta × ROAD_FACTOR.
 - Ponto no mapa por várias fontes grátis, da mais exata para a mais larga (find_point):
@@ -277,7 +279,9 @@ def km_on(tenant):
 
 
 def locate_customer(tenant, cep="", street="", neighborhood="", number=""):
-    """Ponto do cliente: rua e número na cidade do CEP (ou da loja), o CEP, a rua; senão o bairro."""
+    """Ponto do cliente: o número exato (IBGE); senão rua e número no mapa, o CEP, a rua e por fim o bairro."""
+    from app.services.addresses import find_address
+
     info = lookup_cep(cep) if cep else None
     city = (info or {}).get("city") or tenant.store_city or ""
     uf = (info or {}).get("uf") or tenant.store_uf or ""
@@ -285,20 +289,24 @@ def locate_customer(tenant, cep="", street="", neighborhood="", number=""):
     neighborhood = neighborhood or (info or {}).get("neighborhood") or ""
     if not city and not cep:
         return None
-    return find_point(street, number, city, uf, cep, neighborhood)
+    return find_address(city, uf, street, number, cep or "") or find_point(street, number, city, uf, cep, neighborhood)
 
 
 def quote(tenant, cep="", street="", neighborhood="", number=""):
     """Frete por distância. Devolve dict:
-    status: "ok" (fee e km), "far" (passou do limite, km), "unknown" (não achou: a combinar)
-            ou "store" (loja ainda sem ponto no mapa: a combinar).
+    status: "ok" (fee e km), "far" (passou do limite, km), "unknown" (não achou: a combinar),
+            "store" (loja ainda sem ponto no mapa: a combinar) ou "number" (falta o número da casa).
+    approx: True quando o local veio do mapa, sem o número exato.
     """
     if tenant.store_lat is None or tenant.store_lng is None:
-        return {"status": "store", "km": None, "fee": None}
+        return {"status": "store", "km": None, "fee": None, "approx": False}
+    if not str(number or "").strip():
+        return {"status": "number", "km": None, "fee": None, "approx": False}
     point = locate_customer(tenant, cep, street, neighborhood, number)
     if not point:
-        return {"status": "unknown", "km": None, "fee": None}
+        return {"status": "unknown", "km": None, "fee": None, "approx": False}
     km = delivery_km(tenant.store_lat, tenant.store_lng, point["lat"], point["lng"])
+    approx = not point.get("exact")
     if tenant.km_max and km > Decimal(str(tenant.km_max)):
-        return {"status": "far", "km": km, "fee": None}
-    return {"status": "ok", "km": km, "fee": km_fee(tenant, km)}
+        return {"status": "far", "km": km, "fee": None, "approx": approx}
+    return {"status": "ok", "km": km, "fee": km_fee(tenant, km), "approx": approx}
