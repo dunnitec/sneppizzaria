@@ -22,7 +22,7 @@
     renderTotal();
   }
   form.querySelectorAll('[name="channel"]').forEach((r) => r.addEventListener("change", applyChannel));
-  $("#pos-delivery").addEventListener("change", applyChannel);
+  $("#pos-delivery").addEventListener("change", () => { applyChannel(); quoteSavedAddress(); });
   const other = () => delivery() && $('[name="neighborhood"]').value === "__outro__";
   // valor digitado: "1.234,50", "20,5" ou "20.50"; vazio = null
   const num = (v) => { v = String(v || "").trim(); return v === "" ? null : Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v); };
@@ -225,7 +225,7 @@
       addons.length ? addons.map((a) => `${a.qty}x ${D.addons.find((x) => x.id === a.id).name}`).join(", ") : "",
       B.picks.length ? `${picksOf().label}: ${B.picks.join(", ")}` : "", B.choice, B.notes ? `Obs: ${B.notes}` : ""].filter(Boolean).join(" · ");
     cart.push({ sel: { category_id: B.cat.id, variant: B.size, flavors: flavors.map((f) => f.id), border_id: B.border, addons, combo_choice: B.choice || null, notes: B.notes, ...(B.cat.kind === "montar" ? { picks: [...B.picks] } : {}) },
-      title, detail, price: unitPrice(), qty: B.qty });
+      title, detail, price: unitPrice(), base: isCombo() ? unitPrice() : Math.max(...flavors.map((f) => f.price)), qty: B.qty });
     showError("");
     B = Object.assign(B, { flavors: [], border: null, addons: {}, choice: "", picks: [], qty: 1, notes: "" });
     renderBuilder();
@@ -239,6 +239,7 @@
       `<div class="cart-line"><span><b>${i.qty}x ${esc(i.title)}</b><small>${esc(i.detail)}</small></span><span>${money(i.price * i.qty)}</span>
         <span class="q"><button type="button" class="ghost small" data-q="${idx}" data-d="-1" aria-label="Menos um">−</button><button type="button" class="ghost small" data-q="${idx}" data-d="1" aria-label="Mais um">+</button></span></div>`).join("")
       : `<p class="empty">Nenhum item ainda. Toque numa categoria acima.</p>`;
+    renderCustomer();
     renderTotal();
   }
   $("#pos-cart").addEventListener("click", (e) => {
@@ -251,8 +252,9 @@
   });
   function renderTotal() {
     const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const total = sub + (fee() || 0);
-    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${delivery() ? `<div><span>Entrega</span><b>${fee() === null ? "a combinar" : money(fee())}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(total)}</b></div>${splitLine(total)}`;
+    const free = rewardDiscount();
+    const total = sub - free + (fee() || 0);
+    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${free ? `<div><span>Pizza grátis (fidelidade)</span><b>− ${money(free)}</b></div>` : ""}${delivery() ? `<div><span>Entrega</span><b>${fee() === null ? "a combinar" : money(fee())}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(total)}</b></div>${splitLine(total)}`;
     return total;
   }
   // dividir a conta: mesma conta do servidor (services/split.py)
@@ -271,6 +273,104 @@
     return opt && opt.value ? Number(opt.dataset.fee) + resFee() : 0;
   }
   function showError(msg) { const el = $("#pos-error"); el.textContent = msg; el.hidden = !msg; }
+
+  /* ---------- cliente pelo telefone: nome, endereço guardado, selos e pizza grátis ---------- */
+  const custBox = $("#pos-customer");
+  const ADDRESS = ["street", "number", "complement", "neighborhood", "reference", "building"];
+  const auto = {};  // o que veio do cadastro; trocar o telefone limpa só isso, nunca o que o atendente digitou
+  const chosen = new Set();  // cartões com a pizza grátis marcada
+  let customer = null, custRun = 0, custTimer = null;
+  function autoFill(name, value) {
+    const el = form.elements[name];
+    if (!el || !value || el.value) return;
+    el.value = value;
+    if (el.value === value) auto[name] = value;  // bairro fora da lista: o select fica em branco
+  }
+  function clearAuto() {
+    const hadStreet = "street" in auto;
+    Object.keys(auto).forEach((n) => {
+      const el = form.elements[n];
+      if (el.value === auto[n]) el.value = n === "residence" ? "casa" : "";
+      delete auto[n];
+    });
+    form.residence.dispatchEvent(new Event("change"));
+    $('[name="neighborhood"]').dispatchEvent(new Event("change"));
+    if (hadStreet && D.km) { kmRun++; clearTimeout(kmTimer); quoted = null; $("#pos-km-fee").value = ""; $("#pos-km-info").textContent = "Digite o CEP: a rua, o bairro e a taxa se preenchem sozinhos."; }
+  }
+  // endereço que veio do cadastro: calcula a taxa quando o pedido é para entregar
+  function quoteSavedAddress() {
+    if (D.km && delivery() && "street" in auto && $('[name="number"]').value && !$("#pos-km-fee").value) kmQuote();
+  }
+  function fillFromCustomer(c) {
+    autoFill("customer_name", c.name);
+    const a = c.address || {};
+    if (a.street && !$('[name="street"]').value) {
+      ADDRESS.forEach((n) => autoFill(n, a[n]));
+      if (a.residence && a.residence !== form.residence.value) { form.residence.value = a.residence; auto.residence = a.residence; }
+      form.residence.dispatchEvent(new Event("change"));
+      $('[name="neighborhood"]').dispatchEvent(new Event("change"));
+      quoteSavedAddress();
+    }
+  }
+  const rewardFits = (l, i) => i.sel.category_id === l.category_id && (!l.size || i.sel.variant === l.size) && i.sel.flavors.every((id) => l.product_ids.includes(id));
+  const usable = () => (customer && customer.cards ? customer.cards : []).filter((l) => l.rewards > 0 && cart.some((i) => rewardFits(l, i)));
+  const usedRewards = () => usable().filter((l) => chosen.has(l.id)).map((l) => l.id);
+  // mesma conta do servidor (services/loyalty.py): cada cartão marcado desconta a pizza mais cara que serve
+  function rewardDiscount() {
+    const taken = new Map();
+    let off = 0;
+    usable().filter((l) => chosen.has(l.id)).forEach((l) => {
+      const best = cart.filter((i) => rewardFits(l, i) && (taken.get(i) || 0) < i.qty).sort((a, b) => b.base - a.base)[0];
+      if (best) { taken.set(best, (taken.get(best) || 0) + 1); off += best.base; }
+    });
+    return off;
+  }
+  function renderCustomer() {
+    const c = customer;
+    custBox.hidden = !c;
+    if (!c) { custBox.innerHTML = ""; return; }
+    const join = "Para juntar selos, o cliente cria o cadastro no site com este telefone.";
+    if (c.error) { custBox.innerHTML = `<p>${esc(c.error)}</p>`; return; }
+    if (!c.found) { custBox.innerHTML = `<p>Telefone novo, sem cadastro.${c.loyalty ? ` ${join}` : ""}</p>`; return; }
+    if (!c.registered) { custBox.innerHTML = `<p><b>✓ ${esc(c.name || "Cliente já pediu antes")}</b>${c.loyalty ? ` · sem cadastro no site: este pedido não soma selos. ${join}` : ""}</p>`; return; }
+    const fits = usable();
+    custBox.innerHTML = `<p><b>✓ ${esc(c.name || "Cliente com cadastro")}</b></p>` + (c.cards || []).map((l) => {
+      const line = `<p>Cartão ${esc(l.name)}: <b>${l.filled} de ${l.goal} selos</b>${l.saved ? ` · ${l.saved} guardado${l.saved > 1 ? "s" : ""} para o próximo` : ""}${l.pending ? ` · +${l.pending} chegando` : ""}</p>`;
+      if (!l.rewards) return line;
+      return line + (fits.includes(l)
+        ? `<label class="check"><input type="checkbox" data-reward="${l.id}" ${chosen.has(l.id) ? "checked" : ""}> 🎁 Usar ${esc(l.reward_text)}</label>`
+        : `<p class="gift">🎁 Tem ${esc(l.reward_text)}. Para usar, ponha no pedido 1 pizza ${esc(l.name)}${l.size ? " " + esc(l.size) : ""}: ${l.flavors.map(esc).join(", ")}.</p>`);
+    }).join("");
+  }
+  custBox.addEventListener("change", (e) => {
+    const id = Number(e.target.dataset.reward);
+    if (!id) return;
+    if (e.target.checked) chosen.add(id); else chosen.delete(id);
+    renderTotal();
+  });
+  async function lookupCustomer(phone) {
+    const run = ++custRun;
+    let c;
+    try {
+      const r = await fetch(`${custBox.dataset.url}?${new URLSearchParams({ telefone: phone })}`, { credentials: "same-origin" });
+      c = await r.json();
+    } catch (err) { c = { error: "Não deu para buscar o cadastro agora. Pode lançar o pedido normalmente." }; }
+    if (run !== custRun) return;
+    customer = c;
+    if (c.found) fillFromCustomer(c);
+    renderCustomer();
+    renderTotal();
+  }
+  $('[name="customer_phone"]').addEventListener("input", (e) => {
+    clearTimeout(custTimer);
+    custRun++;  // resposta de outro número não vale mais
+    customer = null;
+    chosen.clear();
+    clearAuto();
+    renderCustomer();
+    renderTotal();
+    if (e.target.value.replace(/\D/g, "").length >= 10) custTimer = setTimeout(() => lookupCustomer(e.target.value), 400);
+  });
 
   /* ---------- lançar ---------- */
   form.addEventListener("submit", async (e) => {
@@ -296,6 +396,7 @@
       delivery_fee: other() || D.km ? fee() : null, cep: D.km ? f.get("cep") : "",
       payment_method: f.get("payment_method"), change_for: change, split_people: Number(f.get("split_people")) || null,
       items: cart.map((i) => Object.assign({}, i.sel, { quantity: i.qty })),
+      use_rewards: usedRewards(),
     };
     const btn = $("#pos-submit");
     btn.disabled = true; btn.textContent = "Lançando…";

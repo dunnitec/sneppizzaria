@@ -26,7 +26,7 @@ PLANS = {
 
 # telas do painel da loja que dependem de cada função
 ADMIN_ENDPOINTS = {
-    "balcao": {"admin.order_new", "admin.order_fee_quote"},
+    "balcao": {"admin.order_new", "admin.order_customer", "admin.order_fee_quote"},
     "motoboys": {"admin.dispatches", "admin.dispatch_new", "admin.dispatch_return", "admin.dispatch_remove_order",
                  "admin.dispatch_label", "admin.courier_new", "admin.courier_toggle"},
     "relatorios": {"admin.reports", "admin.costs", "admin.closing_label"},

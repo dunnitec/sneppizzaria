@@ -334,6 +334,11 @@ code{background:#f2f2f2;padding:1px 5px;border-radius:4px}
 .cart-line > span:first-child{flex:1 1 220px}
 .cart-line small{display:block;color:var(--muted);font-size:12px}
 .cart-line .q{display:flex;gap:4px}
+.pos-customer{margin:4px 0 10px;padding:10px 12px;border-radius:8px;background:#f6f6f6;font-size:14px}
+.pos-customer p{margin:0 0 4px}
+.pos-customer p:last-child{margin-bottom:0}
+.pos-customer .gift{color:var(--red);font-weight:700}
+.pos-customer .check{white-space:normal;padding:6px 0 0;font-size:15px;font-weight:700}
 .pos-total div{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}
 .pos-total .big{font-size:20px;border-top:1px solid #ddd;margin-top:4px;padding-top:8px}
 [data-for][hidden]{display:none!important}

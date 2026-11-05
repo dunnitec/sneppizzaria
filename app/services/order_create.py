@@ -26,7 +26,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import RESIDENCES, CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
-from app.services.customers import phone_key, upsert_customer
+from app.services.customers import has_real_name, phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.costs import Menu, cost_of
 from app.services.geo import cep_digits, quote, km_on
@@ -124,6 +124,10 @@ def place_order(tenant, p, channel="site", account=None):
     key = phone_key(phone) if phone else None
     if phone and not key:
         raise OrderError("Informe um telefone válido, com DDD.")
+    # no painel o telefone identifica o cliente: pedido sem nome leva o nome do cadastro
+    known = Customer.query.filter_by(tenant_id=tenant.id, phone_key=key).first() if key and not from_site else None
+    if known and not name and has_real_name(known.name):
+        name = known.name
 
     # entrega só existe no site e no telefone; balcão e mesa são sempre no local
     withdraw = bool(p.get("withdraw")) if channel in ("site", "telefone") else True
@@ -164,21 +168,29 @@ def place_order(tenant, p, channel="site", account=None):
     if extra and delivery_fee is not None and manual is None:  # taxa digitada no painel já é a combinada
         delivery_fee += extra
     discount, discount_note, first_order, used_programs = Decimal("0"), "", False, []
-    if from_site and account and account.phone_key == key:
+    wanted = p.get("use_rewards") if isinstance(p.get("use_rewards"), list) else []
+    holder = account if from_site and account and account.phone_key == key else None
+    if not from_site and wanted:  # pizza grátis marcada pelo atendente
+        holder = known if known and known.registered_at else None
+        if not holder:
+            raise OrderError("Este telefone não tem cartão fidelidade. Desmarque a pizza grátis para lançar o pedido.")
+    if holder:
         # trava o cadastro até o pedido ser gravado: dois pedidos ao mesmo tempo (dois celulares na mesma
         # conta) não usam o mesmo brinde nem o desconto do 1º pedido duas vezes. O UPDATE segura a linha
         # no PostgreSQL e o banco inteiro no SQLite; o segundo pedido espera e já vê o primeiro.
-        Customer.query.filter_by(id=account.id).update({"updated_at": utcnow()}, synchronize_session=False)
-        wanted = p.get("use_rewards") if isinstance(p.get("use_rewards"), list) else []
-        discount, discount_note, first_order, used_programs = discounts(tenant, account, cart, wanted)
+        Customer.query.filter_by(id=holder.id).update({"updated_at": utcnow()}, synchronize_session=False)
+        discount, discount_note, first_order, used_programs = discounts(tenant, holder, cart, wanted, with_first_order=from_site)
         lost = [prog for prog in LoyaltyProgram.query.filter(
                     LoyaltyProgram.tenant_id == tenant.id,
                     LoyaltyProgram.id.in_({int(x) for x in wanted if str(x).isdigit()} - set(used_programs)))
-                if not card(prog, account)["rewards"]]
+                if not card(prog, holder)["rewards"]]
         if lost:  # o cliente viu o desconto na tela, mas o brinde já foi gasto (outro pedido ao mesmo tempo)
             db.session.rollback()
             raise OrderError(f"A pizza grátis do cartão {lost[0].name} já foi usada em outro pedido. "
                              "Atualize a página, confira o total e envie de novo.")
+        if not from_site and {int(x) for x in wanted if str(x).isdigit()} - set(used_programs):
+            db.session.rollback()
+            raise OrderError("Nenhum item do pedido serve para a pizza grátis marcada. Confira o tamanho e os sabores do cartão.")
     total = subtotal - discount + (delivery_fee or Decimal("0"))
 
     payment = _text(p, "payment_method", 30)

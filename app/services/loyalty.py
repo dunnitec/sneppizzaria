@@ -138,7 +138,7 @@ def eligible(p, line):
     return all(prod.id in allowed for prod, _ in line.get("flavors", []))
 
 
-def discounts(tenant, customer, cart, use_programs):
+def discounts(tenant, customer, cart, use_programs, with_first_order=True):
     """Descontos do pedido do site. Devolve (valor, observação, é_1º_pedido, ids dos cartões usados)."""
     subtotal = sum((line["line_total"] for line in cart), Decimal("0"))
     total, notes, used = Decimal("0"), [], []
@@ -157,7 +157,7 @@ def discounts(tenant, customer, cart, use_programs):
         used.append(p.id)
         notes.append(f"{p.name} grátis (fidelidade)")
     first = False
-    if first_order_eligible(tenant, customer):
+    if with_first_order and first_order_eligible(tenant, customer):
         rest = subtotal - total
         v = Decimal(tenant.first_order_value or 0)
         off = rest * v / 100 if tenant.first_order_type == "percent" else v

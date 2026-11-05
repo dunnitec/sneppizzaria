@@ -11,6 +11,14 @@ from app.extensions import db
 from app.models import Customer, Order, PushSubscription, utcnow
 
 
+PLACEHOLDER_NAME = re.compile(r"^(balcão|mesa\b.*)$", re.I)  # nome que o pedido sem nome recebe
+
+
+def has_real_name(name):
+    """'Balcão' e 'Mesa 3' não são nome de ninguém: servem só para o cupom do pedido sem nome."""
+    return bool(name) and not PLACEHOLDER_NAME.match(name.strip())
+
+
 def phone_key(raw):
     """'(11) 99999-0000', '+55 11 99999-0000' -> '11999990000'. None se não parecer um telefone do Brasil."""
     digits = re.sub(r"\D", "", str(raw or ""))
@@ -32,7 +40,8 @@ def upsert_customer(tenant, key, info):
     if not customer:
         customer = Customer(tenant_id=tenant.id, phone_key=key, created_at=utcnow())
         db.session.add(customer)
-    customer.name = info["customer_name"]
+    if not customer.name or has_real_name(info["customer_name"]):  # pedido sem nome não apaga o nome guardado
+        customer.name = info["customer_name"]
     customer.phone = info["customer_phone"]
     if not info["withdraw"]:
         customer.street = info["street"]
