@@ -60,16 +60,21 @@
       </select></label>
       <label class="check"><input type="checkbox" name="auto_print" {{ 'checked' if tenant.auto_print }}> imprimir sozinho ao confirmar o pedido</label>
     </div>
+    <h3>Para o cupom sair direto, sem a janela de impressão</h3>
+    <p class="hint">O site não escolhe a impressora: o cupom vai para a <b>impressora padrão do Windows</b> do computador da loja. Sem estes passos, o navegador abre a janela de impressão e pede para confirmar. Faça uma vez, no computador da loja:</p>
+    <ol class="setup">
+      <li>No Windows, abra <b>Configurações → Impressoras</b> e marque a impressora de cupom como <b>padrão</b>. Se aparecer “Permitir que o Windows gerencie minha impressora padrão”, desligue.</li>
+      <li><a class="button ghost small" href="{{ url_for('admin.print_shortcut') }}">Baixar o atalho do painel</a> e salve o arquivo na <b>área de trabalho</b>.</li>
+      <li>Dê dois cliques no arquivo. Se o Windows avisar, toque em <b>Mais informações → Executar assim mesmo</b>.</li>
+      <li>Entre no painel na janela que abrir (só nessa primeira vez) e confirme um pedido de teste.</li>
+      <li>Daqui em diante, <b>abra o painel sempre por esse arquivo</b>. Aberto de outro jeito, a janela de impressão volta a aparecer.</li>
+    </ol>
     <details>
-      <summary>Como deixar o computador da loja imprimindo direto (sem perguntar)</summary>
+      <summary>Impressora ainda não instalada ou cupom saindo errado</summary>
       <ol class="setup">
         <li>Instale o driver da impressora no computador. Para a <b>Bematech MP-4200 HS</b>: site da Elgin/Bematech → Suporte → Drivers → “MP-4200 HS” (Windows). Ligue a impressora no USB.</li>
-        <li>No Windows: <b>Configurações → Impressoras</b>, abra a MP-4200 → <b>Preferências de impressão</b>: papel <b>80 mm</b> (rolo) e <b>corte automático</b> (guilhotina) no fim do documento.</li>
-        <li>Marque a MP-4200 como <b>impressora padrão</b>.</li>
-        <li>Crie um atalho do Google Chrome na área de trabalho, clique com o botão direito → <b>Propriedades</b> e no fim do campo <b>Destino</b> acrescente: <code>--kiosk-printing</code></li>
-        <li>Abra o painel sempre por esse atalho. Ao confirmar um pedido, o cupom sai direto.</li>
+        <li>No Windows: <b>Configurações → Impressoras</b>, abra a impressora → <b>Preferências de impressão</b>: papel <b>80 mm</b> (rolo) e <b>corte automático</b> (guilhotina) no fim do documento.</li>
       </ol>
-      <p class="hint">Sem o passo 4 também funciona: abre a janela de impressão e você só confirma. Na janela, deixe “Margens: nenhuma” e “Cabeçalhos e rodapés” desmarcado.</p>
     </details>
   </section>
 

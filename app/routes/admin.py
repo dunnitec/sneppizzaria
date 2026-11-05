@@ -9,7 +9,7 @@ import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
@@ -1061,6 +1061,40 @@ def _minutes(text):
 
 
 LATEST_NEXT_DAY_CLOSE = 6 * 60  # fechar até as 06:00 = madrugada do dia seguinte; depois disso é engano
+
+
+# abre o painel com impressão direta. Perfil próprio do navegador: com o Chrome já aberto, a opção
+# --kiosk-printing seria ignorada e voltaria a aparecer a janela de impressão.
+PRINT_SHORTCUT = r"""@echo off
+rem Abre o painel da loja imprimindo direto na impressora padrao do Windows, sem a janela de impressao.
+set "PAINEL={url}"
+set "PERFIL=%LOCALAPPDATA%\PainelLoja-{slug}"
+set "NAVEGADOR="
+for %%N in (
+  "%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+  "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+  "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+  "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+  "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+) do if not defined NAVEGADOR if exist "%%~N" set "NAVEGADOR=%%~N"
+if not defined NAVEGADOR goto semnavegador
+start "" "%NAVEGADOR%" --kiosk-printing --user-data-dir="%PERFIL%" --no-first-run --no-default-browser-check "%PAINEL%"
+exit /b 0
+:semnavegador
+echo Nao achei o Google Chrome nem o Microsoft Edge neste computador.
+echo Instale o Google Chrome e abra este arquivo de novo.
+pause
+exit /b 1
+"""
+
+
+@admin_bp.route("/loja/atalho-impressao")
+def print_shortcut():
+    """Arquivo para o computador da loja: dois cliques abrem o painel com o cupom saindo direto."""
+    scheme = request.headers.get("X-Forwarded-Proto", request.scheme)
+    body = PRINT_SHORTCUT.format(url=url_for("admin.orders", _external=True, _scheme=scheme), slug=g.tenant.slug)
+    return Response(body.replace("\n", "\r\n"), mimetype="application/octet-stream",
+                    headers={"Content-Disposition": 'attachment; filename="Abrir painel com impressao direta.cmd"'})
 
 
 @admin_bp.route("/loja", methods=["GET", "POST"])
