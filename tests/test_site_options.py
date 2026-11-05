@@ -47,7 +47,7 @@ def test_site_options_saved_from_panel(panel, tenant):
     opts = options(db.session.get(Tenant, tenant.id))
     assert opts == {"show_filter": False, "flavors_one_page": False, "borders_grouped": False,
                     "layout": "lista", "color": "#1e88e5", "theme": "escuro", "font": "montserrat",
-                    "show_infobar": False, "flavor_photos": False}
+                    "show_infobar": False, "flavor_photos": False, "offer_drink": False}
     html = panel.get("/snep/").get_data(as_text=True)
     assert 'class="layout-lista theme-escuro"' in html and "--red:#1e88e5" in html
     assert '<label class="filter" hidden>' in html and '<div class="infobar" hidden>' in html
@@ -82,3 +82,13 @@ def test_drag_categories_saves_order(panel, tenant):
     assert [c.id for c in Category.query.filter_by(tenant_id=tenant.id).order_by(Category.sort_order)] == new
     assert panel.post("/snep/admin/cardapio/ordem", json={"ids": new[:-1]}).status_code == 400
     assert "cat-drag" in panel.get("/snep/admin/cardapio").get_data(as_text=True)
+
+
+def test_offer_drink_after_border_can_be_turned_off(panel, tenant):
+    """Tela “Quer uma bebida?” depois da borda: ligada por padrão; o dono desliga em Aparência."""
+    assert DEFAULTS["offer_drink"] is True
+    assert "offer_drink" in panel.get("/snep/admin/visual").get_data(as_text=True)
+    panel.post("/snep/admin/visual/site", data={"layout": "grade", "borders_grouped": "on"})
+    assert options(db.session.get(Tenant, tenant.id))["offer_drink"] is False
+    panel.post("/snep/admin/visual/site", data={"layout": "grade", "offer_drink": "on"})
+    assert options(db.session.get(Tenant, tenant.id))["offer_drink"] is True

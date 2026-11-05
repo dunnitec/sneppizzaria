@@ -17,6 +17,7 @@ DEFAULTS = {
     "font": "montserrat",  # fonte do nome da pizzaria no topo (FONTS)
     "show_infobar": True,  # barra “aberto/fechado · entrega · pagamento” embaixo dos banners
     "flavor_photos": True,  # foto de cada sabor na lista de escolher sabores
+    "offer_drink": True,  # depois da borda, tela “Quer uma bebida?” com as bebidas do cardápio
 }
 LAYOUTS = ("grade", "lista")
 THEMES = ("escuro", "claro")
@@ -64,6 +65,7 @@ def from_form(form):
         "font": form.get("font") if form.get("font") in FONTS else DEFAULTS["font"],
         "show_infobar": "show_infobar" in form,
         "flavor_photos": "flavor_photos" in form,
+        "offer_drink": "offer_drink" in form,
     }
 
 

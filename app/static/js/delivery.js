@@ -157,12 +157,20 @@ const picksOf=()=>F.card.cat.picks||{label:"Complementos",options:[]};
 function addDrink(ci,ki,vi){
   if(CLOSED){toast(CLOSED_MSG);return;}
   const k=CATS[ci].cards[ki], v=k.p.variants[vi];
-  const same=cart.find(i=>i.sel.category_id===k.cat.id&&i.sel.flavors[0]===k.p.id&&i.variant===v.label);
-  if(same)same.qty++;
-  else cart.push({sel:{category_id:k.cat.id,variant:v.label,flavors:[k.p.id],border_id:null,addons:[],combo_choice:null},
-    title:k.p.name,variant:v.label,border:"",addons:"",extras:"",notes:"",price:v.price,qty:1});
+  pushDrink(k.cat,k.p,v,1);
   renderCart();toast(`${k.p.name} (${v.label}) adicionado à cesta.`);
 }
+function pushDrink(cat,p,v,qty){
+  const same=cart.find(i=>i.sel.category_id===cat.id&&i.sel.flavors[0]===p.id&&i.variant===v.label);
+  if(same)same.qty+=qty;
+  else cart.push({sel:{category_id:cat.id,variant:v.label,flavors:[p.id],border_id:null,addons:[],combo_choice:null},
+    title:p.name,variant:v.label,border:"",addons:"",extras:"",notes:"",price:v.price,qty});
+}
+// tela “Quer uma bebida?” depois da borda: cada bebida do cardápio em cada tamanho
+function drinkList(){return DATA.categories.filter(c=>c.kind==="bebida").flatMap(c=>c.products.flatMap(p=>p.variants.map(v=>({c,p,v}))));}
+function drinkPicked(){const l=drinkList();return Object.entries(F.drinks||{}).filter(([i,q])=>q>0&&l[i]).map(([i,q])=>({...l[i],q}));}
+function drinksTotal(){return drinkPicked().reduce((s,d)=>s+d.q*d.v.price,0);}
+function drink(i,d){F.drinks=F.drinks||{};F.drinks[i]=Math.max(0,(F.drinks[i]||0)+d);if(!F.drinks[i])delete F.drinks[i];renderStep();}
 // toque fora da janela: fecha, menos em formulário (cadastro, entrar, finalizar pedido), que só fecha no X
 function backdropClose(){
   if(document.querySelector("#md #accf, #md #ckf")){
@@ -199,7 +207,8 @@ function steps(){const s=[];
   if(isSingle()){if(F.card.cat.kind==="montar"&&picksOf().options.length&&F.card.picksMax>0)s.push({type:"picks"});if(isPremium())s.push({type:"addons"});s.push({type:"confirm"});return s;}
   if(SITE.flavors_one_page&&F.n>1)s.push({type:"flavors"});else for(let i=0;i<F.n;i++)s.push({type:"flavor",i});
   if(isCombo()){if(comboOf(F.card.cat).choice_options.length)s.push({type:"choice"});}
-  else{if(borderOptions().length)s.push({type:"border"});if(isPremium())s.push({type:"addons"});}
+  else{if(borderOptions().length)s.push({type:"border"});if(isPremium())s.push({type:"addons"});
+    if(SITE.offer_drink&&drinkList().length)s.push({type:"drink"});}
   s.push({type:"confirm"});return s;}
 function ordinal(i){return `${i+1}º`;}
 function unitPrice(){
@@ -240,6 +249,11 @@ function renderStep(){
       body=none+byGroup.map(g=>{const items=opts.filter(o=>o.b.group===g),from=Math.min(...items.map(o=>o.b.price)),has=items.some(o=>o.i===F.border);
         return `<details class="bgrp${has?" has":""}" data-g="${esc(g)}" ${F.openGroups.has(g)?"open":""} ontoggle="bgToggle(this)"><summary><b>${esc(g)}</b><small>${items.length} sabor${items.length>1?"es":""} · a partir de ${money(from)}${has?" · ✓ escolhida":""}</small></summary>${items.map(o=>row(o,o.b.name)).join("")}</details>`;}).join("");
     } else body=none+opts.map(o=>row(o,`${o.b.group} — ${o.b.name}`)).join("");
+  } else if(st.type==="drink"){
+    const got=drinkPicked();
+    t="Quer uma bebida?"; sub=got.length?`Bebida: ${money(drinksTotal())} · vai junto para a cesta`:"Toque no + para escolher, ou siga sem bebida.";
+    body=drinkList().map(({p,v},i)=>`<div class="opt" style="cursor:default">${thumb(p)}<div class="cnt"><button class="m" onclick="drink(${i},-1)" aria-label="Tirar ${esc(p.name)}">−</button><span>${(F.drinks||{})[i]||0}</span><button class="p" onclick="drink(${i},1)" aria-label="Pôr ${esc(p.name)}">+</button></div><div class="grow" style="font-weight:400">${esc(p.name)}${v.label&&v.label!=="Único"?` <small>${esc(v.label)}</small>`:""}</div><span class="pr">${was(v)}${money(v.price)}</span></div>`).join("");
+    nextLbl=got.length?"Avançar ›":"Não quero bebida ›";
   } else if(st.type==="picks"){
     const pk=picksOf(), max=F.card.picksMax, got=F.picks.length;
     t=pk.label; sub=`Escolha até ${max} (grátis) · ${got} de ${max}`;
@@ -252,9 +266,9 @@ function renderStep(){
     t="Confirmação"; sub="Escolha a quantidade do item"; nextLbl="Adicionar";
     const k=F.card, up=unitPrice();
     const ttl=isSingle()?`${F.flavors[0].name}${k.label!=="Único"?" · "+k.label:""}`:k.cat.kind==="metro"?`${k.title}`:`PIZZA ${k.cat.name.replace(/^Pizzas? /i,"")} ${k.label} (${F.n} sabor${F.n>1?"es":""})`;
-    body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${isSingle()?(F.picks.length?`<div class="sub">${esc(picksOf().label)}: ${esc(F.picks.join(", "))}</div>`:""):F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(borderLabel(DATA.borders[F.border]))}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}${comboExtras()?`<div class="sub">Acompanha: ${esc(comboExtras())}</div>`:""}</div>
+    body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${isSingle()?(F.picks.length?`<div class="sub">${esc(picksOf().label)}: ${esc(F.picks.join(", "))}</div>`:""):F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(borderLabel(DATA.borders[F.border]))}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}${comboExtras()?`<div class="sub">Acompanha: ${esc(comboExtras())}</div>`:""}${drinkPicked().map(d=>`<div class="sub">+ ${d.q} x ${esc(d.p.name)}${d.v.label&&d.v.label!=="Único"?" "+esc(d.v.label):""} (${money(d.q*d.v.price)})</div>`).join("")}</div>
       <div><div class="cnt" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button class="m" style="width:22px;height:22px;border-radius:50%;border:0;background:var(--red);color:#fff;font-weight:700" onclick="F.qty=Math.max(1,F.qty-1);renderStep()">−</button><span>${F.qty}</span><button style="width:22px;height:22px;border-radius:50%;border:0;background:#2fb344;color:#fff;font-weight:700" onclick="F.qty++;renderStep()">+</button></div>
-      <div class="big">${money(up*F.qty)}<small>${money(up)}</small></div></div></div>
+      <div class="big">${money(up*F.qty+drinksTotal())}<small>${money(up)}${drinkPicked().length?" + bebida":""}</small></div></div></div>
       <textarea placeholder="Observações" oninput="F.notes=this.value">${esc(F.notes)}</textarea>
       ${isSingle()?"":k.cat.kind==="metro"?`<p class="note">*${esc(k.cat.name)}: preço fixo, independente dos sabores.</p>`:F.n>1?`<p class="note">*O valor da pizza será definido pelo sabor de maior valor.</p>`:""}</div>`;
   }
@@ -292,7 +306,8 @@ function next(){
     const sel={category_id:k.cat.id,variant:k.label,flavors:F.flavors.map(f=>f.id),border_id:F.border!=null?DATA.borders[F.border].id:null,addons:Object.entries(F.addons).map(([i,q])=>({id:DATA.addons[i].id,qty:q})),combo_choice:F.choice||null,...(isSingle()&&F.card.cat.kind==="montar"?{picks:[...F.picks]}:{})};
     const base=isCombo()?k.fixed:Math.max(...F.flavors.map(f=>f.price));
     cart.push({sel,base,title,variant:k.label,border:F.border!=null?borderLabel(DATA.borders[F.border]):"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),extras:isSingle()?(F.picks.length?`${picksOf().label}: ${F.picks.join(", ")}`:""):comboExtras(),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
-    closeModal();renderCart();toast("Item adicionado à cesta.");return;
+    const drinks=drinkPicked(); drinks.forEach(d=>pushDrink(d.c,d.p,d.v,d.q));
+    closeModal();renderCart();toast(drinks.length?"Pizza e bebida adicionadas à cesta.":"Item adicionado à cesta.");return;
   }
   F.step++;renderStep();
 }
