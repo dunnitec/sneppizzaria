@@ -473,3 +473,14 @@ def test_reward_already_used_is_refused_instead_of_charging_silently(client, ope
     assert order(client, items=[promo_item(1)], use_rewards=[prog.id])["ok"]
     r = order(client, items=[promo_item(1)], use_rewards=[prog.id])
     assert r["ok"] is False and "já foi usada" in r["error"]
+
+
+def test_full_card_tells_about_stamps_saved_for_the_next_one(client, open_store):
+    prog = make_program(open_store)
+    register(client)
+    c = Customer.query.one()
+    set_status(order(client, items=[promo_item(3)])["order_id"], "confirmado")
+    assert (card(prog, c)["full"], card(prog, c)["saved"]) == (True, 0)
+    set_status(order(client, items=[promo_item(1)])["order_id"], "confirmado")
+    lc = card(prog, c)
+    assert (lc["filled"], lc["full"], lc["saved"], lc["total_stamps"]) == (3, True, 1, 4)

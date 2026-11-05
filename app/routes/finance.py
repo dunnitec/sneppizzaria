@@ -3,7 +3,7 @@
 Mesmo blueprint do painel (login, CSRF, regras de funcionário e de plano em app/routes/admin.py).
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from flask import abort, flash, g, redirect, render_template, request, url_for
 
@@ -11,7 +11,7 @@ from app.extensions import db
 from app.models import COURIER_PAY, EXPENSE_CATEGORIES, MANUAL_CATEGORIES, Courier, Employee, Expense, WorkDay
 from app.routes.admin import FormError, _date, _name, _price, _reject, _save, admin_bp
 from app.services.finance import couriers_day, employees_status, month_bounds, summary
-from app.services.hours import STORE_TZ
+from app.services.hours import work_day as shift_day  # a rota work_day (presença) fica mais abaixo
 from app.services.money import brl
 
 MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro",
@@ -20,7 +20,7 @@ WEEKDAY_NAMES = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "d
 
 
 def _today():
-    return datetime.now(STORE_TZ).date()
+    return shift_day(g.tenant)
 
 
 def _day_arg():

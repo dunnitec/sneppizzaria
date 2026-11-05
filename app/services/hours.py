@@ -5,7 +5,7 @@ cadastrado em Tenant.hours_json e o botão manual do painel (is_open_override).
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 STORE_TZ = ZoneInfo("America/Sao_Paulo")
@@ -27,6 +27,19 @@ def open_hours(tenant):
     """
     raw = json.loads(tenant.hours_json) if tenant.hours_json else {}
     return {d: (v[:2] if v and (len(v) < 3 or v[2]) else None) for d, v in raw.items()}
+
+
+def late_minutes(tenant, day):
+    """Quantos minutos o expediente do dia (data) entra na madrugada seguinte; 0 se fecha até a meia-noite."""
+    hours = open_hours(tenant).get(str((day.weekday() + 1) % 7))
+    return hours[1] - 1440 if hours and hours[1] > 1440 else 0
+
+
+def work_day(tenant, when=None):
+    """Dia do expediente: com a sexta aberta até 01:00, 00:30 de sábado ainda conta como sexta."""
+    when = (when or datetime.now(STORE_TZ)).astimezone(STORE_TZ)
+    yesterday = when.date() - timedelta(days=1)
+    return yesterday if when.hour * 60 + when.minute < late_minutes(tenant, yesterday) else when.date()
 
 
 def _spans(tenant, now):

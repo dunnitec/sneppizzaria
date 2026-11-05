@@ -112,3 +112,12 @@ def test_slogan_stays_together_on_small_screens(client, tenant):
     db.session.commit()
     html = client.get("/snep/").get_data(as_text=True)
     assert '<p class="brand-slogan"><span>A melhor pizzaria de <b>Itu</b></span></p>' in html
+
+
+def test_store_without_top_photo_is_marked_to_show_its_name(client, tenant):
+    tenant.hero_image = None
+    db.session.commit()
+    assert 'class="hero no-photo"' in client.get("/snep/").get_data(as_text=True)
+    tenant.hero_image = "topo.jpg"
+    db.session.commit()
+    assert 'class="hero"' in client.get("/snep/").get_data(as_text=True)

@@ -88,14 +88,14 @@ def card(p, customer):
     """Cartão de selos para o site e o painel.
 
     filled: selos do cartão atual. Enquanto houver prêmio para usar, o cartão aparece cheio
-    (full=True, “10 de 10”); os selos de depois ficam guardados e aparecem quando o prêmio for usado.
+    (full=True, “10 de 10”); os selos de depois ficam guardados (saved) e aparecem quando o prêmio for usado.
     """
     total = stamps(p, customer)
     available = max(0, total // p.goal - rewards_used(p, customer)) if customer else 0
     filled = total % p.goal
     full = bool(available)
     return {"id": p.id, "name": p.name, "goal": p.goal, "filled": p.goal if full else filled, "full": full,
-            "rewards": available, "pending": pending_stamps(p, customer),
+            "rewards": available, "saved": filled if full else 0, "pending": pending_stamps(p, customer),
             "total_stamps": total, "reward_text": reward_text(p), "flavors": flavor_names(p),
             "category_id": p.reward_category_id, "size": p.reward_size or "", "product_ids": p.reward_products()}
 

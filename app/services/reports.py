@@ -1,4 +1,4 @@
-"""Relatório de vendas de um período (datas no horário de Brasília).
+"""Relatório de vendas de um período (datas no horário de Brasília, por expediente).
 
 Só pedidos confirmados entram no faturamento; pendentes e cancelados aparecem
 à parte. Os cálculos são feitos em Python sobre os pedidos do período, o que é
@@ -10,15 +10,19 @@ from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from app.models import CHANNELS, SOLD_STATUSES, Dispatch, Order, OrderItem, OrderItemFlavor
-from app.services.hours import STORE_TZ, local_time
+from app.services.hours import STORE_TZ, late_minutes, local_time, work_day
 
 TOP_FLAVORS = 15
 
 
-def _utc_bounds(start, end):
-    """[start 00:00, end+1 00:00) em São Paulo -> limites em UTC sem fuso (como o banco guarda)."""
+def _utc_bounds(tenant, start, end):
+    """Do começo do expediente de start ao fim do de end, em UTC sem fuso (como o banco guarda).
+
+    O dia vira à meia-noite, ou na hora de fechar quando o expediente da véspera passa da meia-noite.
+    """
     def to_utc(d):
-        return datetime.combine(d, time(), STORE_TZ).astimezone(timezone.utc).replace(tzinfo=None)
+        cut = timedelta(minutes=late_minutes(tenant, d - timedelta(days=1)))
+        return (datetime.combine(d, time(), STORE_TZ) + cut).astimezone(timezone.utc).replace(tzinfo=None)
     return to_utc(start), to_utc(end + timedelta(days=1))
 
 
@@ -33,7 +37,7 @@ def _breakdown(orders, key):
 
 
 def sales_report(tenant, start, end):
-    lo, hi = _utc_bounds(start, end)
+    lo, hi = _utc_bounds(tenant, start, end)
     in_period = Order.query.filter(Order.tenant_id == tenant.id, Order.created_at >= lo, Order.created_at < hi).all()
     confirmed = [o for o in in_period if o.status in SOLD_STATUSES]
     pending = [o for o in in_period if o.status == "pendente"]
@@ -46,7 +50,7 @@ def sales_report(tenant, start, end):
     by_hour = defaultdict(lambda: {"orders": 0, "revenue": Decimal("0")})
     for o in confirmed:
         when = local_time(o.created_at)
-        day = by_day.get(when.date())
+        day = by_day.get(work_day(tenant, when))
         if day is not None:
             day["revenue"] += o.total
             day["orders"] += 1

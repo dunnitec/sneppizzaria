@@ -32,7 +32,7 @@ def money(value):
 
 def summary(tenant, start, end):
     """Vendido (por forma de pagamento), gastos (por categoria) e o que sobrou, de start a end (datas)."""
-    lo, hi = _utc_bounds(start, end)
+    lo, hi = _utc_bounds(tenant, start, end)
     orders = Order.query.filter(Order.tenant_id == tenant.id, Order.created_at >= lo, Order.created_at < hi,
                                 Order.status.in_(SOLD_STATUSES)).all()
     by_payment = defaultdict(lambda: {"orders": 0, "total": ZERO})
@@ -61,7 +61,7 @@ def summary(tenant, start, end):
 
 def courier_day(tenant, courier, day):
     """O que o motoboy fez no dia e quanto ganhou pela forma de pagamento dele."""
-    lo, hi = _utc_bounds(day, day)
+    lo, hi = _utc_bounds(tenant, day, day)
     dispatches = Dispatch.query.filter(Dispatch.tenant_id == tenant.id, Dispatch.courier_id == courier.id,
                                        Dispatch.created_at >= lo, Dispatch.created_at < hi).all()
     orders = [o for d in dispatches for o in d.orders if o.status != "cancelado"]

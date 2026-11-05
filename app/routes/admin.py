@@ -33,7 +33,7 @@ from app.models import (
     utcnow,
 )
 from app.routes.public import get_tenant_or_404
-from app.services.hours import STORE_TZ, is_open, local_time, status_text
+from app.services.hours import STORE_TZ, is_open, local_time, status_text, work_day
 from app.services.business import TYPES as BUSINESS_TYPES
 from app.services.business import biz, kind_order
 from app.services.plans import blocked_feature
@@ -206,7 +206,7 @@ def logout():
 def index():
     if g.admin.role != "dono":
         return redirect(url_for("admin.orders"))
-    today = datetime.now(STORE_TZ).date()
+    today = work_day(g.tenant)
     tenant_products = Product.query.filter_by(tenant_id=g.tenant.id)
     sold_out = (tenant_products.filter_by(active=False).count()
                 + Border.query.filter_by(tenant_id=g.tenant.id, active=False).count()
@@ -587,7 +587,7 @@ def closing_label():
     """Cupom do fechamento do dia na bobina (mesmo papel do cupom do pedido)."""
     from app.services.report_book import closing
 
-    today = datetime.now(STORE_TZ).date()
+    today = work_day(g.tenant)
     day = min(_date(request.args.get("dia")) or today, today)
     return render_template("admin/closing_label.html", c=closing(g.tenant, day, has_feature(g.tenant, "financeiro")),
                            printed_at=datetime.now(STORE_TZ).strftime("%d/%m/%Y %H:%M"))
@@ -661,7 +661,7 @@ def _csv_response(name, header, rows):
 
 @admin_bp.route("/relatorios")
 def reports():
-    today = datetime.now(STORE_TZ).date()
+    today = work_day(g.tenant)
     month_start = today.replace(day=1)
     last_month_end = month_start - timedelta(days=1)
     presets = [

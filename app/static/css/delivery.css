@@ -283,6 +283,13 @@ footer .st.open{color:var(--ok)}
   .brand-slogan span{min-width:0;overflow-wrap:anywhere;text-wrap:balance}
   .brand-slogan b{color:var(--red);font-weight:800}
   .hero-actions{position:absolute;top:10px;right:0}
+  /* loja sem foto do topo: não há banner com a marca, então o nome aparece aqui */
+  .hero.no-photo .hero-in{min-height:0;padding:14px 0}
+  .hero.no-photo .brand-name{display:block;margin:0 130px 0 16px;font-size:clamp(30px,10vw,42px);overflow-wrap:anywhere}
+  .hero.no-photo .brand-sub{display:block;margin:4px 130px 0 16px;font-size:12px;letter-spacing:3px}
+  .hero.no-photo .brand-sub::before,.hero.no-photo .brand-sub::after{display:none}
+  .hero.no-photo .brand-sub span{white-space:normal}
+  .hero.no-photo .brand-slogan{margin-top:12px}
   .hero-wa{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%;
     background:rgba(20,120,50,.55);border:2px solid #25d366}
   .hero-wa svg{width:21px;height:21px;color:#fff}

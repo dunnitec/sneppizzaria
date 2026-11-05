@@ -24,7 +24,7 @@
 <body class="layout-{{ d.site.layout }} theme-{{ d.site.theme }}">
 {% set words = d.tenant.name.split() %}
 {% set slogan_words = (d.tenant.slogan or '').split() %}
-<header class="hero" {% if d.tenant.hero %}style="--hero:url('{{ d.tenant.hero }}')"{% endif %}>
+<header class="hero{% if not d.tenant.hero %} no-photo{% endif %}" {% if d.tenant.hero %}style="--hero:url('{{ d.tenant.hero }}')"{% endif %}>
   <div class="wrap hero-in">
     <div class="brand">
       <svg class="brand-hat" viewBox="0 0 64 26" aria-hidden="true"><path d="M8 22c0-10 10-18 24-18s24 8 24 18z" fill="#e3141b"/><rect x="2" y="21" width="60" height="5" rx="2.5" fill="#e3141b"/><rect x="27" y="0" width="10" height="7" rx="3" fill="#e3141b"/></svg>

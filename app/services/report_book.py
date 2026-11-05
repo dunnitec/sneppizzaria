@@ -1,7 +1,8 @@
 """Relatórios separados (o dono escolhe na aba Relatórios): fechamento do dia, lucro real, produtos (curva ABC),
 pagamentos, clientes, entregas, gastos e equipe, cancelados. O de vendas é o sales_report (services/reports.py).
 
-Conta igual em todos: vendido = pedidos confirmados (SOLD_STATUSES) pelo dia do pedido no horário de Brasília.
+Conta igual em todos: vendido = pedidos confirmados (SOLD_STATUSES) pelo dia do expediente, no horário de Brasília
+(se a loja fecha depois da meia-noite, a madrugada conta no dia em que ela abriu).
 
 Lucro real (como uma DRE simples):
     faturamento (produtos + entregas) − descontos = vendido
@@ -41,7 +42,7 @@ def _pct(part, whole):
 
 
 def orders_in(tenant, start, end):
-    lo, hi = _utc_bounds(start, end)
+    lo, hi = _utc_bounds(tenant, start, end)
     return Order.query.filter(Order.tenant_id == tenant.id, Order.created_at >= lo, Order.created_at < hi).all()
 
 
@@ -292,7 +293,7 @@ def payments(tenant, start, end):
 
 def customers(tenant, start, end):
     sold_orders = [o for o in orders_in(tenant, start, end) if o.status in SOLD_STATUSES]
-    lo, _ = _utc_bounds(start, end)
+    lo, _ = _utc_bounds(tenant, start, end)
     ids = {o.customer_id for o in sold_orders if o.customer_id}
     before = set()
     if ids:
@@ -307,7 +308,7 @@ def customers(tenant, start, end):
     names = {c.id: c for c in Customer.query.filter(Customer.id.in_(list(spent) or [0]))}
     top = sorted(spent.items(), key=lambda kv: -kv[1]["total"])[:15]
     new = ids - before
-    _, hi = _utc_bounds(end, end)
+    _, hi = _utc_bounds(tenant, end, end)
     cutoff = hi - timedelta(days=INACTIVE_DAYS)
     last = dict(Order.query.with_entities(Order.customer_id, Order.created_at).filter(
         Order.tenant_id == tenant.id, Order.customer_id.isnot(None), Order.status.in_(SOLD_STATUSES),
@@ -336,7 +337,7 @@ def deliveries(tenant, start, end):
                if o.delivered_at and o.delivered_at > o.created_at]
     minutes = [m for m in minutes if m < 6 * 60]  # baixa esquecida no outro dia não conta
     km = [o.distance_km for o in delivered if o.distance_km is not None]
-    lo, hi = _utc_bounds(start, end)
+    lo, hi = _utc_bounds(tenant, start, end)
     couriers = defaultdict(lambda: {"deliveries": 0, "km": ZERO, "fees": ZERO, "trips": 0})
     for d in Dispatch.query.filter(Dispatch.tenant_id == tenant.id, Dispatch.created_at >= lo, Dispatch.created_at < hi):
         c = couriers[d.courier.name]

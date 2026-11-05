@@ -504,7 +504,7 @@ function cardHtml(l,click){
   const head=l.full?`<b class="done">Cartão completo! 🎁 ${l.rewards>1?l.rewards+" pizzas grátis":"1 pizza grátis"} para usar</b>`
     :`${l.filled} de ${l.goal} selos${l.rewards?` · 🎁 ${l.rewards} grátis para usar`:` · a cada ${l.goal}, ${esc(l.reward_text)}`}`;
   return `<div class="acc-card${l.full?" full":""}"${click?` onclick="openAccount()" role="button" tabindex="0"`:""}><div class="acc-txt"><b>Cartão ${esc(l.name)}</b>
-    <small>${head}<br>Você já comprou ${l.total_stamps} pizza${l.total_stamps===1?"":"s"} ${esc(l.name)}${l.full?" · o próximo cartão começa no seu próximo pedido":""}</small>
+    <small>${head}<br>Você já comprou ${l.total_stamps} pizza${l.total_stamps===1?"":"s"} ${esc(l.name)}${l.full?(l.saved?` · você já tem ${l.saved} selo${l.saved>1?"s":""} guardado${l.saved>1?"s":""} para o próximo cartão`:" · o próximo cartão começa no seu próximo pedido"):""}</small>
     ${l.pending?`<small class="pending">⏳ +${l.pending} selo${l.pending>1?"s":""} chegando: assim que a pizzaria confirmar seu pedido</small>`:""}</div>${stampsHtml(l)}</div>`;
 }
 // o cliente volta para o site (ex.: depois da pizzaria confirmar): atualiza o cartão
