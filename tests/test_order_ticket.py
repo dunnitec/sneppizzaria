@@ -1,4 +1,4 @@
-"""Número do pedido volta a 1 a cada mês (por loja) e impressão automática do cupom."""
+"""Número do pedido volta a 1 a cada dia de expediente (por loja) e impressão automática do cupom."""
 from datetime import datetime
 
 from app.extensions import db
@@ -12,18 +12,39 @@ def at(monkeypatch, *when):
     monkeypatch.setattr(order_create, "utcnow", lambda: datetime(*when))
 
 
-def test_ticket_counts_inside_the_month(client, open_store):
+def test_ticket_counts_inside_the_day(client, open_store):
     assert [site_order(client).ticket for _ in range(3)] == [1, 2, 3]
 
 
-def test_ticket_restarts_when_the_month_turns_in_store_time(client, open_store, monkeypatch):
-    at(monkeypatch, 2026, 12, 1, 2, 59)  # 23h59 de 30/11 em São Paulo: ainda novembro
+def test_ticket_restarts_every_day_in_store_time(client, open_store, monkeypatch):
+    import json
+    open_store.hours_json = json.dumps({str(d): [1080, 1380] for d in range(7)})  # 18:00 às 23:00
+    db.session.commit()
+    at(monkeypatch, 2026, 11, 6, 2, 59)  # 23h59 de 05/11 em São Paulo
     first, second = site_order(client), site_order(client)
-    assert (first.ticket_month, first.ticket, second.ticket) == ("2026-11", 1, 2)
-    at(monkeypatch, 2026, 12, 1, 3, 0)  # 00h00 de 01/12 em São Paulo
+    assert (first.ticket_day, first.ticket, second.ticket) == ("2026-11-05", 1, 2)
+    at(monkeypatch, 2026, 11, 6, 3, 0)  # 00h00 de 06/11 em São Paulo
     third = site_order(client)
-    assert (third.ticket_month, third.ticket) == ("2026-12", 1)
+    assert (third.ticket_day, third.ticket) == ("2026-11-06", 1)
     assert third.id > second.id  # o número interno continua único
+
+
+def test_late_night_keeps_the_numbering_of_the_shift(client, open_store, monkeypatch):
+    """Loja aberta até 01:00: o pedido de 00:30 continua a numeração da noite."""
+    import json
+    open_store.hours_json = json.dumps({str(d): [1080, 1500] for d in range(7)})
+    db.session.commit()
+    at(monkeypatch, 2026, 11, 6, 2, 0)  # 23h00 de 05/11
+    assert site_order(client).ticket == 1
+    at(monkeypatch, 2026, 11, 6, 3, 30)  # 00h30 de 06/11, ainda o expediente de 05/11
+    o = site_order(client)
+    assert (o.ticket_day, o.ticket) == ("2026-11-05", 2)
+
+
+def test_old_monthly_tickets_do_not_clash(client, tenant, open_store):
+    db.session.add(Order(tenant_id=tenant.id, customer_name="X", customer_phone="", ticket_day="2026-11", ticket_number=1))
+    db.session.commit()
+    assert site_order(client).ticket == 1
 
 
 def test_ticket_is_per_store(client, tenant, open_store):
@@ -31,7 +52,7 @@ def test_ticket_is_per_store(client, tenant, open_store):
     other = Tenant(name="Outra", slug="outra", whatsapp="5511999999999")
     db.session.add(other)
     db.session.flush()
-    db.session.add(Order(tenant_id=other.id, customer_name="X", customer_phone="", ticket_month="2026-11", ticket_number=7))
+    db.session.add(Order(tenant_id=other.id, customer_name="X", customer_phone="", ticket_day="2026-11-06", ticket_number=7))
     db.session.commit()
     assert site_order(client).ticket == 2
 

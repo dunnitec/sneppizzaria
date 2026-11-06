@@ -369,12 +369,13 @@ RESIDENCES = {"casa": "Casa", "apartamento": "Apartamento", "condominio": "Condo
 class Order(db.Model):
     __tablename__ = "orders"
     __table_args__ = (db.UniqueConstraint("tenant_id", "client_ref", name="uq_orders_client_ref"),
-                      db.UniqueConstraint("tenant_id", "ticket_month", "ticket_number", name="uq_orders_ticket"),)
+                      db.UniqueConstraint("tenant_id", "ticket_day", "ticket_number", name="uq_orders_ticket"),)
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
-    # número que o dono e o cliente veem: volta a 1 todo mês (horário da loja). Endereços e o Pix usam o id.
-    ticket_month = db.Column(db.String(7))  # "2026-11"
+    # número que o dono e o cliente veem: volta a 1 todo dia de expediente (horário da loja; com a loja
+    # aberta depois da meia-noite, a madrugada continua a numeração da noite). Endereços e o Pix usam o id.
+    ticket_day = db.Column(db.String(10))  # "2026-11-06" (pedidos de antes da mudança guardam o mês: "2026-11")
     ticket_number = db.Column(db.Integer)
 
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True)

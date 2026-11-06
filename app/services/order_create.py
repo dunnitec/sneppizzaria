@@ -30,7 +30,7 @@ from app.services.customers import has_real_name, phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.costs import Menu, cost_of
 from app.services.geo import cep_digits, quote, km_on
-from app.services.hours import is_open, local_time
+from app.services.hours import is_open, local_time, work_day
 from app.services.loyalty import card, discounts
 from app.services.money import brl
 from app.services.pricing import OrderError, price_item
@@ -229,13 +229,13 @@ def place_order(tenant, p, channel="site", account=None):
 
     customer = _order_customer(tenant, key, info, account, from_site) if key else None
     db.session.flush()
-    month = local_time(now).strftime("%Y-%m")
+    day = work_day(tenant, local_time(now)).isoformat()
     order = Order(
         tenant_id=tenant.id,
-        ticket_month=month,
+        ticket_day=day,
         # calculado dentro do próprio INSERT: dois pedidos ao mesmo tempo não pegam o mesmo número
         ticket_number=db.select(db.func.coalesce(db.func.max(Order.ticket_number), 0) + 1)
-        .where(Order.tenant_id == tenant.id, Order.ticket_month == month).scalar_subquery(),
+        .where(Order.tenant_id == tenant.id, Order.ticket_day == day).scalar_subquery(),
         customer_id=customer.id if customer else None,
         customer_name=info["customer_name"],
         customer_phone=info["customer_phone"],
