@@ -48,8 +48,8 @@ def test_lookup_brings_the_saved_address(panel, program):
 
 
 def test_lookup_unknown_or_invalid_phone(panel, program):
-    assert lookup(panel, "11977776666") == {"found": False, "loyalty": True}
-    assert lookup(panel, "123") == {"found": False, "loyalty": True}
+    assert lookup(panel, "11977776666") == {"found": False, "loyalty": True, "first_order": None}
+    assert lookup(panel, "123") == {"found": False, "loyalty": True, "first_order": None}
 
 
 def test_lookup_of_customer_without_registration_has_no_card(panel, program):
@@ -151,8 +151,55 @@ def test_reward_needs_a_registered_phone(panel, program):
     assert r.status_code == 400
 
 
-def test_first_order_discount_stays_on_the_site(panel, program, open_store):
-    open_store.first_order_enabled, open_store.first_order_type, open_store.first_order_value = True, "percent", Decimal("10")
+# ---------- desconto do 1º pedido no balcão ----------
+
+@pytest.fixture
+def first_on(open_store):
+    open_store.first_order_enabled, open_store.first_order_type, open_store.first_order_value = True, "percent", Decimal("5")
     db.session.commit()
-    r = counter(panel)
-    assert db.session.get(Order, r.json["order_id"]).discount == 0
+    return open_store
+
+
+def five_percent(value):
+    return (value * Decimal("0.05")).quantize(Decimal("0.01"))
+
+
+def test_counter_first_order_discount_for_registered_customer(panel, program, first_on):
+    assert lookup(panel)["first_order"] == {"text": "5% de desconto no 1º pedido", "type": "percent", "value": 5.0}
+    r = counter(panel, first_order=True)
+    assert r.status_code == 200, r.json
+    o = db.session.get(Order, r.json["order_id"])
+    assert (o.first_order, o.discount) == (True, five_percent(base_price()))
+    assert o.total == o.subtotal - o.discount
+
+
+def test_counter_first_order_discount_for_new_phone_without_registration(panel, first_on):
+    assert lookup(panel, "11977776666")["first_order"]["value"] == 5.0
+    r = counter(panel, customer_phone="11977776666", customer_name="João", first_order=True)
+    assert r.status_code == 200, r.json
+    assert db.session.get(Order, r.json["order_id"]).discount == five_percent(base_price())
+
+
+def test_counter_without_the_box_has_no_discount(panel, program, first_on):
+    assert db.session.get(Order, counter(panel).json["order_id"]).discount == 0
+
+
+def test_counter_first_order_only_once(panel, program, first_on):
+    r = counter(panel, first_order=True)
+    o = db.session.get(Order, r.json["order_id"])
+    o.status = "confirmado"
+    db.session.commit()
+    assert lookup(panel)["first_order"] is None
+    orders = Order.query.count()
+    r = counter(panel, first_order=True)
+    assert r.status_code == 400 and "1º pedido" in r.json["error"]
+    assert Order.query.count() == orders
+
+
+def test_counter_first_order_needs_a_phone(panel, first_on):
+    r = counter(panel, customer_phone="", first_order=True)
+    assert r.status_code == 400
+
+
+def test_first_order_off_shows_nothing(panel, program, open_store):
+    assert lookup(panel)["first_order"] is None

@@ -6,7 +6,7 @@ from app.models import Customer
 from app.routes.admin import PAYMENT_OPTIONS, admin_bp
 from app.routes.public import fee_quote
 from app.services.customers import format_phone, has_real_name, phone_key
-from app.services.loyalty import cards, programs
+from app.services.loyalty import cards, first_order_eligible, first_order_info, programs
 from app.services.menu_data import data_from_db
 from app.services.order_create import place_order
 from app.services.pricing import OrderError
@@ -42,9 +42,11 @@ def order_customer():
     key = phone_key(request.args.get("telefone"))
     c = Customer.query.filter_by(tenant_id=g.tenant.id, phone_key=key).first() if key else None
     loyalty = bool(programs(g.tenant))
+    # desconto do 1º pedido: telefone novo ou que nunca teve pedido aceito pela loja
+    first = first_order_info(g.tenant) if key and first_order_eligible(g.tenant, c, need_registration=False) else None
     if not c:
-        return jsonify(found=False, loyalty=loyalty)
-    return jsonify(found=True, loyalty=loyalty, registered=bool(c.registered_at), phone=format_phone(c.phone_key),
+        return jsonify(found=False, loyalty=loyalty, first_order=first)
+    return jsonify(found=True, loyalty=loyalty, first_order=first, registered=bool(c.registered_at), phone=format_phone(c.phone_key),
                    name=c.name if has_real_name(c.name) else "",
                    address={"street": c.street or "", "number": c.number or "", "complement": c.complement or "",
                             "neighborhood": c.neighborhood or "", "reference": c.reference or "",

@@ -31,7 +31,7 @@ from app.services.delivery import calculate_fee
 from app.services.costs import Menu, cost_of
 from app.services.geo import cep_digits, quote, km_on
 from app.services.hours import is_open, local_time, work_day
-from app.services.loyalty import card, discounts
+from app.services.loyalty import card, discounts, first_order_eligible
 from app.services.money import brl
 from app.services.pricing import OrderError, price_item
 from app.services.split import people as split_people
@@ -170,16 +170,25 @@ def place_order(tenant, p, channel="site", account=None):
     discount, discount_note, first_order, used_programs = Decimal("0"), "", False, []
     wanted = p.get("use_rewards") if isinstance(p.get("use_rewards"), list) else []
     holder = account if from_site and account and account.phone_key == key else None
-    if not from_site and wanted:  # pizza grátis marcada pelo atendente
-        holder = known if known and known.registered_at else None
-        if not holder:
-            raise OrderError("Este telefone não tem cartão fidelidade. Desmarque a pizza grátis para lançar o pedido.")
-    if holder:
+    first = None  # site: decide pelo cadastro
+    if not from_site:
+        if wanted:  # pizza grátis marcada pelo atendente
+            holder = known if known and known.registered_at else None
+            if not holder:
+                raise OrderError("Este telefone não tem cartão fidelidade. Desmarque a pizza grátis para lançar o pedido.")
+        first = False
+        if p.get("first_order"):  # desconto do 1º pedido marcado pelo atendente
+            if not key or not first_order_eligible(tenant, known, need_registration=False):
+                raise OrderError("Este telefone já tem pedido na loja: o desconto do 1º pedido não vale. "
+                                 "Desmarque o desconto para lançar o pedido.")
+            first = True
+    if holder or first:
         # trava o cadastro até o pedido ser gravado: dois pedidos ao mesmo tempo (dois celulares na mesma
         # conta) não usam o mesmo brinde nem o desconto do 1º pedido duas vezes. O UPDATE segura a linha
         # no PostgreSQL e o banco inteiro no SQLite; o segundo pedido espera e já vê o primeiro.
-        Customer.query.filter_by(id=holder.id).update({"updated_at": utcnow()}, synchronize_session=False)
-        discount, discount_note, first_order, used_programs = discounts(tenant, holder, cart, wanted, with_first_order=from_site)
+        if holder:
+            Customer.query.filter_by(id=holder.id).update({"updated_at": utcnow()}, synchronize_session=False)
+        discount, discount_note, first_order, used_programs = discounts(tenant, holder, cart, wanted, first_order=first)
         lost = [prog for prog in LoyaltyProgram.query.filter(
                     LoyaltyProgram.tenant_id == tenant.id,
                     LoyaltyProgram.id.in_({int(x) for x in wanted if str(x).isdigit()} - set(used_programs)))

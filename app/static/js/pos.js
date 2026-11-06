@@ -252,9 +252,9 @@
   });
   function renderTotal() {
     const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const free = rewardDiscount();
-    const total = sub - free + (fee() || 0);
-    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${free ? `<div><span>Pizza grátis (fidelidade)</span><b>− ${money(free)}</b></div>` : ""}${delivery() ? `<div><span>Entrega</span><b>${fee() === null ? "a combinar" : money(fee())}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(total)}</b></div>${splitLine(total)}`;
+    const free = rewardDiscount(), first = firstDiscount(sub - free);
+    const total = sub - free - first + (fee() || 0);
+    $("#pos-total").innerHTML = `<div><span>Itens</span><b>${money(sub)}</b></div>${free ? `<div><span>Pizza grátis (fidelidade)</span><b>− ${money(free)}</b></div>` : ""}${first ? `<div><span>Desconto do 1º pedido</span><b>− ${money(first)}</b></div>` : ""}${delivery() ? `<div><span>Entrega</span><b>${fee() === null ? "a combinar" : money(fee())}</b></div>` : ""}<div class="big"><span>Total</span><b>${money(total)}</b></div>${splitLine(total)}`;
     return total;
   }
   // dividir a conta: mesma conta do servidor (services/split.py)
@@ -279,7 +279,15 @@
   const ADDRESS = ["street", "number", "complement", "neighborhood", "reference", "building"];
   const auto = {};  // o que veio do cadastro; trocar o telefone limpa só isso, nunca o que o atendente digitou
   const chosen = new Set();  // cartões com a pizza grátis marcada
-  let customer = null, custRun = 0, custTimer = null;
+  let customer = null, custRun = 0, custTimer = null, useFirst = true;  // desconto do 1º pedido: vem marcado
+  // mesma conta do servidor (services/loyalty.py): % sobre o que sobra depois da pizza grátis, em centavos
+  function firstDiscount(rest) {
+    const fo = customer && customer.first_order;
+    if (!fo || !useFirst || rest <= 0) return 0;
+    const off = fo.type === "percent" ? Math.round(Math.round(rest * 100) * fo.value / 100 + 1e-9) / 100 : Math.min(rest, fo.value);
+    return off;
+  }
+  const firstLine = (c) => c.first_order ? `<label class="check"><input type="checkbox" data-first ${useFirst ? "checked" : ""}> 🎉 ${esc(c.first_order.text)}</label>` : "";
   function autoFill(name, value) {
     const el = form.elements[name];
     if (!el || !value || el.value) return;
@@ -331,10 +339,10 @@
     if (!c) { custBox.innerHTML = ""; return; }
     const join = "Para juntar selos, o cliente cria o cadastro no site com este telefone.";
     if (c.error) { custBox.innerHTML = `<p>${esc(c.error)}</p>`; return; }
-    if (!c.found) { custBox.innerHTML = `<p>Telefone novo, sem cadastro.${c.loyalty ? ` ${join}` : ""}</p>`; return; }
-    if (!c.registered) { custBox.innerHTML = `<p><b>✓ ${esc(c.name || "Cliente já pediu antes")}</b>${c.loyalty ? ` · sem cadastro no site: este pedido não soma selos. ${join}` : ""}</p>`; return; }
+    if (!c.found) { custBox.innerHTML = `<p>Telefone novo, sem cadastro.${c.loyalty ? ` ${join}` : ""}</p>` + firstLine(c); return; }
+    if (!c.registered) { custBox.innerHTML = `<p><b>✓ ${esc(c.name || "Cliente já pediu antes")}</b>${c.loyalty ? ` · sem cadastro no site: este pedido não soma selos. ${join}` : ""}</p>` + firstLine(c); return; }
     const fits = usable();
-    custBox.innerHTML = `<p><b>✓ ${esc(c.name || "Cliente com cadastro")}</b></p>` + (c.cards || []).map((l) => {
+    custBox.innerHTML = `<p><b>✓ ${esc(c.name || "Cliente com cadastro")}</b></p>` + firstLine(c) + (c.cards || []).map((l) => {
       const line = `<p>Cartão ${esc(l.name)}: <b>${l.filled} de ${l.goal} selos</b>${l.saved ? ` · ${l.saved} guardado${l.saved > 1 ? "s" : ""} para o próximo` : ""}${l.pending ? ` · +${l.pending} chegando` : ""}</p>`;
       if (!l.rewards) return line;
       return line + (fits.includes(l)
@@ -343,6 +351,7 @@
     }).join("");
   }
   custBox.addEventListener("change", (e) => {
+    if ("first" in e.target.dataset) { useFirst = e.target.checked; renderTotal(); return; }
     const id = Number(e.target.dataset.reward);
     if (!id) return;
     if (e.target.checked) chosen.add(id); else chosen.delete(id);
@@ -366,6 +375,7 @@
     custRun++;  // resposta de outro número não vale mais
     customer = null;
     chosen.clear();
+    useFirst = true;
     clearAuto();
     renderCustomer();
     renderTotal();
@@ -397,6 +407,7 @@
       payment_method: f.get("payment_method"), change_for: change, split_people: Number(f.get("split_people")) || null,
       items: cart.map((i) => Object.assign({}, i.sel, { quantity: i.qty })),
       use_rewards: usedRewards(),
+      first_order: !!(customer && customer.first_order && useFirst),
     };
     const btn = $("#pos-submit");
     btn.disabled = true; btn.textContent = "Lançando…";

@@ -186,6 +186,7 @@ def test_first_order_discount_only_once(client, open_store):
     assert o.first_order and o.discount == (base_price() * Decimal("0.1")).quantize(Decimal("0.01"))
     assert o.total == o.subtotal - o.discount
     assert "Desconto (1º pedido)" in unquote(r["wa_link"])
+    set_status(o.id, "confirmado")  # a loja aceitou o 1º pedido
     second = db.session.get(Order, order(client)["order_id"])
     assert second.discount == 0 and not second.first_order
 
@@ -206,9 +207,18 @@ def test_no_discount_without_login_or_with_other_phone(client, open_store):
 
 def test_who_already_ordered_does_not_get_first_order(client, open_store):
     enable_first_order(open_store)
-    order(client)
+    set_status(order(client)["order_id"], "entregue")
     register(client)
     assert db.session.get(Order, order(client)["order_id"]).discount == 0
+
+
+def test_pending_order_does_not_take_the_first_order_discount(client, open_store):
+    """Tocou em Enviar e não mandou no WhatsApp: o pedido fica pendente e o próximo ainda é o 1º."""
+    enable_first_order(open_store)
+    register(client)
+    order(client)  # ficou pendente
+    assert client.get("/snep/api/conta").get_json()["first_order"]
+    assert db.session.get(Order, order(client)["order_id"]).first_order
 
 
 # ---------- fidelidade (cartões) ----------

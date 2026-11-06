@@ -8,8 +8,10 @@ No prêmio o cliente escolhe só entre os sabores que o dono liberou. Cada pizza
 (inclusive os lançados por telefone com o mesmo número). A pizza-prêmio não gera selo;
 pedido cancelado não conta selo e devolve o prêmio.
 
-1º pedido: quem se cadastra e ainda não tem nenhum pedido (cancelados não contam)
-ganha o desconto do Tenant.first_order_*.
+1º pedido: no site, quem tem cadastro e ainda não tem pedido aceito pela loja ganha o desconto do
+Tenant.first_order_*. Só contam pedidos confirmados, saindo ou entregues: o que ficou pendente (o cliente
+tocou em Enviar e não mandou no WhatsApp) ou foi cancelado não tira o desconto. No balcão o desconto vale
+também para telefone sem cadastro, e o atendente pode desmarcar.
 """
 
 import re
@@ -111,10 +113,20 @@ def public_info(tenant):
             for p in programs(tenant)]
 
 
-def first_order_eligible(tenant, customer):
-    if not first_order_on(tenant) or not customer or not customer.registered_at:
+def first_order_eligible(tenant, customer, need_registration=True):
+    """Tem direito ao desconto do 1º pedido? customer None = telefone novo (só no balcão)."""
+    if not first_order_on(tenant):
         return False
-    return not Order.query.filter(Order.customer_id == customer.id, Order.status != "cancelado").first()
+    if need_registration and (not customer or not customer.registered_at):
+        return False
+    if customer is None:
+        return True
+    return not Order.query.filter(Order.customer_id == customer.id, Order.status.in_(SOLD_STATUSES)).first()
+
+
+def first_order_info(tenant):
+    """Para a tela do balcão calcular o desconto antes de lançar."""
+    return {"text": first_order_text(tenant), "type": tenant.first_order_type, "value": float(tenant.first_order_value or 0)}
 
 
 def first_order_on(tenant):
@@ -138,8 +150,11 @@ def eligible(p, line):
     return all(prod.id in allowed for prod, _ in line.get("flavors", []))
 
 
-def discounts(tenant, customer, cart, use_programs, with_first_order=True):
-    """Descontos do pedido do site. Devolve (valor, observação, é_1º_pedido, ids dos cartões usados)."""
+def discounts(tenant, customer, cart, use_programs, first_order=None):
+    """Descontos do pedido. Devolve (valor, observação, é_1º_pedido, ids dos cartões usados).
+
+    first_order: None = decide pelo cadastro (site); True/False = já decidido (balcão).
+    """
     subtotal = sum((line["line_total"] for line in cart), Decimal("0"))
     total, notes, used = Decimal("0"), [], []
     free_units = {}  # linha do pedido -> quantas unidades já viraram prêmio
@@ -157,7 +172,9 @@ def discounts(tenant, customer, cart, use_programs, with_first_order=True):
         used.append(p.id)
         notes.append(f"{p.name} grátis (fidelidade)")
     first = False
-    if with_first_order and first_order_eligible(tenant, customer):
+    if first_order is None:
+        first_order = first_order_eligible(tenant, customer)
+    if first_order:
         rest = subtotal - total
         v = Decimal(tenant.first_order_value or 0)
         off = rest * v / 100 if tenant.first_order_type == "percent" else v
