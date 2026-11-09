@@ -486,6 +486,7 @@ footer .st.open{color:var(--ok)}
 .more-q{display:flex;flex-direction:column;gap:12px;padding:8px 0}
 .more-q button{padding:16px;border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;border:2px solid var(--red);background:var(--card);color:var(--text)}
 .more-q .more-no{background:var(--red);color:#fff}
+.more-q small{display:block;margin-top:6px;font-size:13px;font-weight:400;opacity:.8}
 .more-q button.on{outline:3px solid var(--ok);outline-offset:2px}
 /* meio a meio com outra linha (Premium com Doces) e pedaços do tamanho */
 .mix-sep{padding:10px 4px 4px;font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}

@@ -75,7 +75,7 @@ def data_from_db(tenant, order_url, assets):
     import json
 
     from app.models import Addon, Border, Category, Neighborhood
-    from app.services.hours import is_open, open_hours
+    from app.services.hours import is_open, open_hours, wait_text
     from app.services.photos import photo_url
     from app.services.geo import km_on
     from app.services.business import biz
@@ -147,7 +147,8 @@ def data_from_db(tenant, order_url, assets):
             "instagram": tenant.instagram,
             "whatsapp": tenant.whatsapp,
             "accepted_payments": tenant.accepted_payments or "",
-            "eta": f"~{tenant.eta_minutes} min",
+            "eta": wait_text(tenant, withdraw=False, approx="~"),  # "40 a 60 min" (Loja → Atendimento)
+            "pickup_eta": wait_text(tenant, withdraw=True, approx="~"),
             "eta_minutes": tenant.eta_minutes,
             "pickup_minutes": tenant.pickup_minutes,
         },

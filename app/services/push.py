@@ -16,7 +16,7 @@ from flask import current_app, url_for
 from app.extensions import db
 from app.models import PushSubscription, utcnow
 from app.services.plans import has as has_feature
-from app.services.hours import local_time
+
 
 _pool = ThreadPoolExecutor(max_workers=4)
 
@@ -92,11 +92,11 @@ def notify_order(tenant, order, event):
     """Pedido mudou: confirmado, saiu, cancelado, Pix recebido ou retirada pronta."""
     if order.channel != "site" and event != "saiu":
         return 0
-    eta = local_time(order.eta_at).strftime("%H:%M") if order.eta_at else ""
+    eta = order.eta_text()
     messages = {
         "confirmado": (f"Pedido #{order.ticket} confirmado ✓",
                        f"{'Previsão de entrega' if order.delivery else 'Pronto para retirar'}: {eta}." if eta else "Já estamos preparando."),
-        "saiu": ("Seu pedido saiu para entrega 🛵", f"Pedido #{order.ticket}" + (f" chega por volta das {eta}." if eta else " está a caminho.")),
+        "saiu": ("Seu pedido saiu para entrega 🛵", f"Pedido #{order.ticket}" + (f" chega entre {eta.replace(' a ', ' e ')}." if " a " in eta else f" chega por volta das {eta}." if eta else " está a caminho.")),
         "cancelado": (f"Pedido #{order.ticket} cancelado", "Ficou com dúvida? Fale com a pizzaria pelo WhatsApp."),
         "pix": ("Pix recebido ✓", f"O pagamento do pedido #{order.ticket} foi confirmado."),
         "pronto": ("Seu pedido está pronto! 🍕", f"Pedido #{order.ticket} pronto para retirar. Pode vir buscar."),

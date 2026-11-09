@@ -16,6 +16,28 @@ def local_time(utc_naive):
     return utc_naive.replace(tzinfo=timezone.utc).astimezone(STORE_TZ) if utc_naive else None
 
 
+def eta_range_text(start_utc, end_utc):
+    """Faixa da previsão: "19:40 a 20:00"; sem começo (ou igual ao fim) fica só "20:00"; sem previsão, ""."""
+    if not end_utc:
+        return ""
+    end = local_time(end_utc).strftime("%H:%M")
+    start = local_time(start_utc).strftime("%H:%M") if start_utc else None
+    return f"{start} a {end}" if start and start != end else end
+
+
+def wait_minutes(tenant, withdraw):
+    """(mínimo, máximo) em minutos: entrega ou retirada. Sem mínimo, os dois são o máximo."""
+    top = (tenant.pickup_minutes if withdraw else tenant.eta_minutes) or 0
+    low = tenant.pickup_min_minutes if withdraw else tenant.eta_min_minutes
+    return (low if low and low < top else top), top
+
+
+def wait_text(tenant, withdraw, approx=""):
+    """Tempo para mostrar: "40 a 60 min" ou "50 min" (o site passa approx="~": "~50 min")."""
+    low, top = wait_minutes(tenant, withdraw)
+    return f"{low} a {top} min" if low < top else f"{approx}{top} min"
+
+
 def open_hours(tenant):
     """Horário de cada dia: {"0": [abre, fecha] ou None se fechado}.
 

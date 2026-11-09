@@ -98,6 +98,9 @@ class Tenant(db.Model):
     eta = db.Column(db.String(30), default="40-50 min")  # (antigo) texto livre; o site usa eta_minutes
     eta_minutes = db.Column(db.Integer, nullable=False, default=50, server_default="50")  # tempo de entrega
     pickup_minutes = db.Column(db.Integer, nullable=False, default=25, server_default="25")  # pronto para retirar
+    # tempo mínimo (os dois acima são o máximo): o cliente vê "40 a 60 min"; vazio = um tempo só
+    eta_min_minutes = db.Column(db.Integer)
+    pickup_min_minutes = db.Column(db.Integer)
     notices = db.Column(db.Text)  # recados do topo do cardápio, um por linha
     min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
     background_image = db.Column(db.String(255))  # fundo enviado pelo painel (UPLOAD_FOLDER)
@@ -453,6 +456,13 @@ class Order(db.Model):
     loyalty_reward = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # usou pizza grátis
     loyalty_programs = db.Column(db.String(80))  # cartões cujo prêmio foi usado, ex.: ",1,2," (busca com LIKE)
     eta_at = db.Column(db.DateTime)  # previsão de chegada (entrega) ou de ficar pronto (retirada), em UTC
+    eta_min_at = db.Column(db.DateTime)  # começo da faixa da previsão ("19:40 a 20:00"); vazio = só eta_at
+
+    def eta_text(self):
+        """Previsão para mostrar: "19:40 a 20:00" (ou só "20:00"); vazio sem previsão."""
+        from app.services.hours import eta_range_text
+
+        return eta_range_text(self.eta_min_at, self.eta_at)
 
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
 

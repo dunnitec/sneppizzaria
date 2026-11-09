@@ -8,7 +8,6 @@ from flask import Blueprint, jsonify, request, url_for
 from app.extensions import db
 from app.models import PushSubscription
 from app.routes.public import get_tenant_or_404
-from app.services.hours import local_time
 from app.services.order_create import place_order
 from app.services.pix import for_order
 from app.services.plans import has as has_feature
@@ -44,7 +43,7 @@ def create_order(slug):
         subtotal=float(order.subtotal),
         delivery_fee=float(delivery_fee) if delivery_fee is not None else None,
         total=float(order.total),
-        eta=local_time(order.eta_at).strftime("%H:%M"),
+        eta=order.eta_text(),
         eta_label="Previsão de entrega" if order.delivery else "Pronto para retirar",
         pix=pix,
         discount=float(order.discount),

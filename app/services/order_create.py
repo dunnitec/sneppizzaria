@@ -30,7 +30,7 @@ from app.services.customers import has_real_name, phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.costs import Menu, cost_of
 from app.services.geo import cep_digits, quote, km_on
-from app.services.hours import is_open, local_time, work_day
+from app.services.hours import eta_range_text, is_open, local_time, wait_minutes, work_day
 from app.services.loyalty import card, discounts, first_order_eligible
 from app.services.money import brl
 from app.services.pricing import OrderError, price_item
@@ -210,8 +210,9 @@ def place_order(tenant, p, channel="site", account=None):
 
     # previsão: entrega usa o tempo de entrega; retirada, balcão e mesa usam o tempo de retirada
     now = utcnow()
-    minutes = tenant.eta_minutes if not withdraw else tenant.pickup_minutes
-    eta_at = now + timedelta(minutes=minutes or 0)
+    low, top = wait_minutes(tenant, withdraw)
+    eta_at = now + timedelta(minutes=top)
+    eta_min_at = now + timedelta(minutes=low) if low < top else None
 
     default_name = {"balcao": "Balcão", "mesa": f"Mesa {table}"}.get(channel, "")
     info = {
@@ -230,7 +231,7 @@ def place_order(tenant, p, channel="site", account=None):
         "change_for": change_for,
         "split_people": split_people(p.get("split_people")),
         "withdraw": withdraw,
-        "eta": local_time(eta_at).strftime("%H:%M"),
+        "eta": eta_range_text(eta_min_at, eta_at),
         "from_site": from_site,
         "discount": discount,
         "discount_note": discount_note,
@@ -272,6 +273,7 @@ def place_order(tenant, p, channel="site", account=None):
         confirmed_at=None if from_site else now,
         created_at=now,
         eta_at=eta_at,
+        eta_min_at=eta_min_at,
         track_token=secrets.token_urlsafe(16),
         discount=discount,
         discount_note=discount_note or None,

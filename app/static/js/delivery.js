@@ -263,7 +263,7 @@ function renderStep(){
   } else if(st.type==="more"){
     const drinkNext=SITE.offer_drink&&drinkList().length;
     t="Quer pedir mais alguma pizza?"; sub=drinkNext?"Se não, seguimos para a bebida e o pagamento.":"Se não, seguimos para o pagamento.";
-    body=`<div class="more-q"><button class="more-yes${F.more===true?" on":""}" onclick="moreAnswer(true)">🍕 Sim, quero mais uma pizza</button><button class="more-no${F.more===false?" on":""}" onclick="moreAnswer(false)">Não, continuar ›</button></div>`;
+    body=`<div class="more-q"><button class="more-yes${F.more===true?" on":""}" onclick="moreAnswer(true)">🍕 Sim, quero mais uma pizza<small>Esta pizza fica guardada na cesta e você volta ao cardápio para escolher a próxima.</small></button><button class="more-no${F.more===false?" on":""}" onclick="moreAnswer(false)">Não, continuar ›</button></div>`;
     nextLbl="";
   } else if(st.type==="drink"){
     const got=drinkPicked();

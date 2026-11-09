@@ -34,7 +34,7 @@ from app.models import (
     utcnow,
 )
 from app.routes.public import get_tenant_or_404
-from app.services.hours import STORE_TZ, is_open, local_time, status_text, work_day
+from app.services.hours import STORE_TZ, is_open, local_time, status_text, wait_text, work_day
 from app.services.business import TYPES as BUSINESS_TYPES
 from app.services.business import biz, kind_order
 from app.services.plans import blocked_feature
@@ -138,7 +138,7 @@ def _template_context():
     return {"tenant": g.tenant, "admin": g.admin, "store_open": is_open(g.tenant),
             "is_owner": bool(g.admin and g.admin.role == "dono"), "pending_count": pending, "kinds": KINDS,
             "biz": biz(g.tenant), "kind_order": kind_order(g.tenant), "business_types": BUSINESS_TYPES,
-            "has_feature": lambda feature: has_feature(g.tenant, feature),
+            "has_feature": lambda feature: has_feature(g.tenant, feature), "wait_text": wait_text,
             "blocked_tab": lambda endpoint: blocked_feature(g.tenant, endpoint)}
 
 
@@ -1057,10 +1057,22 @@ def _minutes_field(text, what):
     return value
 
 
+def _min_field(text, top, what):
+    """Tempo mínimo (opcional): vazio = um tempo só; tem que ser menor que o máximo."""
+    if not str(text or "").strip():
+        return None
+    low = _minutes_field(text, f"Tempo mínimo de {what}")
+    if low >= top:
+        raise FormError(f"O tempo mínimo de {what} tem que ser menor que o máximo ({top} min).")
+    return low
+
+
 @admin_bp.route("/loja/tempo", methods=["POST"])
 def store_time():
-    """Botões −5 / +5 do Início: ajusta o tempo de entrega ou de retirada na hora."""
-    field = {"entrega": "eta_minutes", "retirada": "pickup_minutes"}.get(request.form.get("which"))
+    """Botões −5 / +5 do Início: ajusta o tempo de entrega ou de retirada na hora (mínimo e máximo juntos)."""
+    which = request.form.get("which")
+    field = {"entrega": "eta_minutes", "retirada": "pickup_minutes"}.get(which)
+    low_field = {"entrega": "eta_min_minutes", "retirada": "pickup_min_minutes"}.get(which)
     try:
         delta = int(request.form.get("delta", "0"))
     except ValueError:
@@ -1068,9 +1080,13 @@ def store_time():
     if not field or abs(delta) > 60:
         abort(400)
     value = min(MAX_TIME, max(MIN_TIME, getattr(g.tenant, field) + delta))
+    low = getattr(g.tenant, low_field)
+    if low:  # a faixa anda junto: 40 a 60 → 45 a 65
+        low = min(value - 5, max(MIN_TIME, low + delta))
+        setattr(g.tenant, low_field, low if low >= MIN_TIME else None)
     setattr(g.tenant, field, value)
     db.session.commit()
-    flash(f"Tempo de {request.form['which']} agora: {value} min. Vale para os próximos pedidos.", "ok")
+    flash(f"Tempo de {which} agora: {wait_text(g.tenant, which == 'retirada')}. Vale para os próximos pedidos.", "ok")
     return redirect(url_for("admin.index"))
 
 
@@ -1175,6 +1191,8 @@ def store():
             if "eta_minutes" in form:
                 tenant.eta_minutes = _minutes_field(form["eta_minutes"], "Tempo de entrega")
                 tenant.pickup_minutes = _minutes_field(form.get("pickup_minutes"), "Tempo para retirada")
+                tenant.eta_min_minutes = _min_field(form.get("eta_min_minutes"), tenant.eta_minutes, "entrega")
+                tenant.pickup_min_minutes = _min_field(form.get("pickup_min_minutes"), tenant.pickup_minutes, "retirada")
             tenant.whatsapp = whatsapp
             tenant.is_open_override = STORE_STATUS[form["status"]]
             tenant.hours_json = json.dumps(hours)

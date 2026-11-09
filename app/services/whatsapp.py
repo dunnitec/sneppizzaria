@@ -83,7 +83,7 @@ def build_order_message(tenant, ticket, order, cart, delivery_fee, subtotal, tot
                      + (" (sem a entrega)" if delivery_fee is None and not order.get("withdraw") else ""))
     if order.get("eta"):  # previsão, como no iFood: entrega chega às HH:MM; retirada fica pronta às HH:MM
         lines += ["", f"*Previsão de entrega: {order['eta']}*" if not order.get("withdraw")
-                  else f"*Pronto para retirar às {order['eta']}*"]
+                  else f"*Pronto para retirar{':' if ' a ' in order['eta'] else ' às'} {order['eta']}*"]
 
     return "\n".join(lines)
 

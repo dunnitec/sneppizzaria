@@ -57,7 +57,7 @@
   {% if pickup %}<div class="pickup">★ RETIRADA NA LOJA ★</div>{% endif %}
   <div class="meta">{{ (o.created_at|local_time).strftime('%d/%m %H:%M') if o.created_at }} · {{ channel_labels[o.channel] }}{% if o.dispatch %} · Comanda {{ o.dispatch.number }} · {{ o.dispatch.courier.name }}{% endif %}</div>
 
-  {% if o.eta_at %}<div class="eta">PREVISÃO {{ (o.eta_at|local_time).strftime('%H:%M') }}</div>{% endif %}
+  {% if o.eta_at %}<div class="eta">PREVISÃO {{ o.eta_text() }}</div>{% endif %}
   {% if o.customer_name %}<div class="who">{{ o.customer_name }}{% if o.customer_phone %} · {{ o.customer_phone|any_phone }}{% endif %}</div>{% endif %}
   {% if o.delivery %}
   <div class="addr">{% if o.residence_text() %}<b>{{ o.residence_text()|upper }}</b><br>{% endif %}{{ o.street }}, {{ o.number }}{% if o.complement %} · {{ o.complement }}{% endif %}<br><b>{{ o.neighborhood_name }}</b>{% if o.cep %} · <span style="white-space:nowrap">CEP {{ o.cep[:5] }}-{{ o.cep[5:] }}</span>{% endif %}{% if o.reference %}<br>Ref.: {{ o.reference }}{% endif %}</div>

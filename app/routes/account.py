@@ -109,7 +109,7 @@ def order_summary(order, slug):
         "status": ORDER_STATUSES.get(order.status, order.status),
         "status_code": order.status,
         "total": float(order.total),
-        "eta": _hm(order.eta_at),
+        "eta": order.eta_text() or None,
         "items": [f"{i.quantity}x {item_view(i)['head']}" for i in order.items][:6],
         "track_url": url_for("account.track", slug=slug, token=order.track_token) if order.track_token else None,
     }
@@ -249,7 +249,7 @@ def track(slug, token):
     show_pix = (order.payment_method == "Pix" and order.channel == "site" and not order.pix_paid_at
                 and order.status != "cancelado" and not order.fee_pending)
     return render_template(
-        "track.html", tenant=tenant, o=order, steps=track_steps(order), eta=_hm(order.eta_at),
+        "track.html", tenant=tenant, o=order, steps=track_steps(order), eta=order.eta_text(),
         created=local_time(order.created_at), status=ORDER_STATUSES.get(order.status, order.status),
         first_name=(order.customer_name or "").split(" ")[0], channel=CHANNELS.get(order.channel, ""),
         pix=for_order(tenant, order) if show_pix else None,
