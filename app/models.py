@@ -234,6 +234,16 @@ class Product(db.Model):
     active = db.Column(db.Boolean, default=True)
     # calzone, esfiha...: o cliente não escolhe borda; numa meio a meio com este sabor também não
     accepts_border = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    # combo do dia: dias da semana em que vale ("5,6" = sexta e sábado; 0 = domingo). Nesses dias aparece na
+    # faixa de fotos do topo do site (um toque põe na cesta); nos outros dias fica fora do site. Vazio = item comum.
+    daily_days = db.Column(db.String(20))
+
+    def days(self):
+        return [int(x) for x in (self.daily_days or "").split(",") if x.strip().isdigit()]
+
+    def sold_on(self, weekday):
+        """Pode ser vendido neste dia da semana (0 = domingo)? Item comum: sempre."""
+        return not self.daily_days or weekday in self.days()
 
     variants = db.relationship(
         "ProductVariant", backref="product", lazy=True, cascade="all, delete-orphan", order_by="ProductVariant.id"

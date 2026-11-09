@@ -124,6 +124,22 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
     box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}">${catHead(cat)}<div class="grid">${cards}</div></section>`);
   });
 })();
+/* ---------- combos do dia: foto no topo, um toque põe na cesta ---------- */
+const DAILY=DATA.categories.flatMap(c=>c.products.filter(p=>p.daily&&p.variants.length).map(p=>({c,p,v:p.variants[0]})));
+(function renderDaily(){
+  const box=document.getElementById("daily");
+  if(!box||!DAILY.length)return;
+  box.innerHTML=`<section class="daily"><h2>🔥 Combo${DAILY.length>1?"s":""} do dia</h2><div class="daily-row">${DAILY.map(({p,v},i)=>`<button type="button" class="daily-card${p.image?"":" no-img"}" onclick="addDaily(${i})" aria-label="Pôr ${esc(p.name)} na cesta, ${money(v.price)}">${p.image?`<img src="${esc(p.image)}" alt="" loading="lazy">`:""}<span class="daily-info"><b>${esc(p.name)}</b>${p.description?`<small>${esc(p.description)}</small>`:""}<span class="daily-price">${was(v)}${money(v.price)}</span><span class="daily-add">+ Pôr na cesta</span></span></button>`).join("")}</div></section>`;
+})();
+function addDaily(i){
+  if(CLOSED){toast(CLOSED_MSG);return;}
+  const {c,p,v}=DAILY[i];
+  pushDrink(c,p,v,1);
+  renderCart();
+  const md=document.getElementById("md");
+  md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>Combo na cesta! ✓</h2></div><div class="body"><p style="margin-top:0"><b>${esc(p.name)}</b> · ${money(v.price)}</p><p>Deseja mais alguma coisa?</p><div class="more-q"><button class="more-yes" onclick="closeModal();document.getElementById('cats').scrollIntoView({behavior:'smooth'})">🍕 Sim, quero ver o cardápio<small>O combo fica guardado na cesta enquanto você escolhe.</small></button><button class="more-no" onclick="openCheckout();if(!document.getElementById('ovl').classList.contains('on'))openCart()">Não, finalizar pedido ›</button></div></div>`;
+  document.getElementById("ovl").classList.add("on");
+}
 // vai até a categoria sem esconder as outras (usado pelo aviso de promoções)
 function goCat(slug){const sel=document.getElementById("catsel");if(sel)sel.value="";jumpCat("");const el=document.getElementById("cat-"+slug);if(el)el.scrollIntoView({behavior:"smooth"});}
 function jumpCat(slug){document.querySelectorAll(".cat").forEach(s=>s.style.display=(!slug||slug==="all"||s.dataset.slug===slug)?"":"none");if(slug&&slug!=="all")document.getElementById("cat-"+slug).scrollIntoView({behavior:"smooth"});}

@@ -64,6 +64,11 @@ def work_day(tenant, when=None):
     return yesterday if when.hour * 60 + when.minute < late_minutes(tenant, yesterday) else when.date()
 
 
+def store_weekday(tenant, when=None):
+    """Dia da semana do expediente (0 = domingo): 00:30 de sábado com a loja aberta desde sexta ainda é sexta."""
+    return (work_day(tenant, when).weekday() + 1) % 7
+
+
 def _spans(tenant, now):
     """(minuto atual, expediente de hoje, sobra da madrugada do expediente de ontem)."""
     hours = open_hours(tenant)

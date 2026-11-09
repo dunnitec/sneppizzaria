@@ -14,6 +14,7 @@ Duas fontes, mesmo formato de saída:
 """
 
 WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+DAILY_KINDS = ("lanche", "bebida")  # combo do dia: item pronto, um toque põe na cesta (sem sabores nem complementos)
 
 
 def _hours_rows(hours):
@@ -75,7 +76,7 @@ def data_from_db(tenant, order_url, assets):
     import json
 
     from app.models import Addon, Border, Category, Neighborhood
-    from app.services.hours import is_open, open_hours, wait_text
+    from app.services.hours import is_open, open_hours, store_weekday, wait_text
     from app.services.photos import photo_url
     from app.services.geo import km_on
     from app.services.business import biz
@@ -106,8 +107,10 @@ def data_from_db(tenant, order_url, assets):
     # os ids vão para o navegador para que o pedido diga o que foi escolhido;
     # o preço é sempre recalculado no servidor (services/pricing.py)
     cats = []
+    weekday = store_weekday(tenant)
     for c in Category.query.filter_by(tenant_id=tenant.id).order_by(Category.sort_order, Category.id):
-        products = [p for p in c.products if p.active and any(v.active for v in p.variants)]
+        # combo do dia só aparece nos dias dele (Product.daily_days)
+        products = [p for p in c.products if p.active and any(v.active for v in p.variants) and p.sold_on(weekday)]
         if not products:
             continue  # linha sem nada à venda não aparece no site
         cats.append(
@@ -131,6 +134,7 @@ def data_from_db(tenant, order_url, assets):
                         "image": photo_url(p.image),
                         "description": p.description or "",
                         **({} if p.accepts_border else {"no_border": True}),
+                        **({"daily": True} if p.daily_days and c.kind in DAILY_KINDS else {}),
                         "variants": [variant_data(c, p, v) for v in p.variants if v.active],
                     }
                     for p in products

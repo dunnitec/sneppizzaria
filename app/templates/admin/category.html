@@ -112,7 +112,8 @@
   </div>
   <div class="search-bar inline-search"><label class="grow">Procurar<input id="search" type="search" autocomplete="off" data-items=".flavor" data-sections=".none"></label><span id="search-count" class="hint" aria-live="polite"></span></div>
   <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}" data-track>
-    {{ csrf() }}{% if pizza %}<input type="hidden" name="border_field" value="1">{% endif %}
+    {{ csrf() }}{% if pizza %}<input type="hidden" name="border_field" value="1">{% endif %}{% if daily %}<input type="hidden" name="daily_field" value="1">
+    <p class="hint"><b>Combo do dia:</b> marque os dias em que o item vale. Nesses dias ele aparece com a foto no topo do site e um toque já põe na cesta; nos outros dias fica fora do site. Ponha uma foto e um preço só. Sem dia marcado, é um item comum.</p>{% endif %}
     {% for p in c.products %}
     <div class="item-row flavor {{ 'off' if not p.active }}" data-name="{{ p.name }} {{ p.description or '' }}">
       <div class="thumb">
@@ -134,6 +135,11 @@
           {% if pizza %}<label class="check"><input type="checkbox" name="border-{{ p.id }}" {{ 'checked' if p.accepts_border }}> aceita borda</label>{% endif %}
           <button class="ghost small danger icon" form="del-{{ p.id }}">Excluir</button>
         </div>
+        {% if daily %}{% set pd = p.days() %}
+        <div class="row daily-days" role="group" aria-label="Dias do combo do dia de {{ p.name }}">
+          <span class="hint">Combo do dia:</span>
+          {% for day in weekdays %}<label class="check"><input type="checkbox" name="daily-{{ p.id }}" value="{{ loop.index0 }}" {{ 'checked' if loop.index0 in pd }}> {{ day[:3] }}</label>{% endfor %}
+        </div>{% endif %}
       </div>
     </div>
     {% endfor %}

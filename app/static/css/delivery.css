@@ -492,3 +492,17 @@ footer .st.open{color:var(--ok)}
 .mix-sep{padding:10px 4px 4px;font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
 .mix-tag{font-style:normal;font-size:11px;font-weight:700;background:var(--pink);color:#2a0710;border-radius:6px;padding:1px 6px;margin-left:4px}
 h3 .slices{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+
+/* combos do dia: faixa de fotos acima do cardápio; um toque põe na cesta */
+.daily{margin:0 0 18px}
+.daily h2{margin:0 0 10px;font:900 20px var(--display)}
+.daily-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+.daily-card{scroll-snap-align:start;display:flex;flex-direction:column;padding:0;border-radius:var(--radius);border:2px solid var(--red);background:var(--card);color:var(--text);text-align:left;cursor:pointer;overflow:hidden;font:inherit}
+.daily-card img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover}
+.daily-info{display:flex;flex-direction:column;gap:4px;padding:10px 12px 12px}
+.daily-info b{font:800 16px var(--display)}
+.daily-info small{color:var(--muted);font-size:13px}
+.daily-price{font:900 20px var(--display)}
+.daily-add{margin-top:4px;padding:10px;border-radius:10px;background:var(--red);color:#fff;font-weight:800;text-align:center}
+.daily-card:hover .daily-add{filter:brightness(1.1)}
+@media (max-width:480px){.daily-row{grid-auto-columns:82%}}

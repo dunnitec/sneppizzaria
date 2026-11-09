@@ -39,7 +39,7 @@ from app.services.business import TYPES as BUSINESS_TYPES
 from app.services.business import biz, kind_order
 from app.services.plans import blocked_feature
 from app.services.plans import has as has_feature
-from app.services.menu_data import WEEKDAYS
+from app.services.menu_data import DAILY_KINDS, WEEKDAYS
 from app.services.customers import erase_customer
 from app.services.money import brl, parse_money
 from app.services.photos import PhotoError, delete_photo, save_photo
@@ -449,7 +449,8 @@ def category_page(category_id):
         Category.tenant_id == g.tenant.id, Category.kind.notin_(("metro", "bebida"))
     ).order_by(Category.sort_order).all()
     return render_template("admin/category.html", c=category, sizes=category_sizes(category), combo_lines=combo_lines,
-                           icons=CATEGORY_ICONS, accents=CATEGORY_ACCENTS, slices_auto=slices)
+                           icons=CATEGORY_ICONS, accents=CATEGORY_ACCENTS, slices_auto=slices,
+                           daily=category.kind in DAILY_KINDS, weekdays=WEEKDAYS)
 
 
 @admin_bp.route("/cardapio/<int:category_id>", methods=["POST"])
@@ -465,6 +466,9 @@ def menu_save(category_id):
             product.active = f"active-{product.id}" in form
             if "border_field" in form:
                 product.accepts_border = f"border-{product.id}" in form
+            if "daily_field" in form:  # combo do dia: dias marcados (0 = domingo)
+                days = sorted({int(x) for x in form.getlist(f"daily-{product.id}") if x in "0123456" and len(x) == 1})
+                product.daily_days = ",".join(map(str, days)) or None
             for variant in list(product.variants):
                 if f"price-{variant.id}" not in form:
                     continue

@@ -21,6 +21,7 @@ from sqlalchemy import and_, or_
 
 from app.models import Addon, Border, Category, Product
 from app.services.business import PIZZA_KINDS, SINGLE_KINDS
+from app.services.hours import store_weekday
 from app.services.promotions import best_price, running
 
 MAX_ADDONS = 5
@@ -163,6 +164,10 @@ def price_item(tenant, raw):
         flavors = _flavors(raw, pool)
         if mix and all(p.category_id != category.id for p in flavors):
             raise OrderError(f"Escolha pelo menos um sabor de {category.name}.")
+        weekday = store_weekday(tenant)
+        off_day = next((p for p in flavors if not p.sold_on(weekday)), None)
+        if off_day:
+            raise OrderError(f"{off_day.name} é combo do dia e hoje não está disponível. Atualize a página.")
         variants = [next((v for v in p.variants if v.label == label and v.active), None) for p in flavors]
         if not all(variants):
             raise OrderError("Tamanho indisponível para o sabor escolhido. Atualize a página.")
