@@ -1,10 +1,18 @@
 from urllib.parse import quote
 
-from app.services.order_display import flavor_view
+from app.services.order_display import flavor_view, slices, with_slices
 
 
 def brl(v):
     return f"R$ {float(v):.2f}".replace(".", ",")
+
+
+def _sizes(category_id):
+    from app.extensions import db
+    from app.models import Category
+
+    category = db.session.get(Category, category_id) if category_id else None
+    return category.sizes() if category else None
 
 
 def build_order_message(tenant, ticket, order, cart, delivery_fee, subtotal, total):
@@ -13,7 +21,8 @@ def build_order_message(tenant, ticket, order, cart, delivery_fee, subtotal, tot
     for item in cart:
         view = flavor_view(item.get("kind"), item.get("category_name"), [p.name for p, _ in item.get("flavors", [])],
                            item["product_names"])
-        size = f"{view['tag']} {item['variant_label']}" if view["tag"] else item["variant_label"]
+        label = with_slices(item["variant_label"], slices(item.get("kind"), item["variant_label"], _sizes(item.get("category_id"))))
+        size = f"{view['tag']} {label}" if view["tag"] else label
         lines.append(f"▪ {item['quantity']}x {view['head']} — {size}" if view["tag"] else
                      f"▪ {item['quantity']}x {view['head']} ({size})")
         lines += [f"   {extra}" for extra in view["lines"]]
@@ -82,3 +91,16 @@ def build_order_message(tenant, ticket, order, cart, delivery_fee, subtotal, tot
 def build_whatsapp_link(whatsapp_number, message):
     number = "".join(ch for ch in whatsapp_number if ch.isdigit())
     return f"https://wa.me/{number}?text={quote(message)}"
+
+
+def ready_link(tenant, order):
+    """Retirada pronta: link do WhatsApp do cliente com a mensagem “seu pedido está pronto” (None sem telefone)."""
+    from app.services.customers import phone_key
+
+    key = phone_key(order.customer_phone)
+    if not key:
+        return None
+    first = (order.customer_name or "").split(" ")[0]
+    text = (f"Olá{', ' + first if first else ''}! Seu pedido #{order.ticket} da {tenant.name} está pronto. "
+            "Pode vir buscar 🍕")
+    return build_whatsapp_link("55" + key, text)

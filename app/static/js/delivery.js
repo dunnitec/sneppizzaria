@@ -102,7 +102,8 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
         const vs=c.products.map(p=>p.variants.find(v=>v.label===lb)).filter(Boolean), prices=vs.map(v=>v.price);
         const promo=(vs.find(v=>v.promo)||{}).promo||"", regMin=Math.min(...vs.map(v=>v.regular||v.price));
         const maxF=Math.max(...c.products.map(p=>(p.variants.find(v=>v.label===lb)||{}).max_flavors||1));
-        cat.cards.push({title:lb,from:Math.min(...prices),was:regMin>Math.min(...prices)?regMin:0,promo,label:lb,max:maxF,cat:c,sizes:Array.from({length:maxF},(_,i)=>i+1)});
+        const slices=(vs.find(v=>v.slices)||{}).slices||0;
+        cat.cards.push({title:lb,from:Math.min(...prices),was:regMin>Math.min(...prices)?regMin:0,promo,label:lb,slices,max:maxF,cat:c,sizes:Array.from({length:maxF},(_,i)=>i+1)});
       });
     }
     CATS.push(cat);
@@ -117,7 +118,7 @@ const CATS=[];  // {name, slug, kind, cards:[...]}
       const btns=k.sizes.map((n,i)=>`<button class="${i===k.sizes.length-1?"main-btn":""}" onclick="startFlow(${ci},${ki},${n})">${n} sabor${n>1?"es":""}</button>`).join("");
       const tag=k.promo?`<span class="promo-tag">🏷 ${esc(k.promo)}</span>`:"";
       if(k.fixed) return `<div class="card full ${k.promo?"has-promo":""}" data-name="${esc(k.title)}">${tag}<div class="top"><div><h3>${esc(k.title)}</h3><p class="desc">${esc(k.desc)}</p><p class="price">${k.was?`<s class="was">${money(k.was)}</s> `:""}${money(k.fixed)}</p></div></div><div class="btns">${btns}</div></div>`;
-      return `<div class="card ${k.promo?"has-promo":""}" data-name="${esc(k.title)}">${tag}<div class="top"><h3>${esc(k.title)}</h3><span class="from">${k.was?`<span>A partir de <s class="was">${money(k.was)}</s></span>`:"A partir de "}<b>${money(k.from)}</b></span></div><div class="btns">${btns}</div></div>`;
+      return `<div class="card ${k.promo?"has-promo":""}" data-name="${esc(k.title)}">${tag}<div class="top"><h3>${esc(k.title)}${k.slices?` <small class="slices">${k.slices} pedaços</small>`:""}</h3><span class="from">${k.was?`<span>A partir de <s class="was">${money(k.was)}</s></span>`:"A partir de "}<b>${money(k.from)}</b></span></div><div class="btns">${btns}</div></div>`;
     }).join("");
     if(cat.kind==="notice"){box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}"><div class="notice"><span class="notice-ico" aria-hidden="true">!</span><div><h2>Recados</h2>${cat.cards[0].lines.map(l=>`<p>${esc(l)}</p>`).join("")}</div></div></section>`);return;}
     box.insertAdjacentHTML("beforeend",`<section class="cat" id="cat-${cat.slug}" data-slug="${cat.slug}">${catHead(cat)}<div class="grid">${cards}</div></section>`);
@@ -183,8 +184,15 @@ function closeModal(){document.getElementById("ovl").classList.remove("on");F=nu
 function flavorPool(){
   const k=F.card;
   if(k.cat.kind==="metro"){const src=comboOf(k.cat).sources;return DATA.categories.filter(c=>c.kind!=="metro"&&src.includes(c.slug)).flatMap(c=>c.products.map(p=>({...p,price:k.fixed,fixed:true})));}
-  return k.cat.products.map(p=>{const v=p.variants.find(v=>v.label===k.label);return v?{...p,price:v.price,regular:v.regular,promo:v.promo}:null;}).filter(Boolean);
+  const of=(c,tag)=>c.products.map(p=>{const v=p.variants.find(v=>v.label===k.label);return v?{...p,price:v.price,regular:v.regular,promo:v.promo,...(tag?{mix:tag}:{})}:null;}).filter(Boolean);
+  const own=of(k.cat);
+  if(F.n<2||!(k.cat.mix||[]).length)return own;
+  // meio a meio também com sabores de outra linha (o dono liga na categoria), ex.: 1/2 Frango 1/2 Oreo
+  return own.concat(DATA.categories.filter(c=>k.cat.mix.includes(c.slug)).flatMap(c=>of(c,c.name.replace(/^Pizzas? /i,""))));
 }
+const mixOk=()=>!F.flavors.length||F.flavors.some(f=>f&&!f.mix);
+const mixTag=p=>p.mix?` <i class="mix-tag">${esc(p.mix)}</i>`:"";
+const mixHead=(pool,pi)=>pool[pi].mix&&(!pi||!pool[pi-1].mix)?`<div class="mix-sep">Sabores ${esc(pool[pi].mix)} (meio a meio)</div>`:"";
 function isPremium(){return !!F.card.cat.allows_addons;}
 function borderLabel(b){return b.group.replace(/^Borda /,"")+" - "+b.name;}
 // bordas que valem para a pizza escolhida (o dono define em Bordas e adicionais → Onde aparece)
@@ -208,7 +216,8 @@ function steps(){const s=[];
   if(SITE.flavors_one_page&&F.n>1)s.push({type:"flavors"});else for(let i=0;i<F.n;i++)s.push({type:"flavor",i});
   if(isCombo()){if(comboOf(F.card.cat).choice_options.length)s.push({type:"choice"});}
   else{if(borderOptions().length)s.push({type:"border"});if(isPremium())s.push({type:"addons"});
-    if(SITE.offer_drink&&drinkList().length)s.push({type:"drink"});}
+    if(SITE.ask_more)s.push({type:"more"});  // Sim: esta pizza vai para a cesta e o cliente escolhe outra (sem bebida agora)
+    if(SITE.offer_drink&&drinkList().length&&F.more!==true)s.push({type:"drink"});}
   s.push({type:"confirm"});return s;}
 function ordinal(i){return `${i+1}º`;}
 function unitPrice(){
@@ -226,13 +235,15 @@ function renderStep(){
   if(st.type==="flavor"){
     t=`Escolha o ${ordinal(st.i)} sabor.`;
     const cur=F.flavors[st.i];
-    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>`<div class="opt ${cur&&cur.name===p.name?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${thumb(p)}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
-    nextOk=!!cur;
+    const pool=flavorPool();body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+pool.map((p,pi)=>`${mixHead(pool,pi)}<div class="opt ${cur&&cur.id===p.id?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickFlavor(${pi})">${thumb(p)}<div class="grow"><div class="n">${esc(p.name)}${mixTag(p)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`).join("")+`</div>`;
+    nextOk=!!cur&&(st.i<F.n-1||mixOk());
+    if(cur&&st.i===F.n-1&&!mixOk())sub=`Escolha pelo menos 1 sabor ${esc(F.card.cat.name.replace(/^Pizzas? /i,""))}.`;
   } else if(st.type==="flavors"){
     const got=F.flavors.length;
     t=`Escolha ${F.n} sabores`; sub=got<F.n?`Marque ${F.n-got===F.n?"os":"mais"} ${F.n-got} ${F.n-got>1?"sabores":"sabor"} · ${got} de ${F.n}`:`Pronto: ${F.flavors.map(f=>esc(f.name)).join(" + ")}`;
-    body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+flavorPool().map((p,pi)=>{const on=F.flavors.some(f=>f.id===p.id);return `<div class="opt multi ${on?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickMany(${pi})" role="checkbox" aria-checked="${on}"><span class="ck-box" aria-hidden="true">${on?"✓":""}</span>${thumb(p)}<div class="grow"><div class="n">${esc(p.name)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`;}).join("")+`</div>`;
-    nextOk=got===F.n;
+    const pool=flavorPool();body=`<input class="srch" placeholder="Busque por um sabor" value="${esc(F.q||"")}" oninput="F.q=this.value;fl(this.value)"><div id="fl">`+pool.map((p,pi)=>{const on=F.flavors.some(f=>f.id===p.id);return `${mixHead(pool,pi)}<div class="opt multi ${on?"sel":""}" data-n="${esc(p.name.toLowerCase())}" onclick="pickMany(${pi})" role="checkbox" aria-checked="${on}"><span class="ck-box" aria-hidden="true">${on?"✓":""}</span>${thumb(p)}<div class="grow"><div class="n">${esc(p.name)}${mixTag(p)}${!p.fixed&&rewardTag(F.card,p.id)?` <i class="gift-tag">🎁 vale no seu prêmio</i>`:""}</div><div class="d">${esc(p.description||"")}</div>${p.fixed?"":`<div class="p">${was(p)}${money(p.price)}${p.promo?` <i class="promo-tag">${esc(p.promo)}</i>`:""}</div>`}</div></div>`;}).join("")+`</div>`;
+    nextOk=got===F.n&&mixOk();
+    if(got===F.n&&!mixOk())sub=`Escolha pelo menos 1 sabor ${esc(F.card.cat.name.replace(/^Pizzas? /i,""))}.`;
   } else if(st.type==="choice"){
     const c=comboOf(F.card.cat); t=c.choice_label||"Escolha uma opção"; sub="Vem junto com o combo.";
     body=c.choice_options.map((o,i)=>`<div class="opt" onclick="F.choice=comboOf(F.card.cat).choice_options[${i}];renderStep()"><input type="radio" ${F.choice===o?"checked":""}><div class="grow" style="font-weight:400">${esc(o)}</div></div>`).join("");
@@ -249,6 +260,11 @@ function renderStep(){
       body=none+byGroup.map(g=>{const items=opts.filter(o=>o.b.group===g),from=Math.min(...items.map(o=>o.b.price)),has=items.some(o=>o.i===F.border);
         return `<details class="bgrp${has?" has":""}" data-g="${esc(g)}" ${F.openGroups.has(g)?"open":""} ontoggle="bgToggle(this)"><summary><b>${esc(g)}</b><small>${items.length} sabor${items.length>1?"es":""} · a partir de ${money(from)}${has?" · ✓ escolhida":""}</small></summary>${items.map(o=>row(o,o.b.name)).join("")}</details>`;}).join("");
     } else body=none+opts.map(o=>row(o,`${o.b.group} — ${o.b.name}`)).join("");
+  } else if(st.type==="more"){
+    const drinkNext=SITE.offer_drink&&drinkList().length;
+    t="Quer pedir mais alguma pizza?"; sub=drinkNext?"Se não, seguimos para a bebida e o pagamento.":"Se não, seguimos para o pagamento.";
+    body=`<div class="more-q"><button class="more-yes${F.more===true?" on":""}" onclick="moreAnswer(true)">🍕 Sim, quero mais uma pizza</button><button class="more-no${F.more===false?" on":""}" onclick="moreAnswer(false)">Não, continuar ›</button></div>`;
+    nextLbl="";
   } else if(st.type==="drink"){
     const got=drinkPicked();
     t="Quer uma bebida?"; sub=got.length?`Bebida: ${money(drinksTotal())} · vai junto para a cesta`:"Toque no + para escolher, ou siga sem bebida.";
@@ -265,7 +281,7 @@ function renderStep(){
   } else {
     t="Confirmação"; sub="Escolha a quantidade do item"; nextLbl="Adicionar";
     const k=F.card, up=unitPrice();
-    const ttl=isSingle()?`${F.flavors[0].name}${k.label!=="Único"?" · "+k.label:""}`:k.cat.kind==="metro"?`${k.title}`:`PIZZA ${k.cat.name.replace(/^Pizzas? /i,"")} ${k.label} (${F.n} sabor${F.n>1?"es":""})`;
+    const ttl=isSingle()?`${F.flavors[0].name}${k.label!=="Único"?" · "+k.label:""}`:k.cat.kind==="metro"?`${k.title}`:`PIZZA ${k.cat.name.replace(/^Pizzas? /i,"")} ${k.label}${k.slices?` · ${k.slices} pedaços`:""} (${F.n} sabor${F.n>1?"es":""})`;
     body=`<div class="conf"><div class="row"><div><div class="ttl">${esc(ttl)}</div>${isSingle()?(F.picks.length?`<div class="sub">${esc(picksOf().label)}: ${esc(F.picks.join(", "))}</div>`:""):F.flavors.map(f=>`<div class="sub">1 x ${F.n>1?"1/"+F.n+" ":""}${esc(f.name)}</div>`).join("")}${F.border!=null?`<div class="sub">Borda: ${esc(borderLabel(DATA.borders[F.border]))}</div>`:""}${Object.entries(F.addons).filter(([,q])=>q>0).map(([i,q])=>`<div class="sub">${q} x ${esc(DATA.addons[i].name)}</div>`).join("")}${comboExtras()?`<div class="sub">Acompanha: ${esc(comboExtras())}</div>`:""}${drinkPicked().map(d=>`<div class="sub">+ ${d.q} x ${esc(d.p.name)}${d.v.label&&d.v.label!=="Único"?" "+esc(d.v.label):""} (${money(d.q*d.v.price)})</div>`).join("")}</div>
       <div><div class="cnt" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button class="m" style="width:22px;height:22px;border-radius:50%;border:0;background:var(--red);color:#fff;font-weight:700" onclick="F.qty=Math.max(1,F.qty-1);renderStep()">−</button><span>${F.qty}</span><button style="width:22px;height:22px;border-radius:50%;border:0;background:#2fb344;color:#fff;font-weight:700" onclick="F.qty++;renderStep()">+</button></div>
       <div class="big">${money(up*F.qty+drinksTotal())}<small>${money(up)}${drinkPicked().length?" + bebida":""}</small></div></div></div>
@@ -273,11 +289,12 @@ function renderStep(){
       ${isSingle()?"":k.cat.kind==="metro"?`<p class="note">*${esc(k.cat.name)}: preço fixo, independente dos sabores.</p>`:F.n>1?`<p class="note">*O valor da pizza será definido pelo sabor de maior valor.</p>`:""}</div>`;
   }
   md.innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="t"><h2>${t}</h2>${sub?`<p>${sub}</p>`:""}</div><div class="body">${body}</div>
-    <div class="ft">${F.step>0?`<button class="bk" onclick="F.step--;renderStep()">‹ Voltar</button>`:""}<button class="nx" ${nextOk?"":"disabled"} onclick="next()">${nextLbl}</button></div>`;
+    <div class="ft">${F.step>0?`<button class="bk" onclick="F.step--;renderStep()">‹ Voltar</button>`:""}${nextLbl?`<button class="nx" ${nextOk?"":"disabled"} onclick="next()">${nextLbl}</button>`:""}</div>`;
   F._shown=F.step;
   if(F.q)fl(F.q);
   const b=md.querySelector(".body"); if(b)b.scrollTop=keepTop;
 }
+function moreAnswer(yes){F.more=yes;F.step++;renderStep();}
 function fl(q){q=q.toLowerCase();document.querySelectorAll("#fl .opt").forEach(o=>o.style.display=o.dataset.n.includes(q)?"":"none");}
 function bgToggle(el){if(!F||!F.openGroups)return;if(el.open)F.openGroups.add(el.dataset.g);else F.openGroups.delete(el.dataset.g);}
 function pickMany(pi){
@@ -307,7 +324,13 @@ function next(){
     const base=isCombo()?k.fixed:Math.max(...F.flavors.map(f=>f.price));
     cart.push({sel,base,title,variant:k.label,border:F.border!=null?borderLabel(DATA.borders[F.border]):"",addons:Object.entries(F.addons).map(([i,q])=>`${q}x ${DATA.addons[i].name}`).join(", "),extras:isSingle()?(F.picks.length?`${picksOf().label}: ${F.picks.join(", ")}`:""):comboExtras(),notes:F.notes.trim(),price:unitPrice(),qty:F.qty});
     const drinks=drinkPicked(); drinks.forEach(d=>pushDrink(d.c,d.p,d.v,d.q));
-    closeModal();renderCart();toast(drinks.length?"Pizza e bebida adicionadas à cesta.":"Item adicionado à cesta.");return;
+    const more=F.more, slug=k.cat.slug;
+    closeModal();renderCart();
+    if(more===true){toast("Pizza na cesta! Agora escolha a próxima pizza.");goCat(slug);return;}
+    if(more===false){  // respondeu que não quer mais pizza: vai direto para o pagamento
+      openCheckout();if(!document.getElementById("ovl").classList.contains("on"))openCart();return;
+    }
+    toast(drinks.length?"Pizza e bebida adicionadas à cesta.":"Item adicionado à cesta.");return;
   }
   F.step++;renderStep();
 }

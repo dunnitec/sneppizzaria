@@ -76,7 +76,7 @@ def dispatch_new():
     for o in orders:
         notify_order(g.tenant, o, "saiu")
     flash(f"Comanda {dispatch.number} criada: {courier.name} saiu com {len(orders)} pedido(s).", "ok")
-    return redirect(url_for("admin.dispatches", imprimir_comanda=dispatch.id if g.tenant.auto_print else None))
+    return redirect(url_for("admin.dispatches", imprimir_comanda=dispatch.id if g.tenant.auto_print and g.tenant.print_dispatch else None))
 
 
 def _dispatch_or_404(dispatch_id):

@@ -8,12 +8,16 @@ Regras: meio a meio cobra o sabor mais caro (pizza); lanche e “monte o seu” 
 e o “monte o seu” aceita até N complementos grátis da lista da categoria (N = max_flavors do tamanho); o combo (kind="metro") tem preço
 fixo, sabores só das linhas que o dono escolheu e não leva borda paga;
 adicionais só nas categorias com allows_addons, no máximo MAX_ADDONS por pizza.
+Pizza com mix_sources (ex.: Premium com Doces) aceita meio a meio com sabores dessas linhas no mesmo
+tamanho, com pelo menos um sabor da própria linha; vale o preço mais caro, como no meio a meio comum.
 Promoções no ar (services/promotions.py) baixam o preço do sabor/tamanho antes
 dessas regras; borda e adicionais não entram no desconto.
 """
 
 import re
 from decimal import Decimal
+
+from sqlalchemy import and_, or_
 
 from app.models import Addon, Border, Category, Product
 from app.services.business import PIZZA_KINDS, SINGLE_KINDS
@@ -146,7 +150,19 @@ def price_item(tenant, raw):
             extras.append(f"{settings['choice_label'] or 'Escolha'}: {choice}")
     else:
         label = str(raw.get("variant") or "")
-        flavors = _flavors(raw, Product.query.filter_by(category_id=category.id, active=True))
+        # meio a meio com sabores de outra linha (Premium com Doces), se o dono ligou na categoria
+        mix = category.mix_slugs() if category.kind in PIZZA_KINDS else []
+        if mix:
+            pool = Product.query.join(Category).filter(
+                Product.tenant_id == tenant.id,
+                Product.active.is_(True),
+                or_(Product.category_id == category.id, and_(Category.slug.in_(mix), Category.kind.in_(PIZZA_KINDS))),
+            )
+        else:
+            pool = Product.query.filter_by(category_id=category.id, active=True)
+        flavors = _flavors(raw, pool)
+        if mix and all(p.category_id != category.id for p in flavors):
+            raise OrderError(f"Escolha pelo menos um sabor de {category.name}.")
         variants = [next((v for v in p.variants if v.label == label and v.active), None) for p in flavors]
         if not all(variants):
             raise OrderError("Tamanho indisponível para o sabor escolhido. Atualize a página.")
@@ -157,7 +173,7 @@ def price_item(tenant, raw):
         # “monte o seu”: max_flavors é o nº de complementos grátis, não de sabores
         max_flavors = 1 if category.kind in SINGLE_KINDS else max(v.max_flavors for v in variants)
         # meio a meio cobra o sabor mais caro, já com o desconto de cada sabor
-        prices = [best_price(promos, category.id, p.id, label, v.price) for p, v in zip(flavors, variants)]
+        prices = [best_price(promos, p.category_id, p.id, label, v.price) for p, v in zip(flavors, variants)]
         price = max(pr for pr, _ in prices)
         if price < max(_money(v.price) for v in variants):
             applied += [promo.name for _, promo in prices if promo]

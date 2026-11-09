@@ -102,7 +102,10 @@
       return D.categories.filter((c) => c.kind !== "metro" && c.kind !== "bebida" && src.includes(c.slug))
         .flatMap((c) => c.products.map((p) => ({ id: p.id, name: p.name, price: null })));
     }
-    return B.cat.products.map((p) => { const v = p.variants.find((x) => x.label === B.size); return v ? { id: p.id, name: p.name, price: v.price, promo: v.promo, no_border: p.no_border } : null; }).filter(Boolean);
+    const of = (c, tag) => c.products.map((p) => { const v = p.variants.find((x) => x.label === B.size); return v ? { id: p.id, name: tag ? `${p.name} (${tag})` : p.name, price: v.price, promo: v.promo, no_border: p.no_border } : null; }).filter(Boolean);
+    // meio a meio também com outra linha (ex.: Premium com Doces); o servidor exige 1 sabor da própria linha
+    const mix = B.n > 1 ? D.categories.filter((c) => (B.cat.mix || []).includes(c.slug)) : [];
+    return of(B.cat).concat(mix.flatMap((c) => of(c, c.name.replace(/^Pizzas? /i, ""))));
   }
   const borderOptions = () => B.flavors.some((f) => f && f.no_border) ? [] : D.borders.filter((b) => !(b.no_sizes || []).includes(B.size) && !(b.no_categories || []).includes(B.cat.slug));
   function unitPrice() {

@@ -18,6 +18,7 @@ DEFAULTS = {
     "show_infobar": True,  # barra “aberto/fechado · entrega · pagamento” embaixo dos banners
     "flavor_photos": True,  # foto de cada sabor na lista de escolher sabores
     "offer_drink": True,  # depois da borda, tela “Quer uma bebida?” com as bebidas do cardápio
+    "ask_more": True,  # antes da bebida, “Quer pedir mais alguma pizza?” (Não: segue para bebida e pagamento)
 }
 LAYOUTS = ("grade", "lista")
 THEMES = ("escuro", "claro")
@@ -66,6 +67,7 @@ def from_form(form):
         "show_infobar": "show_infobar" in form,
         "flavor_photos": "flavor_photos" in form,
         "offer_drink": "offer_drink" in form,
+        "ask_more": "ask_more" in form,
     }
 
 

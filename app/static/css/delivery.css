@@ -482,3 +482,12 @@ footer .st.open{color:var(--ok)}
 .howto-box::backdrop{background:rgba(0,0,0,.85)}
 .howto-box video{display:block;width:100%;max-height:100dvh;background:#000}
 .howto-x{position:absolute;top:10px;right:10px;z-index:1;width:40px;height:40px;border:0;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;font-size:24px;line-height:1;cursor:pointer}
+/* “Quer pedir mais alguma pizza?” (delivery.js, etapa more) */
+.more-q{display:flex;flex-direction:column;gap:12px;padding:8px 0}
+.more-q button{padding:16px;border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;border:2px solid var(--red);background:var(--card);color:var(--text)}
+.more-q .more-no{background:var(--red);color:#fff}
+.more-q button.on{outline:3px solid var(--ok);outline-offset:2px}
+/* meio a meio com outra linha (Premium com Doces) e pedaços do tamanho */
+.mix-sep{padding:10px 4px 4px;font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.mix-tag{font-style:normal;font-size:11px;font-weight:700;background:var(--pink);color:#2a0710;border-radius:6px;padding:1px 6px;margin-left:4px}
+h3 .slices{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}

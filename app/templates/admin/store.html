@@ -60,6 +60,13 @@
       </select></label>
       <label class="check"><input type="checkbox" name="auto_print" {{ 'checked' if tenant.auto_print }}> imprimir sozinho ao confirmar o pedido</label>
     </div>
+    <div class="row">
+      <label class="grow">Tamanho da letra do cupom<select name="receipt_font">
+        {% for n in receipt_fonts %}<option value="{{ n }}" {{ 'selected' if n == tenant.receipt_font }}>{{ n }}%{{ ' (normal)' if n == 100 else (' — menor' if n < 100 else ' — maior') }}</option>{% endfor %}
+      </select></label>
+      <label class="check"><input type="checkbox" name="print_dispatch" {{ 'checked' if tenant.print_dispatch }}> imprimir também a comanda do motoboy ao mandar para entrega</label>
+    </div>
+    <p class="hint">Letra grande demais faz o cupom ficar comprido; pequena demais fica difícil de ler. Vá ajustando e confira num pedido de teste (botão Imprimir do pedido).</p>
     <h3>Para o cupom sair direto, sem a janela de impressão</h3>
     <p class="hint">O site não escolhe a impressora: o cupom vai para a <b>impressora padrão do Windows</b> do computador da loja. Sem estes passos, o navegador abre a janela de impressão e pede para confirmar. Faça uma vez, no computador da loja:</p>
     <ol class="setup">

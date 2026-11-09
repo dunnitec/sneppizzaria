@@ -190,9 +190,15 @@
     <h3>Tamanhos</h3>
     <p class="hint">Mudar o nome de um tamanho muda em todos os itens.{% if pizza %} “Sabores” é quantos sabores o cliente pode misturar nesse tamanho (1 = inteira, 2 = meio a meio).{% elif picks %} “Complementos” é quantos o cliente marca de graça nesse tamanho.{% endif %}</p>
     {% for label, max_flavors in sizes %}
+    {% set sz = c.sizes()[loop.index0] %}
     <div class="row">
       <label class="grow">Tamanho<input name="size-label-{{ loop.index0 }}" value="{{ label }}" maxlength="30" required></label>
       {% if pizza %}<label class="grow">Sabores<select name="size-max-{{ loop.index0 }}">{% for n in range(1, 5) %}<option value="{{ n }}" {{ 'selected' if n == max_flavors }}>{{ n }} {{ '(inteira)' if n == 1 else ('(meio a meio)' if n == 2 else 'sabores') }}</option>{% endfor %}</select></label>
+      <label class="grow">Pedaços<select name="size-slices-{{ loop.index0 }}">
+        <option value="" {{ 'selected' if 'slices' not in sz }}>Automático{% set auto = slices_auto(c.kind, label) %}{{ ' (' ~ auto ~ ')' if auto else ' (não mostra)' }}</option>
+        <option value="0" {{ 'selected' if sz.get('slices') == 0 }}>Não mostrar</option>
+        {% for n in (4, 6, 8, 10, 12, 16) %}<option value="{{ n }}" {{ 'selected' if sz.get('slices') == n }}>{{ n }} pedaços</option>{% endfor %}
+      </select></label>
       {% elif picks %}<label class="grow">Complementos grátis<select name="size-max-{{ loop.index0 }}">{% for n in range(0, 21) %}<option value="{{ n }}" {{ 'selected' if n == max_flavors }}>{{ n }}</option>{% endfor %}</select></label>
       {% else %}<input type="hidden" name="size-max-{{ loop.index0 }}" value="1">{% endif %}
       <label class="check"><input type="checkbox" name="size-del-{{ loop.index0 }}"> remover este tamanho</label>
@@ -204,6 +210,12 @@
       {% elif picks %}<label class="grow">Complementos grátis<select name="new_size_max">{% for n in range(0, 21) %}<option value="{{ n }}" {{ 'selected' if n == 3 }}>{{ n }}</option>{% endfor %}</select></label>
       {% else %}<input type="hidden" name="new_size_max" value="1">{% endif %}
     </div>
+    {% set others = combo_lines|selectattr('kind', 'in', ['pizza', 'doce'])|rejectattr('id', 'equalto', c.id)|list %}
+    {% if pizza and others %}
+    <h3>Meio a meio com outra categoria</h3>
+    <p class="hint">Marque para o cliente poder misturar um sabor desta categoria com um sabor de outra. Ex.: Premium com Doces: 1/2 Frango e 1/2 Oreo. Vale o preço do sabor mais caro, e pelo menos um sabor tem que ser desta categoria.</p>
+    {% for o in others %}<label class="check"><input type="checkbox" name="mix" value="{{ o.slug }}" {{ 'checked' if o.slug in c.mix_slugs() }}> {{ o.name }}</label>{% endfor %}
+    {% endif %}
     <div class="savebar"><button class="primary">Salvar configurações</button></div>
   </form>
 </section>

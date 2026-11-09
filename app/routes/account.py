@@ -233,6 +233,7 @@ def track_steps(order):
         steps.append(("Saiu para entrega", out_at, order.status in ("saiu", "entregue")))
         steps.append(("Entregue", order.delivered_at, order.status == "entregue"))
     else:
+        steps.append(("Pronto para retirar", order.ready_at, bool(order.ready_at) and order.status in ("confirmado", "entregue")))
         steps.append(("Retirado" if order.channel == "site" else "Entregue", order.delivered_at, order.status == "entregue"))
     return [{"label": label, "time": _hm(at), "done": done} for label, at, done in steps]
 

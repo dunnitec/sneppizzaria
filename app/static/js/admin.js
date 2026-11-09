@@ -301,3 +301,15 @@ document.querySelectorAll(".next-day").forEach((note) => {
   [o, c].forEach((i) => i.addEventListener("input", show));
   show();
 });
+
+/* ---------- pedidos: “Avisar que está pronto” (retirada) ----------
+   o link abre o WhatsApp do cliente com a mensagem; ao mesmo tempo o painel marca o aviso e manda o
+   aviso no celular (se o cliente ativou). Delegado no document: a lista de pedidos se atualiza sozinha. */
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a[data-ready]");
+  if (!a) return;
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  fetch(a.dataset.ready, { method: "POST", credentials: "same-origin",
+    headers: { "X-CSRFToken": meta ? meta.content : "", "X-Requested-With": "fetch" } })
+    .then((r) => { if (r.ok) setTimeout(() => location.reload(), 1500); });
+});

@@ -64,7 +64,7 @@ h1{font:900 26px var(--display);margin:0}
   <section class="card eta">
     <small>{{ 'Previsão de entrega' if o.delivery else 'Pronto para retirar' }}</small>
     <b>{{ eta or '—' }}</b>
-    <span class="st">{{ status }}</span>
+    <span class="st">{{ 'Pronto! Pode vir buscar 🍕' if o.ready_at and not o.delivery and o.status == 'confirmado' else status }}</span>
   </section>
   <section class="card">
     <ul class="steps">
@@ -88,7 +88,7 @@ h1{font:900 26px var(--display);margin:0}
     <ul class="items">
       {% for i in o.items %}{% set v = i|item_view %}
       <li><b>{{ i.quantity }}x {{ v.head }}</b>{% for extra in v.lines %} · {{ extra }}{% endfor %}
-        <small>{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.promo_name %} · Promoção: {{ i.promo_name }}{% endif %}</small></li>
+        <small>{{ i|size_text }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.promo_name %} · Promoção: {{ i.promo_name }}{% endif %}</small></li>
       {% endfor %}
     </ul>
     <div style="margin-top:10px">

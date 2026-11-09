@@ -89,7 +89,7 @@ def _track(tenant, order):
 
 
 def notify_order(tenant, order, event):
-    """Pedido mudou: confirmado, saiu, cancelado ou Pix recebido."""
+    """Pedido mudou: confirmado, saiu, cancelado, Pix recebido ou retirada pronta."""
     if order.channel != "site" and event != "saiu":
         return 0
     eta = local_time(order.eta_at).strftime("%H:%M") if order.eta_at else ""
@@ -99,6 +99,7 @@ def notify_order(tenant, order, event):
         "saiu": ("Seu pedido saiu para entrega 🛵", f"Pedido #{order.ticket}" + (f" chega por volta das {eta}." if eta else " está a caminho.")),
         "cancelado": (f"Pedido #{order.ticket} cancelado", "Ficou com dúvida? Fale com a pizzaria pelo WhatsApp."),
         "pix": ("Pix recebido ✓", f"O pagamento do pedido #{order.ticket} foi confirmado."),
+        "pronto": ("Seu pedido está pronto! 🍕", f"Pedido #{order.ticket} pronto para retirar. Pode vir buscar."),
     }
     if event not in messages:
         return 0

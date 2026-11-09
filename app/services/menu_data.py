@@ -90,9 +90,14 @@ def data_from_db(tenant, order_url, assets):
     promos = running(tenant)
     used = set()  # promoções que baixaram o preço de algum item à venda
 
+    from app.services.order_display import slices
+
     def variant_data(c, p, v):
         price, promo = best_price(promos, c.id, p.id, v.label, v.price)
         d = {"label": v.label, "price": float(price), "max_flavors": v.max_flavors}
+        n = slices(c.kind, v.label, c.sizes())
+        if n:
+            d["slices"] = n
         if promo:  # o site mostra o preço antigo riscado e o selo
             d.update(regular=float(v.price), promo=badge(promo), promo_id=promo.id)
             used.add(promo.id)
@@ -118,6 +123,7 @@ def data_from_db(tenant, order_url, assets):
                 "banner": photo_url(c.banner_image),
                 **({"combo": c.combo_settings()} if c.kind == "metro" else {}),
                 **({"picks": c.pick_settings()} if c.kind == "montar" else {}),
+                **({"mix": c.mix_slugs()} if c.kind in ("pizza", "doce") and c.mix_slugs() else {}),
                 "products": [
                     {
                         "id": p.id,

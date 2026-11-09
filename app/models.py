@@ -123,6 +123,9 @@ class Tenant(db.Model):
     label_width_mm = db.Column(db.Integer, nullable=False, default=100, server_default="100")
     label_height_mm = db.Column(db.Integer, nullable=False, default=150, server_default="150")
     auto_print = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    # comanda do motoboy sai sozinha na impressora ao mandar para entrega? (o cupom do pedido já saiu antes)
+    print_dispatch = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    receipt_font = db.Column(db.Integer, nullable=False, default=100, server_default="100")  # letra do cupom, em %
     # frete: "bairro" (tabela Neighborhood) ou "km" (distância até a loja, ver services/geo.py)
     delivery_mode = db.Column(db.String(10), nullable=False, default="bairro", server_default="bairro")
     store_lat = db.Column(db.Float)  # ponto da loja no mapa (aba Entrega → Localizar a pizzaria)
@@ -181,6 +184,8 @@ class Category(db.Model):
     pick_options = db.Column(db.Text)
     # custo estimado da linha em % do preço (aba Custos): vale para o sabor sem custo em R$, borda e adicionais
     cost_percent = db.Column(db.Numeric(5, 2))
+    # pizza: meio a meio também com sabores destas linhas (JSON de slugs), ex. Premium com Doces: ["doces"]
+    mix_sources = db.Column(db.Text)
 
     def sizes(self):
         if self.sizes_json:
@@ -190,6 +195,9 @@ class Category(db.Model):
             for variant in product.variants:
                 found.setdefault(variant.label, variant.max_flavors)
         return [{"label": label, "max_flavors": n} for label, n in found.items()]
+
+    def mix_slugs(self):
+        return json.loads(self.mix_sources) if self.mix_sources else []
 
     def pick_settings(self):
         """Complementos do “monte o seu”: {"label", "options": [...]}."""
@@ -435,6 +443,7 @@ class Order(db.Model):
 
         return groups(self.total, self.split_people) if self.split_people else []
     delivered_at = db.Column(db.DateTime)
+    ready_at = db.Column(db.DateTime)  # retirada: quando a loja avisou o cliente que a pizza está pronta
     pix_paid_at = db.Column(db.DateTime)  # dono confirmou que o Pix caiu na conta
     confirmed_at = db.Column(db.DateTime)  # quando a loja confirmou (acompanhamento do pedido)
     track_token = db.Column(db.String(32), unique=True, index=True)  # link de acompanhamento para o cliente

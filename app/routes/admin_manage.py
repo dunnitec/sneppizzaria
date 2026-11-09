@@ -151,6 +151,9 @@ def line_save(category_id):
             label = _name(form.get(f"size-label-{i}", size["label"]), "o nome do tamanho", max_length=30)
             n = _size_max(category.kind, form.get(f"size-max-{i}"), label)
             new_sizes.append({"label": label, "max_flavors": n})
+            pieces = form.get(f"size-slices-{i}", "").strip()
+            if pieces.isdigit() and int(pieces) <= 32:  # vazio = automático (Broto 4, Inteira 8)
+                new_sizes[-1]["slices"] = int(pieces)
             renames[size["label"]] = new_sizes[-1]
         if form.get("new_size_label", "").strip():
             label = _name(form["new_size_label"], "o nome do novo tamanho", max_length=30)
@@ -174,6 +177,11 @@ def line_save(category_id):
                     variant.label, variant.max_flavors = size["label"], size["max_flavors"]
         _rename_size_everywhere(category, {old: size["label"] for old, size in renames.items() if old != size["label"]})
         category.sizes_json = json.dumps(new_sizes, ensure_ascii=False)
+        if category.kind in ("pizza", "doce"):
+            valid = {c.slug for c in Category.query.filter(Category.tenant_id == category.tenant_id, Category.id != category.id,
+                                                           Category.kind.in_(("pizza", "doce")))}
+            chosen = [s for s in dict.fromkeys(form.getlist("mix")) if s in valid]
+            category.mix_sources = json.dumps(chosen) if chosen else None
         _save(f"Configurações de “{category.name}” salvas.")
     except FormError as e:
         _reject(e)

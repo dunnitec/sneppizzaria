@@ -29,7 +29,7 @@ def create_app(config_class=Config):
     from app.services.customers import format_phone, phone_key
     from app.services.hours import local_time
     from app.services.money import brl, money_input
-    from app.services.order_display import item_view
+    from app.services.order_display import item_view, size_text
 
     app.register_blueprint(public_bp)
     app.register_blueprint(orders_bp)
@@ -45,8 +45,10 @@ def create_app(config_class=Config):
     app.cli.add_command(import_photos)
     app.cli.add_command(import_static_banners)
     app.cli.add_command(import_addresses)
-    app.jinja_env.filters.update(item_view=item_view, phone=format_phone, any_phone=lambda raw: format_phone(phone_key(raw)) or raw, brl=brl, money_input=money_input, local_time=local_time)
-    app.jinja_env.globals.update(static_url=static_url)
+    app.jinja_env.filters.update(item_view=item_view, size_text=size_text, phone=format_phone, any_phone=lambda raw: format_phone(phone_key(raw)) or raw, brl=brl, money_input=money_input, local_time=local_time)
+    from app.services.whatsapp import ready_link
+
+    app.jinja_env.globals.update(static_url=static_url, ready_link=ready_link)
     _register_error_pages(app)
 
     return app

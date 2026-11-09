@@ -51,12 +51,15 @@ def test_create_dispatch_with_several_orders(panel, tenant, joao):
     r = panel.post("/snep/admin/entregas/nova", data={"courier_id": joao.id, "orders": [a.id, b.id]})
     d = Dispatch.query.one()
     assert d.number == 1 and d.courier_id == joao.id
-    assert f"imprimir_comanda={d.id}" in r.headers["Location"]
+    assert "imprimir_comanda" not in r.headers["Location"]  # comanda do motoboy só imprime sozinha se o dono ligar
     db.session.expire_all()
     assert {a.status, b.status} == {"saiu"} and a.dispatch_id == d.id
+    tenant.print_dispatch = True
+    db.session.commit()
     ready(tenant)
-    panel.post("/snep/admin/entregas/nova", data={"courier_id": joao.id, "orders": [Order.query.order_by(Order.id.desc()).first().id]})
-    assert Dispatch.query.order_by(Dispatch.id.desc()).first().number == 2
+    r = panel.post("/snep/admin/entregas/nova", data={"courier_id": joao.id, "orders": [Order.query.order_by(Order.id.desc()).first().id]})
+    d2 = Dispatch.query.order_by(Dispatch.id.desc()).first()
+    assert d2.number == 2 and f"imprimir_comanda={d2.id}" in r.headers["Location"]
 
 
 def test_dispatch_needs_courier_and_orders(panel, tenant, joao):

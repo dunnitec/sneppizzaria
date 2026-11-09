@@ -13,6 +13,7 @@ from flask import Blueprint, Response, abort, flash, g, redirect, render_templat
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
+from app.services.order_display import slices
 from app.models import (
     MIN_PASSWORD_LENGTH,
     Addon,
@@ -62,6 +63,7 @@ STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders",
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
 # papel da impressora (largura × altura, em mm). Altura 0 = bobina contínua de cupom, que corta no fim do pedido.
 LABEL_SIZES = {"80x0": (80, 0), "58x0": (58, 0), "100x150": (100, 150), "100x100": (100, 100), "100x50": (100, 50)}
+RECEIPT_FONTS = (70, 80, 90, 100, 110, 120, 130, 140, 150)  # letra do cupom, em % (Loja → Impressora)
 LABEL_NAMES = {"80x0": "Bobina 80 mm (cupom) — ex.: Bematech MP-4200 HS", "58x0": "Bobina 58 mm (cupom pequeno)",
                "100x150": "Etiqueta 100 × 150 mm", "100x100": "Etiqueta 100 × 100 mm", "100x50": "Etiqueta 100 × 50 mm"}
 # tipos de categoria, com as palavras que o dono vê no painel
@@ -329,6 +331,23 @@ def order_status(order_id):
                             imprimir=to_print))
 
 
+@admin_bp.route("/pedidos/<int:order_id>/pronto", methods=["POST"])
+def order_ready(order_id):
+    """Retirada: avisa o cliente que a pizza está pronta (aviso no celular, se ele ativou; o painel
+    também abre o WhatsApp do cliente com a mensagem pronta)."""
+    order = Order.query.filter_by(tenant_id=g.tenant.id, id=order_id).first_or_404()
+    if order.delivery or order.status != "confirmado":
+        abort(400)
+    order.ready_at = utcnow()
+    db.session.commit()
+    notify_order(g.tenant, order, "pronto")
+    if request.headers.get("X-Requested-With") == "fetch":
+        return ("", 204)
+    flash(f"Pedido #{order.ticket}: cliente avisado que está pronto.", "ok")
+    current_filter = request.form.get("filter")
+    return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None))
+
+
 @admin_bp.route("/pedidos/<int:order_id>/pix", methods=["POST"])
 def order_pix(order_id):
     """Dono conferiu no app do banco: marca (ou desmarca) o Pix como recebido."""
@@ -400,7 +419,7 @@ def category_page(category_id):
         Category.tenant_id == g.tenant.id, Category.kind.notin_(("metro", "bebida"))
     ).order_by(Category.sort_order).all()
     return render_template("admin/category.html", c=category, sizes=category_sizes(category), combo_lines=combo_lines,
-                           icons=CATEGORY_ICONS, accents=CATEGORY_ACCENTS)
+                           icons=CATEGORY_ICONS, accents=CATEGORY_ACCENTS, slices_auto=slices)
 
 
 @admin_bp.route("/cardapio/<int:category_id>", methods=["POST"])
@@ -1149,6 +1168,10 @@ def store():
             if form.get("label_size") in LABEL_SIZES:
                 tenant.label_width_mm, tenant.label_height_mm = LABEL_SIZES[form["label_size"]]
                 tenant.auto_print = "auto_print" in form
+                tenant.print_dispatch = "print_dispatch" in form
+                font = form.get("receipt_font", type=int)
+                if font in RECEIPT_FONTS:
+                    tenant.receipt_font = font
             if "eta_minutes" in form:
                 tenant.eta_minutes = _minutes_field(form["eta_minutes"], "Tempo de entrega")
                 tenant.pickup_minutes = _minutes_field(form.get("pickup_minutes"), "Tempo para retirada")
@@ -1174,6 +1197,7 @@ def store():
     return render_template(
         "admin/store.html", days=days, status=status, payment_options=PAYMENT_OPTIONS, label_sizes=LABEL_NAMES,
         label_size=f"{tenant.label_width_mm}x{tenant.label_height_mm}",
+        receipt_fonts=RECEIPT_FONTS,
         payments=payments, other_payments=", ".join(p for p in payments if p not in PAYMENT_OPTIONS),
         pix_types=PIX_KEY_TYPES,
     )

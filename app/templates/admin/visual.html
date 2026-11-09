@@ -49,6 +49,9 @@
   <h3>Bordas recheadas</h3>
   <label class="check"><input type="checkbox" name="borders_grouped" {{ 'checked' if site.borders_grouped }}> separar por tipo (Tradicional, Caracol, Vulcão…): o cliente toca no tipo para ver os sabores</label>
 
+  <h3>Mais uma pizza?</h3>
+  <label class="check"><input type="checkbox" name="ask_more" {{ 'checked' if site.ask_more }}> depois da borda, perguntar <b>“Quer pedir mais alguma pizza?”</b>: no Sim, a pizza vai para a cesta e o cliente escolhe a próxima; no Não, segue para a bebida e o pagamento</label>
+
   <h3>Bebida junto com a pizza</h3>
   <label class="check"><input type="checkbox" name="offer_drink" {{ 'checked' if site.offer_drink }}> depois da borda, perguntar <b>“Quer uma bebida?”</b> e mostrar as bebidas do cardápio (o cliente pode pular)</label>
 

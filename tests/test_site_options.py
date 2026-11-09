@@ -47,7 +47,7 @@ def test_site_options_saved_from_panel(panel, tenant):
     opts = options(db.session.get(Tenant, tenant.id))
     assert opts == {"show_filter": False, "flavors_one_page": False, "borders_grouped": False,
                     "layout": "lista", "color": "#1e88e5", "theme": "escuro", "font": "montserrat",
-                    "show_infobar": False, "flavor_photos": False, "offer_drink": False}
+                    "show_infobar": False, "flavor_photos": False, "offer_drink": False, "ask_more": False}
     html = panel.get("/snep/").get_data(as_text=True)
     assert 'class="layout-lista theme-escuro"' in html and "--red:#1e88e5" in html
     assert '<label class="filter" hidden>' in html and '<div class="infobar" hidden>' in html

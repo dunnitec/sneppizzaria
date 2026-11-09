@@ -53,7 +53,7 @@ def test_combo_lists_each_flavor(client, open_store):
     fl = flavors("premium", 3)
     _, order = site_order(client, [{"category_id": cat("metro").id, "flavors": [p.id for p in fl], "quantity": 1}])
     view = item_view(order.items[0])
-    assert view["head"] == "Combo Pizza Trem" and view["lines"] == [p.name for p in fl] and view["tag"] is None
+    assert view["head"] == "Combo Pizza Trem" and view["lines"] == [f"1/3 {p.name}" for p in fl] and view["tag"] is None
 
 
 def test_type_kept_even_if_category_is_renamed_later(client, open_store):

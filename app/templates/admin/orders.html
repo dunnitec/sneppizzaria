@@ -42,7 +42,7 @@
     {% for i in o.items %}
     {% set v = i|item_view %}
     <li><b>{{ i.quantity }}x {{ v.head }}</b>{% if v.tag %} <span class="tag">{{ v.tag }}</span>{% endif %}{% for extra in v.lines %}<br><b class="more-flavor">{{ extra }}</b>{% endfor %}
-      <br><small>{{ i.variant_label }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.extras %} · Acompanha: {{ i.extras }}{% endif %}{% if i.notes %} · Obs.: {{ i.notes }}{% endif %} — {{ i.line_total|brl }}{% if i.promo_name %} <span class="tag promo">Promoção: {{ i.promo_name }}</span>{% endif %}</small></li>
+      <br><small>{{ i|size_text }}{% if i.border_name %} · Borda {{ i.border_name }}{% endif %}{% if i.addon_names %} · {{ i.addon_names }}{% endif %}{% if i.extras %} · Acompanha: {{ i.extras }}{% endif %}{% if i.notes %} · Obs.: {{ i.notes }}{% endif %} — {{ i.line_total|brl }}{% if i.promo_name %} <span class="tag promo">Promoção: {{ i.promo_name }}</span>{% endif %}</small></li>
     {% endfor %}
   </ul>
   {% if o.discount %}<p class="addr"><span class="tag tag-disc">{% if o.first_order %}1º pedido{% endif %}{% if o.first_order and o.loyalty_reward %} + {% endif %}{% if o.loyalty_reward %}🎁 Pizza grátis (fidelidade){% endif %}</span> Desconto de {{ o.discount|brl }} já descontado do total.</p>{% endif %}
@@ -58,6 +58,12 @@
     {{ csrf() }}
     <input type="hidden" name="filter" value="{{ status or '' }}">
     {% if o.status == 'pendente' %}<button name="status" value="confirmado" class="primary small">Confirmar{{ ' e imprimir' if tenant.auto_print }}</button>{% endif %}
+    {% if o.status == 'confirmado' and not o.delivery and o.channel != 'mesa' %}
+      {% set wa = ready_link(tenant, o) %}
+      {% if o.ready_at %}<span class="tag tag-pix-ok">✓ Cliente avisado às {{ (o.ready_at|local_time).strftime('%H:%M') }}</span>{% endif %}
+      {% if wa %}<a class="button {{ 'ghost' if o.ready_at else 'primary' }} small" href="{{ wa }}" target="_blank" rel="noopener" data-ready="{{ url_for('admin.order_ready', order_id=o.id) }}">📣 {{ 'Avisar de novo' if o.ready_at else 'Avisar que está pronto' }}</a>
+      {% elif not o.ready_at %}<button formaction="{{ url_for('admin.order_ready', order_id=o.id) }}" class="primary small">📣 Avisar que está pronto</button>{% endif %}
+    {% endif %}
     {% if o.status == 'confirmado' and not o.delivery %}<button name="status" value="entregue" class="primary small">Entregue ao cliente</button>{% endif %}
     {% if o.status == 'confirmado' and o.delivery and has_feature('motoboys') %}<a class="button primary small" href="{{ url_for('admin.dispatches') }}">Mandar para entrega ›</a>{% endif %}
     {% if o.status in ('pendente', 'confirmado') %}<button name="status" value="cancelado" class="ghost small" onclick="return confirm('Cancelar o pedido #{{ o.ticket }}? O cliente recebe o aviso de cancelado.')">Cancelar</button>{% endif %}
