@@ -5,6 +5,7 @@
   <li>Todo pedido feito no site aparece aqui como <b>pendente</b>. A lista atualiza sozinha.</li>
   <li>Quando a mensagem do cliente chegar no WhatsApp, toque em <b>Confirmar</b>: o cupom sai na impressora. Se ela nunca chegar, toque em <b>Cancelar</b>.</li>
   <li>Pedido para <b>entrega</b>: depois de pronto, use <b>Mandar para entrega</b>. Retirada ou mesa: toque em <b>Entregue ao cliente</b>.</li>
+  <li><b>Tela de retirada (TV)</b>: abra numa TV ou monitor da loja. O número do pedido aparece em “Preparando” quando você confirma e passa para “Pronto” quando você toca em <b>Avisar que está pronto</b>.</li>
   <li>Toque em <b>Ativar som</b> uma vez para ouvir um aviso quando chegar pedido novo (o celular precisa ficar nesta tela).</li>
 </ul>
 {% endblock %}
@@ -12,6 +13,7 @@
 <div class="page-head">
   <h1>Pedidos</h1>
   {% if has_feature('balcao') %}<a class="button primary" href="{{ url_for('admin.order_new') }}">+ Novo pedido (balcão, mesa, telefone)</a>{% endif %}
+  <a class="button ghost" href="{{ url_for('admin.pickup_tv') }}" target="_blank" rel="noopener" title="Abra numa TV ou monitor da loja: mostra os pedidos de retirada preparando e prontos">📺 Tela de retirada (TV)</a>
 </div>
 <div id="live" class="live card" data-poll="{{ url_for('admin.orders_poll') }}" data-latest="{{ latest_id }}">
   <button type="button" class="sound ghost small">🔕 Ativar som de novos pedidos</button>

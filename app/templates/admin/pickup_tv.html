@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Retirada · {{ tenant.name }}</title>
+<style>
+:root{--bg:#0b0b0c;--card:#161618;--line:#2a2a2e;--text:#fff;--muted:#a3a3aa;--ok:#2fd16b;--warn:#ffb020}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+body{display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:2vh 3vw;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:clamp(20px,3.2vw,48px);font-weight:900}
+header .tools{display:flex;gap:10px;align-items:center}
+header button{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:15px;cursor:pointer}
+header .clock{font-size:clamp(18px,2.6vw,40px);font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+main{flex:1;display:grid;grid-template-columns:1fr 1.25fr;gap:2vw;padding:2vh 3vw;min-height:0}
+section{display:flex;flex-direction:column;min-height:0;border-radius:18px;background:var(--card);border:2px solid var(--line);padding:2vh 2vw}
+section h2{margin:0 0 2vh;font-size:clamp(20px,3vw,46px);font-weight:900;text-transform:uppercase;letter-spacing:1px}
+.prep h2{color:var(--warn)}
+.ready{border-color:rgba(47,209,107,.6);background:linear-gradient(160deg,#0f2318,#161618 70%)}
+.ready h2{color:var(--ok)}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:1.4vh 1.4vw;overflow:hidden;align-content:start}
+.prep ul{grid-template-columns:repeat(auto-fill,minmax(clamp(110px,13vw,220px),1fr))}
+.ready ul{grid-template-columns:repeat(auto-fill,minmax(clamp(150px,18vw,320px),1fr))}
+li{border-radius:14px;background:rgba(255,255,255,.06);padding:1.4vh 1vw;text-align:center}
+li b{display:block;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+.prep li b{font-size:clamp(30px,4.4vw,80px)}
+.ready li{background:rgba(47,209,107,.16);border:2px solid rgba(47,209,107,.5)}
+.ready li b{font-size:clamp(40px,6vw,110px);color:#eafff1}
+li span{display:block;margin-top:.6vh;font-size:clamp(14px,1.7vw,30px);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ready li span{color:#bfe9cf}
+li.new{animation:pop 1.2s ease-out 3}
+@keyframes pop{0%{transform:scale(1)}30%{transform:scale(1.08);background:rgba(47,209,107,.45)}100%{transform:scale(1)}}
+.empty{color:var(--muted);font-size:clamp(16px,1.8vw,28px)}
+footer{padding:1vh 3vw 2vh;color:var(--muted);font-size:clamp(13px,1.3vw,20px);text-align:center}
+@media (max-width:700px){main{grid-template-columns:1fr}body{overflow:auto}}
+@media (prefers-reduced-motion:reduce){li.new{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ tenant.name }}</h1>
+  <div class="tools">
+    <button type="button" id="sound">🔕 Ativar som</button>
+    <button type="button" id="full">⛶ Tela cheia</button>
+    <span class="clock" id="clock"></span>
+  </div>
+</header>
+<main>
+  <section class="prep"><h2>Preparando</h2><ul id="prep"></ul></section>
+  <section class="ready"><h2>Pronto · pode retirar</h2><ul id="ready"></ul></section>
+</main>
+<footer>Acompanhe também pelo celular, no link do seu pedido.</footer>
+<script>
+(function () {
+  const DATA_URL = "{{ url_for('admin.pickup_tv_data') }}";
+  let board = {{ board|tojson }}, known = null, sound = false, audio = null;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const row = (o, fresh) => `<li class="${fresh ? "new" : ""}"><b>${o.ticket}</b>${o.name ? `<span>${esc(o.name)}</span>` : ""}</li>`;
+
+  function ding() {
+    if (!sound) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.25].forEach((t) => {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = t ? 1175 : 880; o.connect(g); g.connect(audio.destination);
+        g.gain.setValueAtTime(0.3, audio.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + t + 0.5);
+        o.start(audio.currentTime + t); o.stop(audio.currentTime + t + 0.5);
+      });
+    } catch (e) { /* sem som neste navegador */ }
+  }
+
+  function render() {
+    const ids = new Set(board.ready.map((o) => o.ticket));
+    const fresh = known ? board.ready.filter((o) => !known.has(o.ticket)) : [];
+    document.getElementById("prep").innerHTML = board.preparing.length ? board.preparing.map((o) => row(o, false)).join("") : `<li class="empty" style="background:none">Nenhum pedido no forno agora.</li>`;
+    document.getElementById("ready").innerHTML = board.ready.length ? board.ready.map((o) => row(o, fresh.includes(o))).join("") : `<li class="empty" style="background:none">Quando ficar pronto, o número aparece aqui.</li>`;
+    if (fresh.length) ding();
+    known = ids;
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch(DATA_URL, { cache: "no-store", credentials: "same-origin" });
+      if (r.redirected || !r.ok) return;  // sessão caiu: tenta de novo depois
+      board = await r.json();
+      render();
+    } catch (e) { /* sem conexão: tenta de novo */ }
+  }
+
+  function clock() {
+    document.getElementById("clock").textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  }
+
+  document.getElementById("sound").onclick = function () {
+    sound = !sound; this.textContent = sound ? "🔔 Som ligado" : "🔕 Ativar som";
+    if (sound) ding();
+  };
+  document.getElementById("full").onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.();
+  };
+  render(); clock();
+  setInterval(poll, 8000); setInterval(clock, 10000);
+})();
+</script>
+</body>
+</html>

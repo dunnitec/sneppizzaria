@@ -24,6 +24,16 @@ h1{font:900 26px var(--display);margin:0}
 .eta b{display:block;font:900 44px/1.1 var(--display);margin:4px 0}
 .eta .st{display:inline-block;margin-top:4px;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.08);font-weight:700;font-size:14px}
 .cancel{border-color:#7a1a1d;background:#2a0f10;text-align:center}
+.pick{text-align:center;border-color:rgba(255,176,32,.5);background:linear-gradient(160deg,#241a08,#161618 70%)}
+.pick small{display:block;color:#ffd98a;font-size:13px;text-transform:uppercase;letter-spacing:1px}
+.pick .num{display:block;font:900 76px/1 var(--display);margin:6px 0 8px;font-variant-numeric:tabular-nums}
+.pick .st{display:inline-block;padding:8px 16px;border-radius:99px;background:rgba(255,255,255,.08);font-weight:800;font-size:16px}
+.pick .hint{display:block;margin-top:10px;color:var(--muted);font-size:13px}
+.pick.go{border-color:rgba(47,209,107,.8);background:linear-gradient(160deg,#0f2a19,#161618 70%);animation:glow 1.6s ease-in-out infinite alternate}
+.pick.go small{color:#bfe9cf}
+.pick.go .st{background:var(--ok);color:#05210f;font-size:19px}
+@keyframes glow{from{box-shadow:0 0 0 rgba(47,209,107,0)}to{box-shadow:0 0 28px rgba(47,209,107,.45)}}
+@media (prefers-reduced-motion:reduce){.pick.go{animation:none}}
 .steps{list-style:none;margin:0;padding:0}
 .steps li{position:relative;padding:0 0 18px 34px;color:var(--muted)}
 .steps li:last-child{padding-bottom:0}
@@ -61,6 +71,14 @@ h1{font:900 26px var(--display);margin:0}
   {% if o.status == 'cancelado' %}
   <section class="card cancel"><b>Este pedido foi cancelado.</b><p class="note">Dúvidas? Fale com a loja pelo WhatsApp.</p></section>
   {% else %}
+  {% if not o.delivery and o.channel != 'mesa' and o.status != 'entregue' %}{% set go = o.ready_at and o.status == 'confirmado' %}
+  <section class="card pick{{ ' go' if go }}" data-ready="{{ 1 if go else 0 }}">
+    <small>Seu número de retirada</small>
+    <b class="num">#{{ o.ticket }}</b>
+    <span class="st">{% if go %}✅ PRONTO! Pode retirar no balcão{% elif o.status == 'pendente' %}⏳ Aguardando a loja confirmar{% else %}👨‍🍳 Preparando…{% endif %}</span>
+    <span class="hint">{% if go %}Mostre este número no balcão.{% else %}Fique de olho: esta tela muda sozinha quando ficar pronto.{% endif %}</span>
+  </section>
+  {% endif %}
   <section class="card eta">
     <small>{{ 'Previsão de entrega' if o.delivery else 'Pronto para retirar' }}</small>
     <b>{{ eta or '—' }}</b>
@@ -101,22 +119,29 @@ h1{font:900 26px var(--display);margin:0}
     </div>
   </section>
   <a class="btn btn-wa" href="https://wa.me/{{ tenant.whatsapp }}" target="_blank" rel="noopener">Falar com a loja no WhatsApp</a>
-  {% if o.status not in ('entregue', 'cancelado') %}<p class="note">Esta página se atualiza sozinha a cada 30 segundos.</p>{% endif %}
+  {% if o.status not in ('entregue', 'cancelado') %}<p class="note">Esta página se atualiza sozinha a cada {{ 15 if not o.delivery else 30 }} segundos.</p>{% endif %}
 </div>
 <script>
   // atualiza só a situação do pedido, sem recarregar a página (não atrapalha quem está copiando o Pix)
   (function () {
     const live = document.getElementById("live");
     if (live.dataset.final === "1") return;
+    const pickup = !!live.querySelector(".pick");
+    const isReady = (root) => root.querySelector(".pick")?.dataset.ready === "1";
     const timer = setInterval(async () => {
       try {
         const html = await (await fetch(location.href, { cache: "no-store" })).text();
         const fresh = new DOMParser().parseFromString(html, "text/html").getElementById("live");
         if (!fresh) return;
+        const becameReady = isReady(fresh) && !isReady(live);
         live.innerHTML = fresh.innerHTML;
+        if (becameReady) {  // ficou pronto: vibra e avisa no título da aba
+          navigator.vibrate?.([300, 150, 300, 150, 300]);
+          document.title = "✅ Pronto! #{{ o.ticket }}";
+        }
         if (fresh.dataset.final === "1") clearInterval(timer);
-      } catch (e) { /* sem conexão: tenta de novo em 30 s */ }
-    }, 30000);
+      } catch (e) { /* sem conexão: tenta de novo */ }
+    }, pickup ? 15000 : 30000);  // retirada atualiza mais rápido: o cliente está esperando na loja
   })();
 </script>
 </body>

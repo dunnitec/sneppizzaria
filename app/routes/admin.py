@@ -59,7 +59,7 @@ STORE_STATUS = {"auto": None, "open": True, "closed": False}
 STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.orders_poll",
                    "admin.order_label", "admin.order_printed", "admin.order_new", "admin.order_customer", "admin.dispatches", "admin.dispatch_new",
                    "admin.dispatch_return", "admin.dispatch_remove_order", "admin.dispatch_label",
-                   "admin.order_status", "admin.order_pix", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
+                   "admin.order_status", "admin.order_pix", "admin.order_ready", "admin.pickup_tv", "admin.pickup_tv_data", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]
 # papel da impressora (largura × altura, em mm). Altura 0 = bobina contínua de cupom, que corta no fim do pedido.
 LABEL_SIZES = {"80x0": (80, 0), "58x0": (58, 0), "100x150": (100, 150), "100x100": (100, 100), "100x50": (100, 50)}
@@ -346,6 +346,36 @@ def order_ready(order_id):
     flash(f"Pedido #{order.ticket}: cliente avisado que está pronto.", "ok")
     current_filter = request.form.get("filter")
     return redirect(url_for("admin.orders", status=current_filter if current_filter in ORDER_STATUSES else None))
+
+
+PICKUP_TV_HOURS = 12  # pedidos mais velhos que isso não aparecem na tela (esquecidos sem “Entregue”)
+PICKUP_TV_READY_MINUTES = 60  # pronto há mais de 1 hora sai da tela, mesmo sem tocar em “Entregue ao cliente”
+
+
+def pickup_board(tenant):
+    """Tela da TV: retiradas confirmadas, separadas em preparando e prontas (número e primeiro nome)."""
+    now = utcnow()
+    orders = (Order.query.filter(Order.tenant_id == tenant.id, Order.status == "confirmado", Order.delivery.is_(False),
+                                 Order.channel != "mesa", Order.created_at >= now - timedelta(hours=PICKUP_TV_HOURS))
+              .order_by(Order.id).all())
+    def card(o):
+        first = (o.customer_name or "").split(" ")[0]
+        return {"ticket": o.ticket, "name": "" if first in ("Balcão", "Mesa") else first[:14]}
+    preparing = [card(o) for o in orders if not o.ready_at]
+    ready = [card(o) for o in sorted((o for o in orders if o.ready_at), key=lambda o: o.ready_at, reverse=True)
+             if o.ready_at >= now - timedelta(minutes=PICKUP_TV_READY_MINUTES)]
+    return {"preparing": preparing, "ready": ready}
+
+
+@admin_bp.route("/retirada/tv")
+def pickup_tv():
+    """Tela para TV/monitor da loja: “Preparando” e “Pronto, pode retirar”, como em fast food."""
+    return render_template("admin/pickup_tv.html", board=pickup_board(g.tenant))
+
+
+@admin_bp.route("/retirada/tv/dados")
+def pickup_tv_data():
+    return pickup_board(g.tenant)
 
 
 @admin_bp.route("/pedidos/<int:order_id>/pix", methods=["POST"])
