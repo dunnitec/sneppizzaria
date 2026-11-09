@@ -3,11 +3,15 @@
 A validação, os preços e a gravação ficam em app/services/order_create.py (mesma regra do painel).
 """
 
+from decimal import Decimal, InvalidOperation
+
 from flask import Blueprint, jsonify, request, url_for
 
 from app.extensions import db
 from app.models import PushSubscription
 from app.routes.public import get_tenant_or_404
+from app.services.coupons import check, public
+from app.services.customers import phone_key
 from app.services.order_create import place_order
 from app.services.pix import for_order
 from app.services.plans import has as has_feature
@@ -15,6 +19,22 @@ from app.services.pricing import OrderError
 from app.services.whatsapp import build_whatsapp_link
 
 orders_bp = Blueprint("orders", __name__)
+
+
+@orders_bp.route("/<slug>/api/cupom", methods=["POST"])
+def coupon_check(slug):
+    """Cliente digitou um código no pagamento: confere e devolve o cupom. O desconto final é calculado no pedido."""
+    tenant = get_tenant_or_404(slug)
+    data = request.get_json(silent=True) or {}
+    try:
+        subtotal = Decimal(str(data.get("subtotal") or 0))
+    except InvalidOperation:
+        subtotal = Decimal("0")
+    try:
+        coupon = check(tenant, data.get("code"), subtotal, phone_key(str(data.get("phone") or "")))
+    except OrderError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    return jsonify(ok=True, coupon=public(coupon))
 
 
 @orders_bp.route("/<slug>/api/pedido", methods=["POST"])

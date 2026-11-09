@@ -463,6 +463,8 @@ class Order(db.Model):
     discount = db.Column(db.Numeric(8, 2), nullable=False, default=0, server_default="0")  # 1º pedido + fidelidade
     discount_note = db.Column(db.String(160))  # ex.: "1º pedido (10%) · Pizza grátis da fidelidade"
     first_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    coupon_id = db.Column(db.Integer, index=True)  # cupom usado; sem FK: excluir o cupom não mexe no pedido
+    coupon_code = db.Column(db.String(20))  # código na hora da venda
     loyalty_reward = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())  # usou pizza grátis
     loyalty_programs = db.Column(db.String(80))  # cartões cujo prêmio foi usado, ex.: ",1,2," (busca com LIKE)
     eta_at = db.Column(db.DateTime)  # previsão de chegada (entrega) ou de ficar pronto (retirada), em UTC
@@ -584,6 +586,28 @@ class PushCampaign(db.Model):
     repeat_weekly = db.Column(db.Boolean, nullable=False, default=False)
     sent_at = db.Column(db.DateTime)
     sent_count = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class Coupon(db.Model):
+    """Cupom de desconto (regras em app/services/coupons.py). Vale só nos pedidos do site."""
+
+    __tablename__ = "coupons"
+    __table_args__ = (db.UniqueConstraint("tenant_id", "code", name="uq_coupons_tenant_code"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id", name="fk_coupons_tenant_id"), nullable=False)
+    code = db.Column(db.String(20), nullable=False)  # SEXTOU10: só letras e números, em maiúsculas
+    title = db.Column(db.String(60))  # frase da vitrine; vazio = descreve o desconto
+    discount_type = db.Column(db.String(10), nullable=False, default="percent")  # percent | amount
+    value = db.Column(db.Numeric(8, 2), nullable=False)
+    min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
+    starts_on = db.Column(db.Date)
+    ends_on = db.Column(db.Date)
+    max_uses = db.Column(db.Integer)  # total de usos; vazio = sem limite
+    per_customer = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())  # 1 uso por cliente
+    show_on_site = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())  # vitrine; False = só com o código
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())  # False = pausado
     created_at = db.Column(db.DateTime, default=utcnow)
 
 

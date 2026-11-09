@@ -404,11 +404,12 @@ function openCheckout(){
     <label>Forma de pagamento<select name="pag" id="pag" required onchange="document.getElementById('troco').style.display=this.value==='Dinheiro'?'':'none';const pn=document.getElementById('pix-note');if(pn)pn.hidden=this.value!=='Pix'"><option value="">Selecione…</option>${DATA.tenant.accepted_payments.split(",").filter(p=>p.trim()).map(p=>`<option>${esc(p.trim())}</option>`).join("")}</select></label>${DATA.pix?`<p class="pix-note" id="pix-note" hidden>Pix: ao finalizar, aparece o QR Code e o “Pix copia e cola” com o valor do pedido para você pagar no app do banco.</p>`:""}
     <label id="troco" style="display:none">Troco para quanto? (opcional; maior que o total)<input name="troco" type="number" step="0.01" min="0" inputmode="decimal"></label>
     <label>Dividir a conta?<select name="dividir" onchange="totals()"><option value="">Não, uma pessoa paga tudo</option>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">Dividir entre ${n} pessoas</option>`).join("")}</select></label>
+    <div class="cpn-box" id="cpn-box"></div>
     <div class="sum" id="sum"></div>
     <p class="privacy">Usamos seu nome, telefone e endereço só para entregar e falar sobre o seu pedido.</p>
   </form>
   <div class="ft"><button class="bk" type="button" onclick="openCart()">‹ Voltar</button><button class="nx" type="submit" form="ckf" style="background:#25d366">Enviar pelo WhatsApp</button></div>`;
-  document.getElementById("ovl").classList.add("on");fillRemembered();fillAccount();totals();if(DATA.km)kmQuote();
+  document.getElementById("ovl").classList.add("on");fillRemembered();fillAccount();renderCouponBox();totals();if(DATA.km)kmQuote();
 }
 // nome, telefone e endereço ficam salvos só neste aparelho, para o próximo pedido ser mais rápido
 const REMEMBER_KEY="snep_cliente_"+DATA.tenant.slug;
@@ -526,14 +527,14 @@ async function sendOrder(f){
   const total=subtotal()-accDiscount().value+(fee()||0);
   if(troco!==null&&troco<total-0.004){toast(`O troco tem que ser para um valor maior que o total (${money(total)}).`);f.troco.focus();return false;}
   const payload={withdraw:wd,customer_name:f.nome.value,customer_phone:f.tel.value,street:wd?"":f.rua.value,cep:wd||!DATA.km?"":f.cep.value,number:wd?"":f.num.value,complement:wd?"":f.comp.value,residence:wd?"":resType(),building:wd||resType()==="casa"?"":f.predio.value,
-    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,split_people:f.dividir.value?Number(f.dividir.value):null,use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,client_ref:checkoutRef(),
+    neighborhood:wd?"":(f.bairro.value==="__outro__"?"":f.bairro.value),reference:wd?"":f.ref.value,payment_method:f.pag.value,change_for:troco,split_people:f.dividir.value?Number(f.dividir.value):null,coupon:COUPON?COUPON.code:"",use_rewards:usedRewards(),push_endpoint:PUSH_ENDPOINT,client_ref:checkoutRef(),
     items:cart.map(i=>({...i.sel,notes:i.notes,quantity:i.qty,title:i.title,border:i.border,addons_text:i.addons,extras_text:i.extras,unit_price:i.price}))};
   const btn=document.querySelector(".md .ft .nx");btn.disabled=true;btn.textContent="Enviando…";
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
       document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.ticket}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.discount?`<p class="disc-ok">Desconto de ${money(r.discount)} (${esc(r.discount_note)}) ✓</p>`:""}${r.track_url?`<a class="btn-track" href="${r.track_url}">Acompanhar pedido ›</a>`:""}${pushAskHtml((r.track_url||"").split("/").pop())}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
-      remember(payload);cart=[];REF_CART="";renderCart();accApi("").then(setAcc);
+      remember(payload);cart=[];REF_CART="";renderCart();accApi("").then(setAcc);if(COUPON)setCoupon(null);
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
   return false;
 }
@@ -641,18 +642,62 @@ function fillAccount(){
   setBairro(a.bairro);setResidence(a.tipo,a.predio);
 }
 // mesma conta do servidor (services/loyalty.py), só para o cliente ver o total antes de enviar
+let COUPON=null;  // cupom guardado: {code,title,text,type,value,min_order}
+function couponOff(rest){  // prévia na tela; quem calcula de verdade é o servidor
+  if(!COUPON||subtotal()<(COUPON.min_order||0))return 0;
+  return COUPON.type==="percent"?Math.round(rest*COUPON.value+1e-9)/100:Math.min(rest,COUPON.value);
+}
 function accDiscount(){
-  if(!ACC)return {value:0,note:""};
   let v=0;const notes=[];const s=subtotal();const free={};
-  usedRewards().forEach(id=>{
+  if(ACC)usedRewards().forEach(id=>{
     const l=(ACC.loyalty||[]).find(x=>x.id===id);if(!l)return;
     const opts=rewardItems(l).filter(({i,idx})=>(free[idx]||0)<i.qty);if(!opts.length)return;
     const best=opts.reduce((a,b)=>(b.i.base||0)>(a.i.base||0)?b:a);free[best.idx]=(free[best.idx]||0)+1;v+=best.i.base||0;notes.push(`${l.name} grátis`);
   });
-  if(ACC.first_order&&DATA.first_order){const rest=s-v;const cents=Math.round(rest*100);/* em centavos inteiros, arredondando meio centavo para cima como o servidor */const off=DATA.first_order.type==="percent"?Math.round(cents*DATA.first_order.value/100+1e-9)/100:Math.min(rest,DATA.first_order.value);if(off>0){v+=off;notes.push("1º pedido");}}
+  let first=0;
+  if(ACC&&ACC.first_order&&DATA.first_order){const rest=s-v;const cents=Math.round(rest*100);/* em centavos inteiros, arredondando meio centavo para cima como o servidor */first=DATA.first_order.type==="percent"?Math.round(cents*DATA.first_order.value/100+1e-9)/100:Math.min(rest,DATA.first_order.value);}
+  const co=couponOff(s-v);  // cupom não junta com o 1º pedido: vale o maior
+  if(co>first){v+=co;notes.push(`Cupom ${COUPON.code}`);}
+  else if(first>0){v+=first;notes.push("1º pedido");}
   return {value:Math.min(v,s),note:notes.join(" + ")};
 }
 accApi("").then(setAcc);
+
+/* ---------- cupons: vitrine no topo do cardápio e campo no pagamento ---------- */
+function setCoupon(c){
+  COUPON=c;
+  try{if(c)localStorage.setItem("cupom_"+DATA.tenant.slug,JSON.stringify(c));else localStorage.removeItem("cupom_"+DATA.tenant.slug);}catch(e){}
+  renderCoupons();
+  if(document.getElementById("cpn-box")){renderCouponBox();totals();}
+}
+function renderCoupons(){
+  const box=document.getElementById("coupons"), list=DATA.coupons||[];
+  if(!box||!list.length)return;
+  box.innerHTML=`<section class="cpn-shelf"><h2>🎟 Cupons para você</h2><div class="cpn-row">${list.map((c,i)=>{const got=COUPON&&COUPON.code===c.code;return `<div class="cpn${got?" got":""}"><div class="cpn-txt"><b>${esc(c.title)}</b><small>${esc(c.text)}</small><span class="cpn-code">${esc(c.code)}</span></div><button type="button" onclick="grabCoupon(${i})" ${got?"disabled":""}>${got?"✓ Guardado":"Pegar"}</button></div>`;}).join("")}</div></section>`;
+}
+function grabCoupon(i){setCoupon(DATA.coupons[i]);toast("Cupom guardado! O desconto entra no pagamento.");}
+function renderCouponBox(){
+  const box=document.getElementById("cpn-box");if(!box)return;
+  if(COUPON){
+    const short=subtotal()<(COUPON.min_order||0);
+    box.innerHTML=`<div class="cpn-on"><span>🎟 <b>${esc(COUPON.code)}</b><small>${short?`Falta pedido mínimo de ${money(COUPON.min_order)} para valer.`:esc(COUPON.text)}</small></span><button type="button" onclick="setCoupon(null)">Remover</button></div>`;
+    return;
+  }
+  box.innerHTML=`<label>Cupom de desconto<span class="cpn-in"><input id="cpn-code" maxlength="20" placeholder="Digite o código" autocapitalize="characters" onkeydown="if(event.key==='Enter'){event.preventDefault();applyCoupon()}"><button type="button" onclick="applyCoupon()">Aplicar</button></span></label>`;
+}
+async function applyCoupon(){
+  const el=document.getElementById("cpn-code"), code=el?el.value.trim():"";
+  if(!code){toast("Digite o código do cupom.");return;}
+  const tel=document.querySelector("#ckf [name=tel]");
+  try{
+    const r=await fetch(`/${DATA.tenant.slug}/api/cupom`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code,subtotal:subtotal(),phone:tel?tel.value:""})});
+    const j=await r.json();
+    if(!j.ok){toast(j.error||"Cupom inválido.");return;}
+    setCoupon(j.coupon);toast("Cupom aplicado!");
+  }catch(e){toast("Falha de conexão. Tente novamente.");}
+}
+try{COUPON=JSON.parse(localStorage.getItem("cupom_"+DATA.tenant.slug)||"null");}catch(e){COUPON=null;}
+renderCoupons();
 
 /* ---------- app no celular (PWA) e avisos (Web Push) ---------- */
 const SLUG=DATA.tenant.slug;

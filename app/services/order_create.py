@@ -26,6 +26,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import RESIDENCES, CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
+from app.services.coupons import amount_off as coupon_off
+from app.services.coupons import check as check_coupon
+from app.services.coupons import normalize as normalize_coupon
 from app.services.customers import has_real_name, phone_key, upsert_customer
 from app.services.delivery import calculate_fee
 from app.services.costs import Menu, cost_of
@@ -200,6 +203,20 @@ def place_order(tenant, p, channel="site", account=None):
         if not from_site and {int(x) for x in wanted if str(x).isdigit()} - set(used_programs):
             db.session.rollback()
             raise OrderError("Nenhum item do pedido serve para a pizza grátis marcada. Confira o tamanho e os sabores do cartão.")
+    coupon = None
+    if from_site and normalize_coupon(p.get("coupon")):
+        coupon = check_coupon(tenant, p.get("coupon"), subtotal, key)
+        loyalty_part = discount
+        if first_order:  # cupom não junta com o 1º pedido: vale o maior
+            loyalty_part = discounts(tenant, holder, cart, wanted, first_order=False)[0]
+        off = coupon_off(coupon, subtotal - loyalty_part)
+        if off > discount - loyalty_part:
+            discount = loyalty_part + off
+            first_order = False
+            notes = [n for n in discount_note.split(" · ") if n and n != "1º pedido"]
+            discount_note = " · ".join(notes + [f"Cupom {coupon.code}"])
+        else:
+            coupon = None
     total = subtotal - discount + (delivery_fee or Decimal("0"))
 
     payment = _text(p, "payment_method", 30)
@@ -278,6 +295,8 @@ def place_order(tenant, p, channel="site", account=None):
         discount=discount,
         discount_note=discount_note or None,
         first_order=first_order,
+        coupon_id=coupon.id if coupon else None,
+        coupon_code=coupon.code if coupon else None,
         loyalty_reward=bool(used_programs),
         loyalty_programs="," + ",".join(map(str, used_programs)) + "," if used_programs else None,
     )

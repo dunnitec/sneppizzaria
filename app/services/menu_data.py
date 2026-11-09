@@ -76,6 +76,7 @@ def data_from_db(tenant, order_url, assets):
     import json
 
     from app.models import Addon, Border, Category, Neighborhood
+    from app.services.coupons import showcase
     from app.services.hours import is_open, open_hours, store_weekday, wait_text
     from app.services.photos import photo_url
     from app.services.geo import km_on
@@ -162,6 +163,7 @@ def data_from_db(tenant, order_url, assets):
         "pix": bool(tenant.pix_key),  # QR Code do Pix no pedido feito (app/services/pix.py)
         # cadastro do cliente: fidelidade e 1º pedido (app/services/loyalty.py); o desconto é calculado no servidor
         "loyalty": loyalty_public(tenant),  # cartões fidelidade ligados
+        "coupons": showcase(tenant),  # vitrine de cupons (services/coupons.py)
         "first_order": ({"type": tenant.first_order_type, "value": float(tenant.first_order_value),
                          "text": first_order_text(tenant)} if first_order_on(tenant) else None),
         # cadastro do cliente só no plano com fidelidade (services/plans.py); vazio = site sem “Entrar”

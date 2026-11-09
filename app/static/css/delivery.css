@@ -506,3 +506,24 @@ h3 .slices{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .daily-add{margin-top:4px;padding:10px;border-radius:10px;background:var(--red);color:#fff;font-weight:800;text-align:center}
 .daily-card:hover .daily-add{filter:brightness(1.1)}
 @media (max-width:480px){.daily-row{grid-auto-columns:82%}}
+
+/* cupons: vitrine acima do cardápio e campo no pagamento */
+.cpn-shelf{margin:0 0 18px}
+.cpn-shelf h2{margin:0 0 10px;font:900 20px var(--display)}
+.cpn-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:12px;overflow-x:auto;padding-bottom:6px}
+.cpn{display:flex;align-items:center;gap:10px;padding:12px;border-radius:var(--radius);border:2px dashed var(--gold);background:var(--card);color:var(--text)}
+.cpn.got{border-style:solid;border-color:var(--ok)}
+.cpn-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cpn-txt b{font:800 15px var(--display)}
+.cpn-txt small{color:var(--muted);font-size:12.5px}
+.cpn-code{font:800 12px Consolas,monospace;letter-spacing:1px;color:var(--gold)}
+.cpn button{flex:none;padding:10px 14px;border:0;border-radius:10px;background:var(--red);color:#fff;font-weight:800;cursor:pointer}
+.cpn button:disabled{background:var(--ok);color:#05210f;cursor:default}
+.cpn-box{margin-top:12px}
+.cpn-in{display:flex;gap:8px;margin-top:4px}
+.cpn-in input{flex:1;min-width:0;text-transform:uppercase}
+.cpn-in button{flex:none;padding:0 16px;border:0;border-radius:10px;background:var(--red);color:#fff;font-weight:800;cursor:pointer}
+.cpn-on{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--ok)}
+.cpn-on small{display:block;font-size:12.5px;opacity:.8}
+.cpn-on button{background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer}
+@media (max-width:480px){.cpn-row{grid-auto-columns:88%}}
