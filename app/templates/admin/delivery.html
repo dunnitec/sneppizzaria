@@ -29,6 +29,14 @@
       <label class="money">Taxa fixa (R$)<input name="km_base_fee" value="{{ t.km_base_fee|money_input if t.km_base_fee is not none else '' }}" inputmode="decimal" placeholder="ex.: 4,00"></label>
       <p class="hint grow2">Ex.: até 1 km cobra R$ 4,00. Passou disso, a taxa fixa sai e cobra só pelo km. Em branco = sempre pelo km.</p>
     </div>
+    {% if km_near %}
+    <h3>Preço por km para perto <span class="hint">opcional</span></h3>
+    <div class="row">
+      <label class="money">Até (km)<input name="km_near_km" value="{{ km_value(t.km_near_km) }}" inputmode="decimal" placeholder="ex.: 4"></label>
+      <label class="money">Preço por km (R$)<input name="km_near_price" value="{{ t.km_near_price|money_input if t.km_near_price else '' }}" inputmode="decimal" placeholder="ex.: 2,10"></label>
+      <p class="hint grow2">Ex.: até 4 km cobra R$ 2,10 por km. Passou de 4 km, todos os km saem pelo preço de baixo. Em branco = não usa.</p>
+    </div>
+    {% endif %}
     <h3>Acima disso</h3>
     <div class="row">
       <label class="money">Preço por km (R$)<input name="km_price" value="{{ t.km_price|money_input if t.km_price else '' }}" inputmode="decimal" placeholder="2,00"></label>
@@ -117,11 +125,12 @@
       if (find) find.hidden = km;
       form.km_price.required = km;
       const price = num(form.km_price.value), baseKm = num(form.km_base_km.value), baseFee = num(form.km_base_fee.value);
+      const nearKm = form.km_near_km ? num(form.km_near_km.value) : null, nearPrice = form.km_near_price ? num(form.km_near_price.value) : null;
       const ex = document.getElementById("km-example");
       if (!price) { ex.textContent = ""; return; }
       // mesma regra do servidor (services/geo.py km_fee)
-      const fee = (d) => baseKm && baseFee !== null && d <= baseKm ? baseFee : Math.round(d * price * 100) / 100;
-      const kms = [...new Set([baseKm || 1, (baseKm || 1) + 0.5, 3, 6])].sort((a, b) => a - b);
+      const fee = (d) => baseKm && baseFee !== null && d <= baseKm ? baseFee : Math.round(d * (nearKm && nearPrice && d <= nearKm ? nearPrice : price) * 100) / 100;
+      const kms = [...new Set([baseKm || 1, (baseKm || 1) + 0.5, 3, 6, ...(nearKm ? [nearKm, nearKm + 1] : [])])].sort((a, b) => a - b);
       ex.textContent = "Exemplo: " + kms.map((d) => `${String(d).replace(".", ",")} km = ${money(fee(d))}`).join(" · ") + ".";
     }
     form.addEventListener("input", update);

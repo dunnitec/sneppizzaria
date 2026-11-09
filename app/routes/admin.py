@@ -42,6 +42,7 @@ from app.services.plans import has as has_feature
 from app.services.menu_data import DAILY_KINDS, WEEKDAYS
 from app.services.customers import erase_customer
 from app.services.money import brl, parse_money
+from app.services.geo import km_near_on
 from app.services.photos import PhotoError, delete_photo, save_photo
 from app.services.pix import KEY_TYPES as PIX_KEY_TYPES
 from app.services.pix import PixKeyError
@@ -951,7 +952,7 @@ def delivery():
         except FormError as e:
             _reject(e)
         return redirect(url_for("admin.delivery"))
-    return render_template("admin/delivery.html", hoods=hoods)
+    return render_template("admin/delivery.html", hoods=hoods, km_near=km_near_on(g.tenant))
 
 
 MAX_KM = Decimal("100")
@@ -1017,6 +1018,20 @@ def _new_place(tenant, form):
     return bool(cep and (cep != tenant.store_cep or number != (tenant.store_number or "")))
 
 
+def _save_km_near(tenant, form):
+    """Preço por km de perto: os dois campos juntos, e depois da taxa fixa (senão nunca seria usado)."""
+    near_km = _optional_km(form.get("km_near_km"), "na distância do preço de perto")
+    near_price = _optional_money(form.get("km_near_price"), "o preço por km de perto")
+    if (near_km is None) != (near_price is None):
+        raise FormError("Para o preço por km de perto, preencha os dois campos: até quantos km e o valor. "
+                        "Para não usar, deixe os dois em branco.")
+    if near_price is not None and near_price <= 0:
+        raise FormError("O preço por km de perto precisa ser maior que zero.")
+    if near_km is not None and tenant.km_base_km is not None and near_km <= tenant.km_base_km:
+        raise FormError("A distância do preço por km de perto precisa ser maior que a da taxa fixa.")
+    tenant.km_near_km, tenant.km_near_price = near_km, near_price
+
+
 @admin_bp.route("/entrega/modo", methods=["POST"])
 def delivery_mode():
     """Como cobrar a entrega: por bairro (tabela) ou por distância (km até a loja)."""
@@ -1034,6 +1049,8 @@ def delivery_mode():
             if (tenant.km_base_km is None) != (tenant.km_base_fee is None):
                 raise FormError("Para a taxa fixa de perto, preencha os dois campos: até quantos km e o valor. "
                                 "Para cobrar só pelo km, deixe os dois em branco.")
+            if km_near_on(tenant):
+                _save_km_near(tenant, form)
             tenant.km_max = _optional_km(form.get("km_max"), "na distância máxima")
             if form.get("store_coords", "").strip() or form.get("relocate") or tenant.store_lat is None or _new_place(tenant, form):
                 _locate_store(tenant, form.get("store_coords", ""), form.get("store_cep", ""), form.get("store_number", ""))

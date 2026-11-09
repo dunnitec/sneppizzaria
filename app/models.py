@@ -143,6 +143,9 @@ class Tenant(db.Model):
     payment_fees = db.Column(db.Text)  # JSON {"Débito": 1.99, "Crédito": 3.49}: taxa da maquininha em % (aba Custos)
     km_base_km = db.Column(db.Numeric(6, 1))  # até X km cobra a taxa fixa abaixo; acima, só km × km_price
     km_base_fee = db.Column(db.Numeric(8, 2))  # vazios = só km × km_price
+    # preço por km de perto (só nas lojas de geo.KM_NEAR_SLUGS): até km_near_km cobra km × km_near_price; passou, km × km_price em todos os km
+    km_near_km = db.Column(db.Numeric(6, 1))
+    km_near_price = db.Column(db.Numeric(8, 2))
     km_max = db.Column(db.Numeric(6, 1))  # entrega até X km; vazio = sem limite
     # acréscimo na entrega por tipo de endereço (o motoboy sobe no prédio / passa pela portaria); vazio = sem acréscimo
     fee_apartment = db.Column(db.Numeric(8, 2))

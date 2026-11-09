@@ -263,12 +263,22 @@ def km_between(lat1, lng1, lat2, lng2):
     return Decimal(str(straight * ROAD_FACTOR)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
 
+KM_NEAR_SLUGS = {"snep"}  # lojas com a opção “até X km cobra R$ Y por km” (regra específica, pedida só pela Snep)
+
+
+def km_near_on(tenant):
+    return tenant.slug in KM_NEAR_SLUGS
+
+
 def km_fee(tenant, km):
     """Preço: até km_base_km cobra a taxa fixa km_base_fee; acima disso, só km × R$/km (a fixa sai).
+    Nas lojas com preço de perto: até km_near_km cobra km × km_near_price; passou, TODOS os km saem a km_price.
     Sem taxa fixa configurada, sempre km × R$/km."""
     if tenant.km_base_km and tenant.km_base_fee is not None and km <= Decimal(str(tenant.km_base_km)):
         return Decimal(str(tenant.km_base_fee)).quantize(Decimal("0.01"))
-    return (km * Decimal(str(tenant.km_price or 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    near = km_near_on(tenant) and tenant.km_near_km and tenant.km_near_price and km <= Decimal(str(tenant.km_near_km))
+    price = tenant.km_near_price if near else tenant.km_price
+    return (km * Decimal(str(price or 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def km_on(tenant):

@@ -381,3 +381,52 @@ def test_route_service_down_falls_back_to_straight_line(km_store, net):
     q = geo.quote(km_store, street="Rua Perto", number="10")
     assert q["km"] == Decimal("1.3")
     assert GeoCache.query.filter(GeoCache.key.like("rota:%")).count() == 0  # não guarda a falha
+
+
+# ---------- preço por km de perto (só Snep) ----------
+
+@pytest.mark.parametrize("km,fee", [("2.0", "4.20"), ("4.0", "8.40"), ("4.1", "7.79"), ("5.0", "9.50")])
+def test_near_price_then_all_km_at_regular_price(km_store, km, fee):
+    km_store.km_base_km = km_store.km_base_fee = None
+    km_store.km_price, km_store.km_near_km, km_store.km_near_price = Decimal("1.90"), Decimal("4"), Decimal("2.10")
+    assert geo.km_fee(km_store, Decimal(km)) == Decimal(fee)
+
+
+def test_fixed_fee_still_comes_first(km_store):
+    km_store.km_near_km, km_store.km_near_price = Decimal("4"), Decimal("2.10")
+    assert geo.km_fee(km_store, Decimal("1.5")) == Decimal("5.00")
+    assert geo.km_fee(km_store, Decimal("1.6")) == Decimal("3.36")
+
+
+def test_near_price_ignored_in_other_stores(km_store):
+    km_store.km_near_km, km_store.km_near_price = Decimal("4"), Decimal("2.10")
+    km_store.slug = "outra"
+    assert geo.km_fee(km_store, Decimal("2.0")) == Decimal("4.00")
+
+
+def near_post(panel, **over):
+    return panel.post("/snep/admin/entrega/modo", data={"delivery_mode": "km", "km_price": "1,90", "store_coords": "-23.2641, -47.2995", **over},
+                      follow_redirects=True).get_data(as_text=True)
+
+
+def test_owner_saves_near_price(panel, tenant, net):
+    assert 'name="km_near_km"' in panel.get("/snep/admin/entrega").get_data(as_text=True)
+    near_post(panel, km_near_km="4", km_near_price="2,10")
+    assert (tenant.km_near_km, tenant.km_near_price) == (Decimal("4.0"), Decimal("2.10"))
+    near_post(panel, km_near_km="", km_near_price="")
+    assert tenant.km_near_km is None and tenant.km_near_price is None
+
+
+@pytest.mark.parametrize("over,msg", [
+    ({"km_near_km": "4"}, "preencha os dois campos"),
+    ({"km_near_km": "4", "km_near_price": "0"}, "maior que zero"),
+    ({"km_near_km": "1", "km_near_price": "2,10", "km_base_km": "2", "km_base_fee": "5,00"}, "maior que a da taxa fixa"),
+])
+def test_bad_near_price_is_rejected(panel, tenant, net, over, msg):
+    html = near_post(panel, **over)
+    assert msg in html and tenant.delivery_mode == "bairro" and tenant.km_near_km is None
+
+
+def test_other_store_has_no_near_price_option(panel, tenant, monkeypatch):
+    monkeypatch.setattr(geo, "KM_NEAR_SLUGS", set())
+    assert 'name="km_near_km"' not in panel.get("/snep/admin/entrega").get_data(as_text=True)
