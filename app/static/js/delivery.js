@@ -129,7 +129,8 @@ const DAILY=DATA.categories.flatMap(c=>c.products.filter(p=>p.daily&&p.variants.
 (function renderDaily(){
   const box=document.getElementById("daily");
   if(!box||!DAILY.length)return;
-  box.innerHTML=`<section class="daily"><h2>🔥 Combo${DAILY.length>1?"s":""} do dia</h2><div class="daily-row">${DAILY.map(({p,v},i)=>`<button type="button" class="daily-card${p.image?"":" no-img"}" onclick="addDaily(${i})" aria-label="Pôr ${esc(p.name)} na cesta, ${money(v.price)}">${p.image?`<img src="${esc(p.image)}" alt="" loading="lazy">`:""}<span class="daily-info"><b>${esc(p.name)}</b>${p.description?`<small>${esc(p.description)}</small>`:""}<span class="daily-price">${was(v)}${money(v.price)}</span><span class="daily-add">+ Pôr na cesta</span></span></button>`).join("")}</div></section>`;
+  const notes=document.getElementById("cat-recados");if(notes)notes.after(box);  // logo abaixo dos Recados
+  box.innerHTML=`<section class="daily"><h2>🔥 Combo${DAILY.length>1?"s":""} do dia</h2><div class="daily-row">${DAILY.map(({p,v},i)=>`<button type="button" class="daily-card${p.image?"":" no-img"}" onclick="addDaily(${i})" aria-label="Aproveitar oferta: ${esc(p.name)}, ${money(v.price)}">${p.image?`<img src="${esc(p.image)}" alt="" loading="lazy">`:""}<span class="daily-info"><b>${esc(p.name)}</b>${p.description?`<small>${esc(p.description)}</small>`:""}<span class="daily-price">${was(v)}${money(v.price)}</span><span class="daily-add">Aproveitar oferta ›</span></span></button>`).join("")}</div></section>`;
 })();
 function addDaily(i){
   if(CLOSED){toast(CLOSED_MSG);return;}

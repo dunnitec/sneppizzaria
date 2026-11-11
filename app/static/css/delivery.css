@@ -496,9 +496,9 @@ h3 .slices{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 /* combos do dia: faixa de fotos acima do cardápio; um toque põe na cesta */
 .daily{margin:0 0 18px}
 .daily h2{margin:0 0 10px;font:900 20px var(--display)}
-.daily-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+.daily-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);align-items:start;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
 .daily-card{scroll-snap-align:start;display:flex;flex-direction:column;padding:0;border-radius:var(--radius);border:2px solid var(--red);background:var(--card);color:var(--text);text-align:left;cursor:pointer;overflow:hidden;font:inherit}
-.daily-card img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover}
+.daily-card img{display:block;width:100%;height:auto}  /* arte inteira, sem recorte (o preço pode estar na imagem) */
 .daily-info{display:flex;flex-direction:column;gap:4px;padding:10px 12px 12px}
 .daily-info b{font:800 16px var(--display)}
 .daily-info small{color:var(--muted);font-size:13px}
