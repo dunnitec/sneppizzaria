@@ -125,7 +125,7 @@
   <div class="search-bar inline-search"><label class="grow">Procurar<input id="search" type="search" autocomplete="off" data-items=".flavor" data-sections=".none"></label><span id="search-count" class="hint" aria-live="polite"></span></div>
   <form method="post" action="{{ url_for('admin.menu_save', category_id=c.id) }}" data-track>
     {{ csrf() }}{% if pizza %}<input type="hidden" name="border_field" value="1">{% endif %}{% if daily %}<input type="hidden" name="daily_field" value="1">
-    <p class="hint"><b>Combo do dia:</b> marque os dias em que o item vale. Nesses dias ele aparece com a foto no topo do site e um toque já põe na cesta; nos outros dias fica fora do site. Ponha uma foto e um preço só. Sem dia marcado, é um item comum.</p>{% endif %}
+    <p class="hint"><b>Combo do dia:</b> marque os dias em que o item vale. Nesses dias ele aparece com a foto no cardápio, logo abaixo dos Recados, com o botão “Aproveitar oferta”; nos outros dias fica fora do site. Ponha uma foto e um preço só. Sem dia marcado, é um item comum.</p>{% endif %}
     {% for p in c.products %}
     <div class="item-row flavor {{ 'off' if not p.active }}" data-name="{{ p.name }} {{ p.description or '' }}">
       <div class="thumb">
