@@ -515,7 +515,7 @@ function fee(){
 // mesma conta do servidor (services/split.py): partes iguais, os centavos que sobram nas primeiras
 function splitParts(total,n){const c=Math.round(total*100),b=Math.floor(c/n),x=c-b*n;return Array.from({length:n},(_,i)=>(b+(i<x?1:0))/100);}
 function splitText(total,n){const p=splitParts(total,n),x=p.filter(v=>v!==p[n-1]).length;return x?`${x} de ${money(p[0])} e ${n-x} de ${money(p[n-1])}`:`${money(p[0])} cada`;}
-function totals(){const f=fee(),s=subtotal(),d=accDiscount(),dv=document.querySelector("#md [name=dividir]"),n=dv?Number(dv.value):0;document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.value?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.value)}</span></div>`:""}<div><span>Entrega${f&&DATA.km&&KMQ?` (${kmText(KMQ.km)} km)`:""}</span><span>${f===null?(DATA.km&&KMQ&&KMQ.status==="far"?"fora da área":DATA.km&&!document.querySelector("#ckf [name=num]").value.trim()?"falta o número":"a confirmar"):money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>${n>1?`<div class="split"><span>Por pessoa (${n})</span><span>${splitText(s-d.value+(f||0),n)}</span></div>`:""}`;}
+function totals(){if(COUPON)renderCouponBox();const f=fee(),s=subtotal(),d=accDiscount(),dv=document.querySelector("#md [name=dividir]"),n=dv?Number(dv.value):0;document.getElementById("sum").innerHTML=`<div><span>Subtotal</span><span>${money(s)}</span></div>${d.items?`<div class="disc"><span>Desconto (${esc(d.note)})</span><span>-${money(d.items)}</span></div>`:""}<div${d.free?' class="disc"':""}><span>Entrega${f&&DATA.km&&KMQ?` (${kmText(KMQ.km)} km)`:""}${d.free?` grátis (cupom ${esc(COUPON.code)})`:""}</span><span>${d.free?`<s>${money(f)}</s> ${money(0)}`:f===null?(DATA.km&&KMQ&&KMQ.status==="far"?"fora da área":DATA.km&&!document.querySelector("#ckf [name=num]").value.trim()?"falta o número":"a confirmar"):money(f)}</span></div><div class="tt"><span>Total${f===null?" (sem entrega)":""}</span><span>${money(s-d.value+(f||0))}</span></div>${n>1?`<div class="split"><span>Por pessoa (${n})</span><span>${splitText(s-d.value+(f||0),n)}</span></div>`:""}`;}
 function finish(ev){ev.preventDefault();sendOrder(ev.target);return false;}
 async function sendOrder(f){
   const wd=document.getElementById("ck-wd").checked;
@@ -646,6 +646,7 @@ function fillAccount(){
 let COUPON=null;  // cupom guardado: {code,title,text,type,value,min_order}
 function couponOff(rest){  // prévia na tela; quem calcula de verdade é o servidor
   if(!COUPON||subtotal()<(COUPON.min_order||0))return 0;
+  if(COUPON.type==="frete"){const f=fee();if(!f)return 0;if(COUPON.max_km&&DATA.km&&KMQ&&KMQ.km>COUPON.max_km)return 0;return f;}
   return COUPON.type==="percent"?Math.round(rest*COUPON.value+1e-9)/100:Math.min(rest,COUPON.value);
 }
 function accDiscount(){
@@ -658,9 +659,10 @@ function accDiscount(){
   let first=0;
   if(ACC&&ACC.first_order&&DATA.first_order){const rest=s-v;const cents=Math.round(rest*100);/* em centavos inteiros, arredondando meio centavo para cima como o servidor */first=DATA.first_order.type==="percent"?Math.round(cents*DATA.first_order.value/100+1e-9)/100:Math.min(rest,DATA.first_order.value);}
   const co=couponOff(s-v);  // cupom não junta com o 1º pedido: vale o maior
-  if(co>first){v+=co;notes.push(`Cupom ${COUPON.code}`);}
+  let freeFee=0;  // entrega grátis: sai da linha da entrega, não do desconto dos itens
+  if(co>first){if(COUPON.type==="frete")freeFee=co;else{v+=co;notes.push(`Cupom ${COUPON.code}`);}}
   else if(first>0){v+=first;notes.push("1º pedido");}
-  return {value:Math.min(v,s),note:notes.join(" + ")};
+  return {value:Math.min(v,s)+freeFee,items:Math.min(v,s),free:freeFee,note:notes.join(" + ")};
 }
 accApi("").then(setAcc);
 
@@ -680,8 +682,9 @@ function grabCoupon(i){setCoupon(DATA.coupons[i]);toast("Cupom guardado! O desco
 function renderCouponBox(){
   const box=document.getElementById("cpn-box");if(!box)return;
   if(COUPON){
-    const short=subtotal()<(COUPON.min_order||0);
-    box.innerHTML=`<div class="cpn-on"><span>🎟 <b>${esc(COUPON.code)}</b><small>${short?`Falta pedido mínimo de ${money(COUPON.min_order)} para valer.`:esc(COUPON.text)}</small></span><button type="button" onclick="setCoupon(null)">Remover</button></div>`;
+    const short=subtotal()<(COUPON.min_order||0), wd=COUPON.type==="frete"&&document.getElementById("ck-wd")&&document.getElementById("ck-wd").checked;
+    const far=COUPON.type==="frete"&&!wd&&COUPON.max_km&&DATA.km&&KMQ&&KMQ.km>COUPON.max_km;
+    box.innerHTML=`<div class="cpn-on"><span>🎟 <b>${esc(COUPON.code)}</b><small>${short?`Falta pedido mínimo de ${money(COUPON.min_order)} para valer.`:wd?"Entrega grátis não vale para retirada.":far?`Entrega grátis só até ${kmText(COUPON.max_km)} km. Remova o cupom para continuar.`:esc(COUPON.text)}</small></span><button type="button" onclick="setCoupon(null)">Remover</button></div>`;
     return;
   }
   box.innerHTML=`<label>Cupom de desconto<span class="cpn-in"><input id="cpn-code" maxlength="20" placeholder="Digite o código" autocapitalize="characters" onkeydown="if(event.key==='Enter'){event.preventDefault();applyCoupon()}"><button type="button" onclick="applyCoupon()">Aplicar</button></span></label>`;

@@ -602,8 +602,9 @@ class Coupon(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id", name="fk_coupons_tenant_id"), nullable=False)
     code = db.Column(db.String(20), nullable=False)  # SEXTOU10: só letras e números, em maiúsculas
     title = db.Column(db.String(60))  # frase da vitrine; vazio = descreve o desconto
-    discount_type = db.Column(db.String(10), nullable=False, default="percent")  # percent | amount
-    value = db.Column(db.Numeric(8, 2), nullable=False)
+    discount_type = db.Column(db.String(10), nullable=False, default="percent")  # percent | amount | frete (entrega grátis)
+    value = db.Column(db.Numeric(8, 2), nullable=False)  # frete: 0 (o desconto é a própria taxa de entrega)
+    max_km = db.Column(db.Numeric(6, 1))  # frete: só entregas até essa distância; vazio = qualquer distância
     min_order = db.Column(db.Numeric(8, 2))  # pedido mínimo (sem a entrega); vazio = sem mínimo
     starts_on = db.Column(db.Date)
     ends_on = db.Column(db.Date)

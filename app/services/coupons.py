@@ -2,6 +2,8 @@
 
 Vale só no site. O desconto é calculado aqui no servidor, sobre os itens (sem a entrega) e depois da pizza
 grátis da fidelidade. Não junta com o desconto do 1º pedido: vale o maior dos dois.
+O cupom de entrega grátis (discount_type="frete") desconta a taxa de entrega inteira; a taxa continua gravada
+no pedido (corrida do motoboy, relatório de entregas) e o desconto entra no campo de desconto.
 """
 import re
 from decimal import ROUND_HALF_UP, Decimal
@@ -39,13 +41,23 @@ def status(coupon, today):
     return "ok", "Valendo"
 
 
+FREE = "frete"
+
+
+def km_text(km):
+    return f"{Decimal(km).normalize():f}".replace(".", ",")
+
+
 def describe(coupon):
     """Texto para o cliente: “10% de desconto · pedido mínimo R$ 50,00 · até 30/11”."""
-    if coupon.discount_type == "percent":
-        value = f"{Decimal(coupon.value).normalize():f}".replace(".", ",") + "%"
+    if coupon.discount_type == FREE:
+        parts = ["Entrega grátis" + (f" até {km_text(coupon.max_km)} km" if coupon.max_km else "")]
     else:
-        value = brl(coupon.value)
-    parts = [f"{value} de desconto"]
+        if coupon.discount_type == "percent":
+            value = f"{Decimal(coupon.value).normalize():f}".replace(".", ",") + "%"
+        else:
+            value = brl(coupon.value)
+        parts = [f"{value} de desconto"]
     if coupon.min_order:
         parts.append(f"pedido mínimo {brl(coupon.min_order)}")
     if coupon.ends_on:
@@ -57,6 +69,7 @@ def public(coupon):
     """O que o navegador recebe (o desconto mostrado na tela é só uma prévia: quem calcula é o servidor)."""
     return {"code": coupon.code, "title": coupon.title or describe(coupon), "text": describe(coupon),
             "type": coupon.discount_type, "value": float(coupon.value),
+            "max_km": float(coupon.max_km) if coupon.max_km else None,
             "min_order": float(coupon.min_order) if coupon.min_order else 0}
 
 
@@ -97,3 +110,17 @@ def amount_off(coupon, rest):
     value = Decimal(coupon.value)
     off = rest * value / 100 if coupon.discount_type == "percent" else value
     return max(Decimal("0"), min(rest, off)).quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def free_delivery_off(coupon, withdraw, delivery_fee, distance):
+    """Cupom de entrega grátis: devolve a taxa a descontar, ou levanta OrderError com a mensagem para o cliente."""
+    if withdraw:
+        raise OrderError(f"O cupom {coupon.code} é de entrega grátis e não vale para retirada. "
+                         "Escolha a entrega ou remova o cupom.")
+    if coupon.max_km and distance is not None and Decimal(str(distance)) > coupon.max_km:
+        raise OrderError(f"O cupom {coupon.code} dá entrega grátis até {km_text(coupon.max_km)} km, e este endereço "
+                         f"fica a {km_text(Decimal(str(distance)).quantize(Decimal('0.1')))} km. Remova o cupom para continuar.")
+    if delivery_fee is None:
+        raise OrderError(f"Não conseguimos calcular a entrega deste endereço para usar o cupom {coupon.code}. "
+                         "Confira o endereço ou remova o cupom.")
+    return Decimal(delivery_fee).quantize(CENT)

@@ -2,9 +2,10 @@
 {% block title %}Cupons{% endblock %}
 {% block help %}
 <ul>
-  <li>Crie um cupom com <b>código</b>, desconto em <b>%</b> ou em <b>R$</b> e, se quiser, pedido mínimo, período e limite de usos.</li>
+  <li>Crie um cupom com <b>código</b>, desconto em <b>%</b>, em <b>R$</b> ou <b>entrega grátis</b> e, se quiser, pedido mínimo, período e limite de usos.</li>
   <li>Com <b>Mostrar no site</b> ligado, o cliente vê o cupom no topo do cardápio e toca em <b>Pegar</b>. Desligado, só vale digitando o código (bom para divulgar no Instagram).</li>
-  <li>O desconto vale sobre os itens, sem a entrega. Não junta com o desconto do 1º pedido: vale o maior dos dois.</li>
+  <li>O desconto em % ou R$ vale sobre os itens, sem a entrega. Não junta com o desconto do 1º pedido: vale o maior dos dois.</li>
+  <li><b>Entrega grátis</b> desconta a taxa de entrega inteira e não vale para retirada. Em “até quantos km” você limita a distância; em branco, vale para qualquer endereço. A corrida do motoboy continua com o valor normal.</li>
   <li>Pedido cancelado devolve o uso do cupom.</li>
 </ul>
 {% endblock %}
@@ -20,8 +21,9 @@
       <label class="grow2">Frase na vitrine (opcional)<input name="title" maxlength="60" placeholder="Sexta com 10% de desconto"></label>
     </div>
     <div class="row">
-      <label>Tipo<select name="discount_type"><option value="percent">Porcentagem (%)</option><option value="amount">Valor (R$)</option></select></label>
-      <label class="money">Desconto<input name="value" inputmode="decimal" required placeholder="10"></label>
+      <label>Tipo<select name="discount_type" id="cpn-kind"><option value="percent">Porcentagem (%)</option><option value="amount">Valor (R$)</option><option value="frete">Entrega grátis</option></select></label>
+      <label class="money" id="cpn-value">Desconto<input name="value" inputmode="decimal" required placeholder="10"></label>
+      <label class="money" id="cpn-km" hidden>Até quantos km<input name="max_km" inputmode="decimal" placeholder="qualquer"></label>
       <label class="money">Pedido mínimo (R$)<input name="min_order" inputmode="decimal" placeholder="opcional"></label>
       <label class="money">Limite de usos<input name="max_uses" inputmode="numeric" placeholder="sem limite"></label>
     </div>
@@ -33,10 +35,20 @@
     </div>
     <div class="savebar"><button class="primary">Criar cupom</button></div>
   </form>
+  <script>
+    (function () {
+      const kind = document.getElementById("cpn-kind"), value = document.getElementById("cpn-value"), km = document.getElementById("cpn-km");
+      function sync() {
+        const free = kind.value === "frete";
+        value.hidden = free; value.querySelector("input").required = !free; km.hidden = !free;
+      }
+      kind.addEventListener("change", sync); sync();
+    })();
+  </script>
 </section>
 
 {% if not rows %}
-<section class="card"><p class="hint">Nenhum cupom ainda. Exemplos: “SEXTOU10”, 10% às sextas; “VOLTA15”, R$ 15,00 em pedidos acima de R$ 80,00.</p></section>
+<section class="card"><p class="hint">Nenhum cupom ainda. Exemplos: “SEXTOU10”, 10% às sextas; “VOLTA15”, R$ 15,00 em pedidos acima de R$ 80,00; “FRETEGRATIS”, entrega grátis até 5 km.</p></section>
 {% endif %}
 
 {% for r in rows %}

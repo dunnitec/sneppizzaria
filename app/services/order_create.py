@@ -27,7 +27,9 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import RESIDENCES, CHANNELS, Customer, LoyaltyProgram, Order, OrderItem, OrderItemFlavor, utcnow
 from app.services.coupons import amount_off as coupon_off
+from app.services.coupons import FREE as FREE_DELIVERY
 from app.services.coupons import check as check_coupon
+from app.services.coupons import free_delivery_off
 from app.services.coupons import normalize as normalize_coupon
 from app.services.customers import has_real_name, phone_key, upsert_customer
 from app.services.delivery import calculate_fee
@@ -209,12 +211,14 @@ def place_order(tenant, p, channel="site", account=None):
         loyalty_part = discount
         if first_order:  # cupom não junta com o 1º pedido: vale o maior
             loyalty_part = discounts(tenant, holder, cart, wanted, first_order=False)[0]
-        off = coupon_off(coupon, subtotal - loyalty_part)
+        free = coupon.discount_type == FREE_DELIVERY
+        off = (free_delivery_off(coupon, withdraw, delivery_fee, distance) if free
+               else coupon_off(coupon, subtotal - loyalty_part))
         if off > discount - loyalty_part:
             discount = loyalty_part + off
             first_order = False
             notes = [n for n in discount_note.split(" · ") if n and n != "1º pedido"]
-            discount_note = " · ".join(notes + [f"Cupom {coupon.code}"])
+            discount_note = " · ".join(notes + [f"Entrega grátis, cupom {coupon.code}" if free else f"Cupom {coupon.code}"])
         else:
             coupon = None
     total = subtotal - discount + (delivery_fee or Decimal("0"))
