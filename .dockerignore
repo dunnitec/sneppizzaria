@@ -10,3 +10,4 @@ instance/
 *.bundle
 tests/
 .pytest_cache/
+.claude/
