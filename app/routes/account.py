@@ -7,6 +7,7 @@ cadastro, e o dono pode gerar uma senha nova em Clientes quando o cliente esquec
 """
 
 import re
+from datetime import timedelta
 
 from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -236,6 +237,34 @@ def track_steps(order):
         steps.append(("Pronto para retirar", order.ready_at, bool(order.ready_at) and order.status in ("confirmado", "entregue")))
         steps.append(("Retirado" if order.channel == "site" else "Entregue", order.delivered_at, order.status == "entregue"))
     return [{"label": label, "time": _hm(at), "done": done} for label, at, done in steps]
+
+
+LIVE_HOURS = 12  # pedido em aberto aparece no topo do site por até 12 h
+SHORT_STEPS = {"Pedido recebido": "Recebido", "Confirmado pela pizzaria": "Em preparo",
+               "Pronto para retirar": "Pronto"}
+
+
+@account_bp.route("/<slug>/api/acompanhar")
+def track_live(slug):
+    """Pedidos em andamento do cliente (pelos links guardados no aparelho e pela conta logada), para o topo do site.
+    Entregue ou cancelado sai da lista."""
+    tenant = get_tenant_or_404(slug)
+    if not has_feature(tenant, "rastreio"):
+        return jsonify(orders=[])
+    tokens = [t for t in str(request.args.get("t") or "").split(",") if t][:5]
+    since = utcnow() - timedelta(hours=LIVE_HOURS)
+    open_orders = (Order.tenant_id == tenant.id, Order.created_at >= since, Order.status.notin_(("entregue", "cancelado")),
+                   Order.track_token.isnot(None))
+    found = {o.id: o for o in Order.query.filter(*open_orders, Order.track_token.in_(tokens))} if tokens else {}
+    account = current_customer(tenant)
+    if account:
+        found.update({o.id: o for o in Order.query.filter(*open_orders, Order.customer_id == account.id)})
+    out = []
+    for o in sorted(found.values(), key=lambda o: o.id, reverse=True)[:3]:
+        out.append({"ticket": o.ticket, "status": ORDER_STATUSES.get(o.status, o.status), "eta": o.eta_text() or None,
+                    "url": url_for("account.track", slug=slug, token=o.track_token),
+                    "steps": [{"label": SHORT_STEPS.get(s["label"], s["label"]), "done": s["done"]} for s in track_steps(o)]})
+    return jsonify(orders=out)
 
 
 @account_bp.route("/<slug>/pedido/<token>")

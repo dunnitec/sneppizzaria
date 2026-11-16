@@ -272,13 +272,17 @@ def km_near_on(tenant):
 
 def km_fee(tenant, km):
     """Preço: até km_base_km cobra a taxa fixa km_base_fee; acima disso, só km × R$/km (a fixa sai).
-    Nas lojas com preço de perto: até km_near_km cobra km × km_near_price; passou, TODOS os km saem a km_price.
+    Nas lojas com preço de perto: os primeiros km_near_km saem a km_near_price e só os km que passam disso a km_price
+    (ex.: 4 km × 2,10 = 8,40; 5 km = 8,40 + 1 × 1,90 = 10,30).
     Sem taxa fixa configurada, sempre km × R$/km."""
     if tenant.km_base_km and tenant.km_base_fee is not None and km <= Decimal(str(tenant.km_base_km)):
         return Decimal(str(tenant.km_base_fee)).quantize(Decimal("0.01"))
-    near = km_near_on(tenant) and tenant.km_near_km and tenant.km_near_price and km <= Decimal(str(tenant.km_near_km))
-    price = tenant.km_near_price if near else tenant.km_price
-    return (km * Decimal(str(price or 0))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    price = Decimal(str(tenant.km_price or 0))
+    if km_near_on(tenant) and tenant.km_near_km and tenant.km_near_price:
+        near_km, near_price = Decimal(str(tenant.km_near_km)), Decimal(str(tenant.km_near_price))
+        first = min(km, near_km)
+        return (first * near_price + (km - first) * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return (km * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def km_on(tenant):

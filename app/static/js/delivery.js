@@ -393,7 +393,7 @@ function openCheckout(){
     <label>Telefone / WhatsApp<input name="tel" type="tel" required ${ACC?"readonly":""}></label>
     <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" id="ck-wd" style="width:18px;height:18px;margin:0" ${wd?"checked":""} onchange="document.getElementById('addr').style.display=this.checked?'none':'';totals()"> Retirar na loja</label>
     <div id="addr" style="${wd?"display:none":""}">
-      <div class="res-pick" role="radiogroup" aria-label="Tipo de endereço"><span class="res-lbl">Tipo de endereço</span>${RESIDENCES.map(([v,l])=>`<label><input type="radio" name="tipo" value="${v}" ${v==="casa"?"checked":""} onchange="resChange()"><span>${l}${resFee(v)?`<small>+${money(resFee(v))}</small>`:""}</span></label>`).join("")}</div>
+      <div class="res-pick" role="radiogroup" aria-label="Tipo de endereço"><span class="res-lbl">Tipo de endereço</span>${RESIDENCES.map(([v,l])=>`<label><input type="radio" name="tipo" value="${v}" ${v==="casa"?"checked":""} onchange="resChange()"><span>${l}</span></label>`).join("")}</div>
       <label id="predio-box" hidden><span id="predio-lbl">Nome do prédio</span><input name="predio" maxlength="120"></label>
       ${DATA.km?`<label>CEP<input name="cep" id="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" oninput="cepInput(this)"></label>
       <p class="km-info" id="km-info" aria-live="polite">${KM_ASK_CEP}</p>`:""}
@@ -534,6 +534,7 @@ async function sendOrder(f){
   fetch(DATA.order_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
     .then(r=>r.json()).then(r=>{
       if(!r.ok){toast(r.error||"Erro ao enviar pedido.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";return;}
+      keepTrack((r.track_url||"").split("/").pop());  // card de acompanhamento no topo do site
       document.getElementById("md").innerHTML=`<button class="x" onclick="closeModal()">×</button><div class="body succ"><h3>Pedido pronto! 🍕</h3>${r.order_id?`<p>Pedido <b>#${r.ticket}</b> · Total ${money(r.total)}${r.delivery_fee===null?" + entrega a confirmar":""}</p>`:""}${r.discount?`<p class="disc-ok">Desconto de ${money(r.discount)} (${esc(r.discount_note)}) ✓</p>`:""}${r.track_url?`<a class="btn-track" href="${r.track_url}">Acompanhar pedido ›</a>`:""}${pushAskHtml((r.track_url||"").split("/").pop())}${r.eta?`<p class="eta-box">${r.eta_label}: <b>${r.eta}</b></p>`:""}${pixBox(r)}<p>${r.pix?"Depois de pagar, abra o WhatsApp para enviar o pedido e o comprovante para a pizzaria.":"Clique abaixo para abrir o WhatsApp com o pedido preenchido e enviar para a pizzaria."}</p><a class="btn-red btn-wa" style="display:block;padding:14px;font-size:16px" href="${r.wa_link}" target="_blank" rel="noopener">Abrir WhatsApp</a></div><div class="ft"><button class="bk" style="flex:1" onclick="closeModal()">Fechar</button></div>`;
       remember(payload);cart=[];REF_CART="";renderCart();accApi("").then(setAcc);if(COUPON)setCoupon(null);
     }).catch(()=>{toast("Falha de conexão. Tente novamente.");btn.disabled=false;btn.textContent="Enviar pelo WhatsApp";});
@@ -796,3 +797,28 @@ function openPromos(){
   let seen=""; try{seen=sessionStorage.getItem(key)||"";}catch(e){}
   if(ids&&seen!==ids){setTimeout(()=>{if(!document.getElementById("ovl").classList.contains("on"))openPromos();},900);try{sessionStorage.setItem(key,ids);}catch(e){}}
 })();
+
+/* ---------- acompanhamento no topo do site: pedido em andamento aparece sozinho; entregue ou cancelado some ---------- */
+const TRACK_KEY="pedidos_"+DATA.tenant.slug, TRACK_HOURS=12;
+function trackTokens(){
+  let list=[];try{list=JSON.parse(localStorage.getItem(TRACK_KEY)||"[]");}catch(e){}
+  const now=Date.now();return Array.isArray(list)?list.filter(x=>x&&x.t&&now-x.at<TRACK_HOURS*3600e3):[];
+}
+function keepTrack(token){
+  if(!token)return;
+  const list=trackTokens().filter(x=>x.t!==token);list.unshift({t:token,at:Date.now()});
+  try{localStorage.setItem(TRACK_KEY,JSON.stringify(list.slice(0,5)));}catch(e){}
+  setTimeout(trackLive,500);
+}
+let TRACK_TIMER=null;
+async function trackLive(){
+  const box=document.getElementById("track-live");if(!box)return;
+  const tokens=trackTokens().map(x=>x.t);
+  let orders=[];
+  try{const r=await fetch(`/${DATA.tenant.slug}/api/acompanhar?t=${encodeURIComponent(tokens.join(","))}`,{credentials:"same-origin"});if(r.ok)orders=(await r.json()).orders||[];}catch(e){return;}
+  box.innerHTML=orders.map(o=>`<a class="trk" href="${o.url}"><span class="trk-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></span><span class="trk-main"><b>Acompanhe seu pedido</b><small>Pedido #${esc(String(o.ticket))} · ${esc(o.status)}${o.eta?` · previsão ${esc(o.eta)}`:""}</small><span class="trk-steps">${o.steps.map((s,i)=>`<span class="trk-st${s.done?" done":""}${s.done&&!(o.steps[i+1]||{}).done?" now":""}"><i></i><em>${esc(s.label)}</em></span>`).join("")}</span></span><span class="trk-go" aria-hidden="true">›</span></a>`).join("");
+  clearTimeout(TRACK_TIMER);
+  if(orders.length)TRACK_TIMER=setTimeout(trackLive,30000);
+}
+trackLive();
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")trackLive();});

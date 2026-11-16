@@ -385,8 +385,8 @@ def test_route_service_down_falls_back_to_straight_line(km_store, net):
 
 # ---------- preço por km de perto (só Snep) ----------
 
-@pytest.mark.parametrize("km,fee", [("2.0", "4.20"), ("4.0", "8.40"), ("4.1", "7.79"), ("5.0", "9.50")])
-def test_near_price_then_all_km_at_regular_price(km_store, km, fee):
+@pytest.mark.parametrize("km,fee", [("2.0", "4.20"), ("4.0", "8.40"), ("4.1", "8.59"), ("5.0", "10.30"), ("6.0", "12.20")])
+def test_near_price_then_extra_km_at_regular_price(km_store, km, fee):
     km_store.km_base_km = km_store.km_base_fee = None
     km_store.km_price, km_store.km_near_km, km_store.km_near_price = Decimal("1.90"), Decimal("4"), Decimal("2.10")
     assert geo.km_fee(km_store, Decimal(km)) == Decimal(fee)
