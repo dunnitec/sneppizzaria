@@ -483,7 +483,7 @@ function kmQuote(){
     if(f.num.value.trim()!==num||(rua&&f.rua.value.trim()!==rua)||(hood&&f.bairro.value.trim()!==hood)||f.cep.value.replace(/\D/g,"")!==cep){KMQ=null;KMQ_KEY="";KMQ_RUN=null;return kmQuote();}
     KMQ=r;KMQ_KEY=kmKey();
     info.className="km-info"+(r.status==="far"?" bad":r.status==="ok"?" ok":"");
-    info.textContent=r.status==="number"?KM_ASK_NUMBER:r.status==="ok"?`Entrega: ${kmText(r.km)} km · ${money(r.fee)}${r.approx?" (aproximado: não achamos este número exato no mapa)":""}`:
+    info.textContent=r.status==="number"?KM_ASK_NUMBER:r.status==="ok"?`Entrega: ${kmText(r.km)} km até você${r.approx?" (aproximado: não achamos este número exato no mapa)":""}`:
       r.status==="far"?`Este endereço fica a cerca de ${kmText(r.km)} km. Entregamos até ${kmText(DATA.km.max)} km. Você pode retirar na loja.`:
       cep.length===8&&!r.cep_found?"CEP não encontrado. Confira o número ou preencha rua e bairro.":
       "Não achamos este endereço no mapa. A pizzaria confirma a taxa pelo WhatsApp.";
