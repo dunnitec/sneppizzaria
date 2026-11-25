@@ -58,7 +58,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/<slug>/admin")
 STORE_STATUS = {"auto": None, "open": True, "closed": False}
 # o que um usuário "funcionario" pode abrir; o "dono" abre tudo
 STAFF_ENDPOINTS = {"admin.login", "admin.logout", "admin.index", "admin.orders", "admin.orders_poll",
-                   "admin.order_label", "admin.order_printed", "admin.order_new", "admin.order_customer", "admin.dispatches", "admin.dispatch_new",
+                   "admin.order_label", "admin.order_printed", "admin.order_new", "admin.order_customer", "admin.order_fee_quote", "admin.dispatches", "admin.dispatch_new",
                    "admin.dispatch_return", "admin.dispatch_remove_order", "admin.dispatch_label",
                    "admin.order_status", "admin.order_pix", "admin.order_ready", "admin.pickup_tv", "admin.pickup_tv_data", "admin.password", "admin.stock", "admin.stock_toggle", "admin.stock_bulk"}
 PAYMENT_OPTIONS = ["Dinheiro", "Pix", "Débito", "Crédito"]

@@ -81,10 +81,11 @@
     <tr><td>Comanda {{ d.number }} · {{ d.courier.name }}</td><td>{{ (d.created_at|local_time).strftime('%d/%m %H:%M') }} → {{ (d.returned_at|local_time).strftime('%H:%M') }}</td><td class="v">{{ d.orders|length }} ped.</td><td class="v">taxas {{ s.fees|brl }}</td></tr>
     {% endfor %}
   </table>
-  {% if has_feature('relatorios') %}<p class="hint">Total de entregas e taxas por motoboy no período: veja em <a href="{{ url_for('admin.reports') }}">Relatórios</a>.</p>{% endif %}
+  {% if has_feature('relatorios') and is_owner %}<p class="hint">Total de entregas e taxas por motoboy no período: veja em <a href="{{ url_for('admin.reports') }}">Relatórios</a>.</p>{% endif %}
 </section>
 {% endif %}
 
+{% if is_owner %}{# cadastrar e tirar motoboy é só do dono (funcionário recebia página de erro) #}
 <section class="card" id="motoboys">
   <h2>Motoboys</h2>
   {% for c in couriers %}
@@ -100,5 +101,6 @@
     <button class="primary small">Cadastrar motoboy</button>
   </form>
 </section>
+{% endif %}
 {% if print_dispatch %}<iframe class="print-frame" src="{{ url_for('admin.dispatch_label', dispatch_id=print_dispatch, auto=1) }}" title="Impressão da comanda" aria-hidden="true"></iframe>{% endif %}
 {% endblock %}

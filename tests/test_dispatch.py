@@ -128,7 +128,9 @@ def test_staff_can_dispatch(client, tenant, joao):
     db.session.commit()
     login(client, username="caixa")
     o = ready(tenant)
-    assert client.get("/snep/admin/entregas").status_code == 200
+    page = client.get("/snep/admin/entregas")
+    assert page.status_code == 200
+    assert "Cadastrar motoboy" not in page.get_data(as_text=True)  # só o dono cadastra (funcionário recebia erro)
     client.post("/snep/admin/entregas/nova", data={"courier_id": joao.id, "orders": [o.id]})
     assert Dispatch.query.count() == 1
 

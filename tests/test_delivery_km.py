@@ -430,3 +430,13 @@ def test_bad_near_price_is_rejected(panel, tenant, net, over, msg):
 def test_other_store_has_no_near_price_option(panel, tenant, monkeypatch):
     monkeypatch.setattr(geo, "KM_NEAR_SLUGS", set())
     assert 'name="km_near_km"' not in panel.get("/snep/admin/entrega").get_data(as_text=True)
+
+
+def test_staff_can_quote_fee_on_pos(client, tenant, km_store, net):
+    """Funcionário no Novo pedido: o CEP calcula a taxa (antes a consulta era recusada e a tela dizia “sem conexão”)."""
+    staff = make_admin(tenant, username="caixa")
+    staff.role = "funcionario"
+    db.session.commit()
+    login(client, username="caixa")
+    r = client.get("/snep/admin/pedidos/frete?cep=13300000&number=10")
+    assert r.status_code == 200 and r.json["fee"] == 5.0
